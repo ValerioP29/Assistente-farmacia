@@ -1,0 +1,71 @@
+ @import url(color.css);
+
+:root {
+ 
+  /* larghezza sidebar desktop */
+  --sidebar-width: 250px;
+  /* larghezza offcanvas mobile */
+  --offcanvas-width: 50%; 
+}
+
+/* Utility */
+
+.hidden { display: none !important; }
+
+
+/* sidebar desktop */
+aside.sidebar-left {
+  background-color: var(--primary-color);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  padding: 1rem;
+  overflow-y: auto;
+}
+aside.sidebar-left .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: .5rem 1rem;
+  color: #fff;
+}
+aside.sidebar-left .nav-link.selected {
+  background-color: var(--secondary-color);
+  border-radius: 4px;
+}
+
+/* offcanvas mobile */
+
+.offcanvas-header {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.offcanvas.offcanvas-start {
+  width: var(--offcanvas-width);
+}
+.offcanvas .sidebar-left {
+  background-color: var(--primary-color);
+  height: 100%;
+  padding-top: 1rem;
+}
+.offcanvas .nav-link {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  color: #fff;
+}
+.offcanvas .nav-link.selected {
+  background-color: var(--secondary-color);
+  border-radius: 4px;
+}
+
+/* nascondi sidebar desktop sotto lg */
+@media (max-width: 991.98px) {
+  aside.sidebar-left {
+    display: none;
+  }
+}
