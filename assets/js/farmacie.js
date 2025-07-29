@@ -200,16 +200,27 @@ async function editPharmacy(pharmacyId) {
         if (response.success) {
             const pharmacy = response.pharmacy;
             
-                                    // Popola il form con i dati della farmacia
-                        document.getElementById('editPharmacyId').value = pharmacy.id;
-                        document.getElementById('editPharmacyName').value = pharmacy.nice_name || '';
-                        document.getElementById('editPharmacyBusinessName').value = pharmacy.business_name || '';
-                        document.getElementById('editPharmacyAddress').value = pharmacy.address || '';
-                        document.getElementById('editPharmacyCity').value = pharmacy.city || '';
-                        document.getElementById('editPharmacyPhone').value = pharmacy.phone_number || '';
-                        document.getElementById('editPharmacyEmail').value = pharmacy.email || '';
-                        document.getElementById('editPharmacyStatus').value = pharmacy.status || 'active';
-                        document.getElementById('editPharmacyDescription').value = pharmacy.description || '';
+                                                // Popola il form con i dati della farmacia
+            document.getElementById('editPharmacyId').value = pharmacy.id;
+            document.getElementById('editPharmacyName').value = pharmacy.nice_name || '';
+            document.getElementById('editPharmacyBusinessName').value = pharmacy.business_name || '';
+            document.getElementById('editPharmacyAddress').value = pharmacy.address || '';
+            document.getElementById('editPharmacyCity').value = pharmacy.city || '';
+            document.getElementById('editPharmacyPhone').value = pharmacy.phone_number || '';
+            document.getElementById('editPharmacyEmail').value = pharmacy.email || '';
+            document.getElementById('editPharmacyStatus').value = pharmacy.status || 'active';
+            document.getElementById('editPharmacyLatLng').value = pharmacy.latlng || '';
+            document.getElementById('editPharmacyDescription').value = pharmacy.description || '';
+            document.getElementById('editPharmacyWorkingInfo').value = pharmacy.working_info || '';
+            document.getElementById('editPharmacyPrompt').value = pharmacy.prompt || '';
+            document.getElementById('editPharmacyImgAvatar').value = pharmacy.img_avatar || '';
+            document.getElementById('editPharmacyImgCover').value = pharmacy.img_cover || '';
+            document.getElementById('editPharmacyImgBot').value = pharmacy.img_bot || '';
+            
+            // Mostra preview delle immagini esistenti
+            showImagePreview('editPharmacyImgAvatarPreview', pharmacy.img_avatar);
+            showImagePreview('editPharmacyImgCoverPreview', pharmacy.img_cover);
+            showImagePreview('editPharmacyImgBotPreview', pharmacy.img_bot);
             
             // Mostra il modal
             const modal = new bootstrap.Modal(document.getElementById('editPharmacyModal'));
@@ -289,6 +300,93 @@ async function deletePharmacy(pharmacyId, pharmacyName) {
     }
 }
 
+// Mostra preview immagine
+function showImagePreview(previewId, imagePath) {
+    const previewDiv = document.getElementById(previewId);
+    if (previewDiv) {
+        if (imagePath) {
+            previewDiv.innerHTML = `
+                <img src="${imagePath}" alt="Preview" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                <div class="mt-1">
+                    <small class="text-muted">Immagine caricata</small>
+                </div>
+            `;
+        } else {
+            previewDiv.innerHTML = `
+                <div class="text-muted">
+                    <small>Nessuna immagine caricata</small>
+                </div>
+            `;
+        }
+    }
+}
+
+// Upload immagine
+async function uploadImage(imageType, isEdit = false) {
+    const prefix = isEdit ? 'edit' : '';
+    const fileInput = document.getElementById(prefix + 'PharmacyImg' + imageType.charAt(0).toUpperCase() + imageType.slice(1) + 'File');
+    const hiddenInput = document.getElementById(prefix + 'PharmacyImg' + imageType.charAt(0).toUpperCase() + imageType.slice(1));
+    const previewDiv = document.getElementById(prefix + 'PharmacyImg' + imageType.charAt(0).toUpperCase() + imageType.slice(1) + 'Preview');
+    
+    if (!fileInput.files[0]) {
+        APP.ui.showAlert('Seleziona un file da caricare', 'warning');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+    formData.append('image_type', imageType);
+    formData.append('csrf_token', APP.config.csrfToken);
+    
+    // Se siamo in modalità modifica, aggiungi l'ID farmacia
+    if (isEdit) {
+        const pharmacyId = document.getElementById('editPharmacyId').value;
+        if (pharmacyId) {
+            formData.append('pharmacy_id', pharmacyId);
+        }
+    }
+
+    try {
+        // Mostra loading
+        const button = fileInput.parentElement.querySelector('button');
+        const originalText = button.textContent;
+        button.textContent = 'Caricamento...';
+        button.disabled = true;
+
+        const response = await fetch('api/pharmacies/upload-image.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Aggiorna il campo hidden con il percorso
+            hiddenInput.value = result.path;
+            
+            // Mostra preview
+            previewDiv.innerHTML = `
+                <div class="alert alert-success alert-sm">
+                    <i class="bi bi-check-circle"></i> ${result.message}
+                </div>
+                <img src="${result.url}" alt="Preview" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+            `;
+            
+            APP.ui.showAlert('Immagine caricata con successo', 'success');
+        } else {
+            APP.ui.showAlert(result.message || 'Errore durante il caricamento', 'danger');
+        }
+    } catch (error) {
+        console.error('Errore upload:', error);
+        APP.ui.showAlert('Errore di connessione', 'danger');
+    } finally {
+        // Ripristina button
+        const button = fileInput.parentElement.querySelector('button');
+        button.textContent = originalText;
+        button.disabled = false;
+    }
+}
+
 // Reset filtri
 function resetFilters() {
     document.getElementById('searchPharmacy').value = '';
@@ -305,4 +403,5 @@ function resetFilters() {
 // Esporta funzioni globalmente
 window.editPharmacy = editPharmacy;
 window.deletePharmacy = deletePharmacy;
-window.resetFilters = resetFilters; 
+window.resetFilters = resetFilters;
+window.uploadImage = uploadImage; 

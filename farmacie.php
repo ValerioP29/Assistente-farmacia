@@ -190,8 +190,59 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="mb-3">
+                        <label for="pharmacyLatLng" class="form-label">Coordinate GPS (lat,lng)</label>
+                        <input type="text" class="form-control" id="pharmacyLatLng" name="latlng" placeholder="45.4642,9.1900">
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="pharmacyDescription" class="form-label">Descrizione</label>
                         <textarea class="form-control" id="pharmacyDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pharmacyWorkingInfo" class="form-label">Orari di Lavoro</label>
+                        <textarea class="form-control" id="pharmacyWorkingInfo" name="working_info" rows="4" placeholder="Lunedì: 8:00-20:00&#10;Martedì: 8:00-20:00&#10;..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pharmacyPrompt" class="form-label">Prompt Personalizzato</label>
+                        <textarea class="form-control" id="pharmacyPrompt" name="prompt" rows="4" placeholder="Istruzioni specifiche per l'assistente..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="pharmacyImgAvatar" class="form-label">Avatar</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="pharmacyImgAvatarFile" accept="image/*" data-image-type="avatar">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('avatar')">Carica</button>
+                                </div>
+                                <input type="hidden" id="pharmacyImgAvatar" name="img_avatar">
+                                <div id="pharmacyImgAvatarPreview" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="pharmacyImgCover" class="form-label">Immagine Copertina</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="pharmacyImgCoverFile" accept="image/*" data-image-type="cover">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('cover')">Carica</button>
+                                </div>
+                                <input type="hidden" id="pharmacyImgCover" name="img_cover">
+                                <div id="pharmacyImgCoverPreview" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="pharmacyImgBot" class="form-label">Immagine Bot</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="pharmacyImgBotFile" accept="image/*" data-image-type="bot">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('bot')">Carica</button>
+                                </div>
+                                <input type="hidden" id="pharmacyImgBot" name="img_bot">
+                                <div id="pharmacyImgBotPreview" class="mt-2"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -266,8 +317,59 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="mb-3">
+                        <label for="editPharmacyLatLng" class="form-label">Coordinate GPS (lat,lng)</label>
+                        <input type="text" class="form-control" id="editPharmacyLatLng" name="latlng" placeholder="45.4642,9.1900">
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="editPharmacyDescription" class="form-label">Descrizione</label>
                         <textarea class="form-control" id="editPharmacyDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPharmacyWorkingInfo" class="form-label">Orari di Lavoro</label>
+                        <textarea class="form-control" id="editPharmacyWorkingInfo" name="working_info" rows="4" placeholder="Lunedì: 8:00-20:00&#10;Martedì: 8:00-20:00&#10;..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPharmacyPrompt" class="form-label">Prompt Personalizzato</label>
+                        <textarea class="form-control" id="editPharmacyPrompt" name="prompt" rows="4" placeholder="Istruzioni specifiche per l'assistente..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editPharmacyImgAvatar" class="form-label">Avatar</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="editPharmacyImgAvatarFile" accept="image/*" data-image-type="avatar">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('avatar', true)">Carica</button>
+                                </div>
+                                <input type="hidden" id="editPharmacyImgAvatar" name="img_avatar">
+                                <div id="editPharmacyImgAvatarPreview" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editPharmacyImgCover" class="form-label">Immagine Copertina</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="editPharmacyImgCoverFile" accept="image/*" data-image-type="cover">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('cover', true)">Carica</button>
+                                </div>
+                                <input type="hidden" id="editPharmacyImgCover" name="img_cover">
+                                <div id="editPharmacyImgCoverPreview" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editPharmacyImgBot" class="form-label">Immagine Bot</label>
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="editPharmacyImgBotFile" accept="image/*" data-image-type="bot">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="uploadImage('bot', true)">Carica</button>
+                                </div>
+                                <input type="hidden" id="editPharmacyImgBot" name="img_bot">
+                                <div id="editPharmacyImgBotPreview" class="mt-2"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

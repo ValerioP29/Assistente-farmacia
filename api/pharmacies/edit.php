@@ -47,7 +47,13 @@ try {
     $phone_number = sanitize($_POST['phone_number'] ?? '');
     $email = sanitize($_POST['email'] ?? '');
     $status = sanitize($_POST['status'] ?? 'active');
+    $latlng = sanitize($_POST['latlng'] ?? '');
     $description = sanitize($_POST['description'] ?? '');
+    $working_info = sanitize($_POST['working_info'] ?? '');
+    $prompt = sanitize($_POST['prompt'] ?? '');
+    $img_avatar = sanitize($_POST['img_avatar'] ?? '');
+    $img_cover = sanitize($_POST['img_cover'] ?? '');
+    $img_bot = sanitize($_POST['img_bot'] ?? '');
 
     // Validazioni
     if (!$pharmacy_id) {
@@ -93,7 +99,13 @@ try {
         'phone_number' => $phone_number,
         'email' => $email,
         'status' => $status,
+        'latlng' => $latlng,
         'description' => $description,
+        'working_info' => $working_info,
+        'prompt' => $prompt,
+        'img_avatar' => $img_avatar,
+        'img_cover' => $img_cover,
+        'img_bot' => $img_bot,
         'updated_at' => date('Y-m-d H:i:s')
     ];
 

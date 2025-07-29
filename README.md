@@ -111,17 +111,18 @@ requireApiAuth(['admin', 'pharmacist']); // Admin o farmacista
 
 ### Campi Farmacia
 - **Dati base**: Nome, Nome aziendale, Email, Telefono
-- **Localizzazione**: Città, Indirizzo, Coordinate GPS
-- **Contenuti**: Descrizione, Orari, Prompt personalizzato
-- **Media**: Avatar, Cover, Immagine bot
+- **Localizzazione**: Città, Indirizzo, Coordinate GPS (lat,lng)
+- **Contenuti**: Descrizione, Orari di lavoro, Prompt personalizzato
+- **Media**: Avatar, Cover, Immagine bot (upload file)
 - **Stato**: Attivo/Inattivo/Eliminato
 
 ### API Endpoints
 - `api/pharmacies/add.php` - Creazione farmacia
-- `api/pharmacies/get.php` - Recupero dati farmacia
+- `api/pharmacies/get.php` - Recupero dati farmacia (per modifica)
 - `api/pharmacies/edit.php` - Modifica farmacia
 - `api/pharmacies/delete.php` - Eliminazione farmacia
 - `api/pharmacies/list.php` - Lista farmacie
+- `api/pharmacies/upload-image.php` - Upload immagini farmacia
 
 ### Validazioni
 - ✅ Nome unico
