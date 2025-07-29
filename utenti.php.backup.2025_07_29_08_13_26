@@ -1,0 +1,372 @@
+<?php
+/**
+ * Gestione Utenti
+ * Assistente Farmacia Panel
+ */
+
+// Carica configurazione e middleware PRIMA di qualsiasi output
+require_once 'config/database.php';
+require_once 'includes/functions.php';
+require_once 'includes/auth_middleware.php';
+
+// Controllo accesso: solo admin (DEVE essere prima di qualsiasi output)
+requireAdmin();
+
+// Include header (che carica la configurazione)
+require_once 'includes/header.php';
+
+$page_title = 'Gestione Utenti - ' . APP_NAME;
+$current_page = 'utenti';
+
+// Recupera lista utenti (solo farmacisti e utenti normali, non admin)
+$users = db_fetch_all("
+    SELECT u.*, p.nice_name as pharmacy_name 
+    FROM jta_users u 
+    LEFT JOIN jta_pharmas p ON u.starred_pharma = p.id 
+    WHERE u.role != 'admin' AND u.is_deleted = 0 
+    ORDER BY u.role DESC, u.name ASC
+");
+
+// Recupera lista farmacie per il dropdown
+$pharmacies = db_fetch_all("SELECT id, nice_name FROM jta_pharmas WHERE is_deleted = 0 ORDER BY nice_name");
+
+$additional_css = ['assets/css/utenti.css'];
+?>
+
+<!-- Layout principale -->
+<div class="d-flex">
+    <!-- Sidebar desktop -->
+    <aside class="d-none d-lg-block sidebar-left">
+        <?php include 'includes/sidebar.php'; ?>
+    </aside>
+    
+    <!-- Contenuto principale -->
+    <main class="main-content flex-grow-1">
+        <div class="content-wrapper">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Gestione Utenti</h1>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="fas fa-plus me-2"></i>Nuovo Utente
+                </button>
+            </div>
+
+            <!-- Filtri -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="roleFilter" class="form-label">Filtra per ruolo</label>
+                            <select class="form-select" id="roleFilter">
+                                <option value="">Tutti i ruoli</option>
+                                <option value="pharmacist">Farmacisti</option>
+                                <option value="user">Utenti</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="pharmacyFilter" class="form-label">Filtra per farmacia</label>
+                            <select class="form-select" id="pharmacyFilter">
+                                <option value="">Tutte le farmacie</option>
+                                <?php foreach ($pharmacies as $pharmacy): ?>
+                                    <option value="<?= $pharmacy['id'] ?>"><?= htmlspecialchars($pharmacy['nice_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="searchUser" class="form-label">Cerca utente</label>
+                            <input type="text" class="form-control" id="searchUser" placeholder="Nome, email, telefono...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabella Utenti -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Telefono</th>
+                                    <th>Ruolo</th>
+                                    <th>Farmacia</th>
+                                    <th>Ultimo Accesso</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($users as $user): ?>
+                                    <tr data-user-id="<?= $user['id'] ?>" data-role="<?= $user['role'] ?>" data-pharmacy="<?= $user['starred_pharma'] ?>">
+                                        <td>
+                                            <strong><?= htmlspecialchars(($user['name'] ?? '') . ' ' . ($user['surname'] ?? '')) ?></strong>
+                                            <br><small class="text-muted">@<?= htmlspecialchars($user['slug_name'] ?? '') ?></small>
+                                        </td>
+                                        <td><?= htmlspecialchars($user['email'] ?? 'Non specificata') ?></td>
+                                        <td><?= htmlspecialchars($user['phone'] ?? 'Non specificato') ?></td>
+                                        <td>
+                                            <span class="badge bg-<?= $user['role'] === 'pharmacist' ? 'primary' : 'secondary' ?>">
+                                                <?= $user['role'] === 'pharmacist' ? 'Farmacista' : 'Utente' ?>
+                                            </span>
+                                        </td>
+                                        <td><?= htmlspecialchars($user['pharmacy_name'] ?? 'Non assegnata') ?></td>
+                                        <td>
+                                            <?php if ($user['last_access']): ?>
+                                                <small><?= formatDateTime($user['last_access']) ?></small>
+                                            <?php else: ?>
+                                                <small class="text-muted">Mai</small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <?php if ($user['role'] === 'pharmacist'): ?>
+                                                    <button class="btn btn-sm btn-outline-primary" 
+                                                            onclick="changePharmacy(<?= $user['id'] ?>, '<?= htmlspecialchars(($user['name'] ?? '') . ' ' . ($user['surname'] ?? '')) ?>')"
+                                                            title="Cambia Farmacia">
+                                                        <i class="fas fa-building"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" 
+                                                            onclick="loginAsUser(<?= $user['id'] ?>)"
+                                                            title="Accedi come">
+                                                        <i class="fas fa-sign-in-alt"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                                <button class="btn btn-sm btn-outline-warning" 
+                                                        onclick="editUser(<?= $user['id'] ?>)"
+                                                        title="Modifica">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="deleteUser(<?= $user['id'] ?>, '<?= htmlspecialchars(($user['name'] ?? '') . ' ' . ($user['surname'] ?? '')) ?>')"
+                                                        title="Elimina">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- CSS per ottimizzazione desktop -->
+<style>
+/* Layout ottimizzato per desktop */
+.main-content {
+    padding: 0;
+    background: #f8f9fa;
+    min-height: calc(100vh - 60px);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-wrapper {
+    padding: 2rem;
+    background: white;
+    margin: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    flex: 1;
+}
+
+/* Sidebar ottimizzata */
+.sidebar-left {
+    background: var(--primary-color, #2c3e50);
+    min-height: calc(100vh - 60px);
+    padding: 0;
+    position: sticky;
+    top: 60px;
+    flex-shrink: 0;
+}
+
+/* Responsive improvements */
+@media (min-width: 1200px) {
+    .sidebar-left {
+        width: 250px;
+        flex-shrink: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+    .sidebar-left {
+        width: 220px;
+        flex-shrink: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+/* Tabella ottimizzata */
+.table-responsive {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.table th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Card improvements */
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Button improvements */
+.btn-group .btn {
+    margin: 0 0.125rem;
+}
+
+/* Header improvements */
+.content-wrapper h1 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+/* Filter improvements */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-select, .form-control {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+</style>
+
+<!-- Modal Cambia Farmacia -->
+<div class="modal fade" id="changePharmacyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambia Farmacia</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Seleziona la nuova farmacia per <strong id="selectedUserName"></strong>:</p>
+                <select class="form-select" id="newPharmacySelect">
+                    <option value="">Seleziona farmacia...</option>
+                    <?php foreach ($pharmacies as $pharmacy): ?>
+                        <option value="<?= $pharmacy['id'] ?>"><?= htmlspecialchars($pharmacy['nice_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-primary" onclick="savePharmacyChange()">Salva</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Aggiungi Utente -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Utente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUserForm">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">Nome *</label>
+                                <input type="text" class="form-control" id="firstName" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Cognome *</label>
+                                <input type="text" class="form-control" id="lastName" name="surname" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="username" name="slug_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefono</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Ruolo *</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="">Seleziona ruolo...</option>
+                            <option value="pharmacist">Farmacista</option>
+                            <option value="user">Utente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="pharmacySelectGroup" style="display: none;">
+                        <label for="pharmacy" class="form-label">Farmacia</label>
+                        <select class="form-select" id="pharmacy" name="starred_pharma">
+                            <option value="">Seleziona farmacia...</option>
+                            <?php foreach ($pharmacies as $pharmacy): ?>
+                                <option value="<?= $pharmacy['id'] ?>"><?= htmlspecialchars($pharmacy['nice_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Crea Utente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php 
+$additional_js = ['assets/js/utenti.js'];
+require_once 'includes/footer.php'; 
+?> 

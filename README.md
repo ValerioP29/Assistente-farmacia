@@ -1,93 +1,360 @@
-# assistente_farmacia_panel
+# Assistente Farmacia Panel
 
+## 📋 Panoramica del Progetto
 
+**Assistente Farmacia Panel** è un sistema di gestione completo per farmacie che permette agli amministratori di gestire utenti, farmacie e controllare l'accesso alle risorse del sistema.
 
-## Getting started
+## 🏗️ Architettura del Sistema
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Struttura Database
+- **`jta_users`** - Gestione utenti e accessi al sistema
+- **`jta_pharmas`** - Dati anagrafici delle farmacie
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Ruoli Utente
+- **`admin`** - Accesso completo a tutte le funzionalità
+- **`pharmacist`** - Accesso limitato alle funzionalità della propria farmacia
+- **`user`** - Accesso limitato ai propri dati
 
-## Add your files
+### Stati Utente
+- **`active`** - Utente può accedere al sistema
+- **`inactive`** - Utente bloccato, accesso negato
+- **`deleted`** - Soft delete, utente non visibile
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 🔐 Sistema di Controllo Accessi
 
+### Funzionalità
+- ✅ Controllo autenticazione per pagine web e API
+- ✅ Controllo ruoli con middleware centralizzato
+- ✅ Controllo accesso a risorse specifiche
+- ✅ Messaggi di avviso personalizzati
+- ✅ Log degli accessi non autorizzati
+- ✅ Redirect automatico alla login
+- ✅ Return URL (reindirizza alla pagina originale dopo il login)
+
+### Utilizzo
+
+#### Per Pagine Web
+```php
+<?php
+require_once 'config/database.php';
+require_once 'includes/functions.php';
+require_once 'includes/auth_middleware.php';
+
+// Controllo accesso (PRIMA di qualsiasi output)
+requireAdmin(); // Solo admin
+requirePharmacistOrAdmin(); // Admin o farmacista
+requireLogin(); // Qualsiasi utente autenticato
+
+require_once 'includes/header.php';
+?>
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/jungleteamsrl/assistente_farmacia_panel.git
-git branch -M main
-git push -uf origin main
+
+#### Per API
+```php
+<?php
+session_start();
+require_once '../includes/auth_middleware.php';
+header('Content-Type: application/json');
+
+requireApiAuth(['admin']); // Solo admin
+requireApiAuth(['admin', 'pharmacist']); // Admin o farmacista
+?>
 ```
 
-## Integrate with your tools
+### Funzioni Disponibili
+- `checkAccess($required_roles, $redirect = true)` - Controllo generico
+- `checkApiAccess($required_roles)` - Controllo per API
+- `requireLogin()` - Qualsiasi utente autenticato
+- `requireAdmin()` - Solo amministratori
+- `requirePharmacistOrAdmin()` - Farmacisti o amministratori
+- `canAccessResource($resource, $resource_id = null)` - Controlla accesso a risorsa specifica
 
-- [ ] [Set up project integrations](https://gitlab.com/jungleteamsrl/assistente_farmacia_panel/-/settings/integrations)
+## 👥 Gestione Utenti
 
-## Collaborate with your team
+### Funzionalità CRUD Complete
+- ✅ **Creazione** - Form con validazione completa
+- ✅ **Lettura** - Lista con filtri e ricerca
+- ✅ **Modifica** - Form con tutti i campi modificabili
+- ✅ **Eliminazione** - Soft delete con conferma
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Campi Utente
+- **Dati personali**: Nome, Cognome, Email, Telefono
+- **Accesso**: Username, Password, Ruolo
+- **Stato**: Attivo/Inattivo
+- **Associazione**: Farmacia (opzionale per tutti i ruoli)
 
-## Test and Deploy
+### API Endpoints
+- `api/users/add.php` - Creazione utente
+- `api/users/get.php` - Recupero dati utente
+- `api/users/edit.php` - Modifica utente
+- `api/users/delete.php` - Eliminazione utente
+- `api/users/list.php` - Lista utenti
+- `api/users/login-as.php` - Accesso come utente
+- `api/users/return-admin.php` - Ritorno all'admin
+- `api/users/change-pharmacy.php` - Cambio farmacia
 
-Use the built-in continuous integration in GitLab.
+### Validazioni
+- ✅ Username unico
+- ✅ Email unica
+- ✅ Password minimo 6 caratteri
+- ✅ Email valida
+- ✅ Ruolo valido (pharmacist/user)
+- ✅ Stato valido (active/inactive)
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## 🏥 Gestione Farmacie
 
-***
+### Funzionalità CRUD Complete
+- ✅ **Creazione** - Form con dati anagrafici completi
+- ✅ **Lettura** - Lista con filtri e ricerca
+- ✅ **Modifica** - Form con tutti i campi modificabili
+- ✅ **Eliminazione** - Soft delete con conferma
 
-# Editing this README
+### Campi Farmacia
+- **Dati base**: Nome, Nome aziendale, Email, Telefono
+- **Localizzazione**: Città, Indirizzo, Coordinate GPS
+- **Contenuti**: Descrizione, Orari, Prompt personalizzato
+- **Media**: Avatar, Cover, Immagine bot
+- **Stato**: Attivo/Inattivo/Eliminato
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### API Endpoints
+- `api/pharmacies/add.php` - Creazione farmacia
+- `api/pharmacies/get.php` - Recupero dati farmacia
+- `api/pharmacies/edit.php` - Modifica farmacia
+- `api/pharmacies/delete.php` - Eliminazione farmacia
+- `api/pharmacies/list.php` - Lista farmacie
 
-## Suggestions for a good README
+### Validazioni
+- ✅ Nome unico
+- ✅ Email valida
+- ✅ Telefono valido
+- ✅ Stato valido (active/inactive/deleted)
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## 🗄️ Ottimizzazioni Database
 
-## Name
-Choose a self-explaining name for your project.
+### Tabella `jta_users` (Ottimizzata)
+**Problemi risolti:**
+- ❌ Colonne duplicate: `phone_number` e `phone`
+- ❌ Campi stato ridondanti: `status_id`, `is_active`, `is_deleted`
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+**Soluzioni implementate:**
+- ✅ Unificazione telefono: mantenuto solo `phone`
+- ✅ Unificazione stato: nuovo campo `status` ENUM
+- ✅ Migrazione dati automatica
+- ✅ Backup completo prima delle modifiche
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+**Struttura finale:**
+```sql
+jta_users:
+- id, slug_name, phone, email, role, status
+- password, name, surname, gender, born_date
+- starred_pharma, init_profiling
+- created_at, updated_at, last_access, last_notification
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Tabella `jta_pharmas` (Ottimizzata)
+**Problemi risolti:**
+- ❌ Campi non necessari: `password`, `last_access`, `slug_name`
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+**Soluzioni implementate:**
+- ✅ Rimozione campi non necessari per dati anagrafici
+- ✅ Mantenimento solo campi essenziali
+- ✅ Migrazione dati automatica
+- ✅ Backup completo prima delle modifiche
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+**Struttura finale:**
+```sql
+jta_pharmas:
+- id, email, status, phone_number
+- business_name, nice_name, city, address
+- latlng, description, working_info, prompt
+- img_avatar, img_cover, img_bot
+- created_at, updated_at
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## 🎨 Interfaccia Utente
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Design System
+- **Framework**: Bootstrap 5
+- **Icone**: Bootstrap Icons
+- **Temi**: Light/Dark mode support
+- **Responsive**: Mobile-first design
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Componenti Principali
+- **Navbar** - Navigazione principale
+- **Sidebar** - Menu laterale con funzioni
+- **Modals** - Form per creazione/modifica
+- **Tables** - Liste con filtri e ricerca
+- **Alerts** - Messaggi di feedback
+- **Loading** - Indicatori di caricamento
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### JavaScript
+- **Framework**: Vanilla JS con moduli
+- **API Client**: Fetch con gestione errori
+- **UI Components**: Sistema modulare
+- **Event Handling**: Delegazione eventi
+- **Form Validation**: Client e server-side
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## 🔧 Configurazione
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### File di Configurazione
+- `config/database.php` - Configurazione database
+- `config/development.php` - Configurazione sviluppo
+- `includes/functions.php` - Funzioni utility
+- `includes/auth_middleware.php` - Middleware autenticazione
 
-## License
-For open source projects, say how it is licensed.
+### Variabili d'Ambiente
+```php
+// Database
+DB_HOST, DB_NAME, DB_USER, DB_PASS
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+// Sviluppo
+DEBUG_MODE, LOG_LEVEL, ERROR_REPORTING
+
+// Sicurezza
+SESSION_TIMEOUT, CSRF_TOKEN_LIFETIME
+```
+
+## 🚀 Installazione
+
+### Requisiti
+- PHP 7.4+
+- MySQL 5.7+
+- Apache/Nginx
+- Composer (opzionale)
+
+### Setup
+1. **Clona il repository**
+   ```bash
+   git clone [repository-url]
+   cd assistente_farmacia_panel
+   ```
+
+2. **Configura il database**
+   ```bash
+   # Crea il database
+   mysql -u root -p -e "CREATE DATABASE assistente_farmacia;"
+   
+   # Importa la struttura
+   mysql -u root -p assistente_farmacia < database/schema.sql
+   ```
+
+3. **Configura le credenziali**
+   ```bash
+   # Modifica config/database.php
+   define('DB_HOST', 'localhost');
+   define('DB_NAME', 'assistente_farmacia');
+   define('DB_USER', 'your_username');
+   define('DB_PASS', 'your_password');
+   ```
+
+4. **Crea l'amministratore**
+   ```bash
+   php create_admin.php
+   ```
+
+5. **Avvia il server**
+   ```bash
+   php -S localhost:8000
+   ```
+
+## 🧪 Testing
+
+### Test Funzionali
+```bash
+# Test sintassi PHP
+find . -name "*.php" -exec php -l {} \;
+
+# Test connessione database
+php -r "require 'config/database.php'; echo 'Database OK';"
+
+# Test API endpoints
+curl -X POST http://localhost:8000/api/users/list.php
+```
+
+### Test Sicurezza
+- ✅ Controllo accessi non autorizzati
+- ✅ Validazione input
+- ✅ Protezione CSRF
+- ✅ Sanitizzazione output
+- ✅ Log accessi non autorizzati
+
+## 📊 Monitoraggio
+
+### Log Files
+- `logs/development.log` - Log sviluppo
+- `logs/error.log` - Log errori
+- `logs/access.log` - Log accessi
+
+### Metriche
+- Accessi utenti
+- Operazioni CRUD
+- Errori sistema
+- Performance query
+
+## 🔒 Sicurezza
+
+### Implementazioni
+- ✅ Autenticazione basata su sessioni
+- ✅ Controllo accessi basato su ruoli
+- ✅ Protezione CSRF
+- ✅ Sanitizzazione input/output
+- ✅ Hash password sicuro
+- ✅ Log accessi non autorizzati
+- ✅ Timeout sessioni
+- ✅ Validazione lato server
+
+### Best Practices
+- Controlli accesso prima di qualsiasi output
+- Validazione sempre lato server
+- Logging di tutte le operazioni critiche
+- Backup regolari del database
+- Aggiornamenti di sicurezza
+
+## 🛠️ Manutenzione
+
+### Backup
+- **Database**: Backup automatico giornaliero
+- **File**: Backup prima di modifiche importanti
+- **Versioning**: Git per controllo versioni
+
+### Pulizia
+- **Log**: Rotazione automatica
+- **Sessioni**: Pulizia sessioni scadute
+- **Cache**: Pulizia cache temporanea
+
+### Aggiornamenti
+- **Sicurezza**: Patch di sicurezza immediate
+- **Funzionalità**: Aggiornamenti pianificati
+- **Database**: Migrazioni versionate
+
+## 📞 Supporto
+
+### Documentazione
+- **README.md** - Documentazione generale
+- **docs/** - Documentazione specifica
+- **Commenti codice** - Documentazione inline
+
+### Contatti
+- **Sviluppatore**: [Nome Sviluppatore]
+- **Email**: [email@example.com]
+- **Repository**: [URL Repository]
+
+## 📝 Changelog
+
+### Versione 2.0.0 (2025-07-29)
+- ✅ Sistema di controllo accessi completo
+- ✅ Gestione utenti CRUD completa
+- ✅ Gestione farmacie CRUD completa
+- ✅ Ottimizzazione database
+- ✅ Interfaccia utente moderna
+- ✅ API RESTful complete
+- ✅ Sistema di logging avanzato
+
+### Versione 1.0.0 (Data precedente)
+- ✅ Funzionalità base
+- ✅ Autenticazione semplice
+- ✅ Gestione utenti base
+
+---
+
+**Assistente Farmacia Panel** - Sistema di gestione completo per farmacie 

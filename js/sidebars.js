@@ -7,18 +7,23 @@
   })
 })
 
-// This file is part of the CodeIgniter framework.
+// Gestione logout nel sidebar
 document.addEventListener('DOMContentLoaded', () => {
 
-  logout = document.getElementById('logout-link');
+  const logoutLinks = document.querySelectorAll('.logout-link');
 
-  if (logout) {
-    logout.addEventListener('click', (e) => {
+  logoutLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
       e.preventDefault();
-      if (confirm('Vuoi davvero uscire?')) {
-        window.location.href = logout.href;
+      if (typeof logout === 'function') {
+        logout(); // Usa la funzione logout definita nel footer (che già include la conferma)
+      } else {
+        // Fallback se la funzione logout non è disponibile
+        if (confirm('Vuoi davvero uscire?')) {
+          window.location.href = 'login.php';
+        }
       }
     });
-  }
+  });
 
 });

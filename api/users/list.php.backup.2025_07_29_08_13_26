@@ -1,0 +1,51 @@
+<?php
+/**
+ * API - Lista Utenti
+ * Assistente Farmacia Panel
+ */
+
+// Avvia sessione
+session_start();
+
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
+header('Content-Type: application/json');
+
+// Controllo metodo
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Metodo non consentito']);
+    exit;
+}
+
+// Carica middleware di autenticazione
+require_once '../../includes/auth_middleware.php';
+
+// Controllo autenticazione e ruolo
+requireApiAuth(['admin']);
+
+try {
+    // Recupera lista utenti (solo farmacisti e utenti normali, non admin)
+    $users = db_fetch_all("
+        SELECT u.*, p.nice_name as pharmacy_name 
+        FROM jta_users u 
+        LEFT JOIN jta_pharmas p ON u.starred_pharma = p.id 
+        WHERE u.role != 'admin' AND u.is_deleted = 0 
+        ORDER BY u.role DESC, u.name ASC
+    ");
+
+    if ($users === false) {
+        throw new Exception('Errore nel recupero degli utenti');
+    }
+
+    echo json_encode([
+        'success' => true,
+        'users' => $users
+    ]);
+
+} catch (Exception $e) {
+    error_log("Errore lista utenti: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Errore interno del server']);
+}
+?> 

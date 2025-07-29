@@ -1,0 +1,100 @@
+<?php
+/**
+ * API - Cambia Farmacia Utente
+ * Assistente Farmacia Panel
+ */
+
+// Avvia sessione
+session_start();
+
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
+header('Content-Type: application/json');
+
+// Controllo metodo
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Metodo non consentito']);
+    exit;
+}
+
+// Carica middleware di autenticazione
+require_once '../../includes/auth_middleware.php';
+
+// Controllo autenticazione e ruolo
+requireApiAuth(['admin']);
+
+// Verifica CSRF
+$csrf_token = $_POST['csrf_token'] ?? '';
+
+// Se non c'è un token CSRF nella sessione, ne genera uno nuovo
+if (!isset($_SESSION['csrf_token'])) {
+    generateCSRFToken();
+}
+
+if (!verifyCSRFToken($csrf_token)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Token di sicurezza non valido']);
+    exit;
+}
+
+try {
+    // Validazione input
+    $user_id = (int)($_POST['user_id'] ?? 0);
+    $pharmacy_id = (int)($_POST['pharmacy_id'] ?? 0);
+
+    if (!$user_id || !$pharmacy_id) {
+        echo json_encode(['success' => false, 'message' => 'Parametri mancanti']);
+        exit;
+    }
+
+    // Verifica esistenza utente
+    $user = db_fetch_one("SELECT * FROM jta_users WHERE id = ? AND is_deleted = 0", [$user_id]);
+    if (!$user) {
+        echo json_encode(['success' => false, 'message' => 'Utente non trovato']);
+        exit;
+    }
+
+    // Verifica che l'utente sia un farmacista
+    if ($user['role'] !== 'pharmacist') {
+        echo json_encode(['success' => false, 'message' => 'Solo i farmacisti possono avere una farmacia associata']);
+        exit;
+    }
+
+    // Verifica esistenza farmacia
+    $pharmacy = db_fetch_one("SELECT * FROM jta_pharmas WHERE id = ? AND is_deleted = 0", [$pharmacy_id]);
+    if (!$pharmacy) {
+        echo json_encode(['success' => false, 'message' => 'Farmacia non trovata']);
+        exit;
+    }
+
+    // Aggiorna farmacia associata
+    $result = db()->update('jta_users', 
+        ['starred_pharma' => $pharmacy_id], 
+        'id = ?', 
+        [$user_id]
+    );
+
+    if ($result) {
+        // Log attività
+        logActivity('pharmacy_changed', [
+            'admin_id' => $_SESSION['user_id'],
+            'user_id' => $user_id,
+            'old_pharmacy' => $user['starred_pharma'],
+            'new_pharmacy' => $pharmacy_id
+        ]);
+
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Farmacia cambiata con successo',
+            'pharmacy_name' => $pharmacy['nice_name']
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Errore durante l\'aggiornamento']);
+    }
+
+} catch (Exception $e) {
+    error_log("Errore cambio farmacia: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Errore interno del server']);
+}
+?> 

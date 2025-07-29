@@ -1,0 +1,157 @@
+<?php
+/**
+ * Script per aggiornare il database
+ * Assistente Farmacia Panel
+ * 
+ * Questo script aggiunge le colonne mancanti alla tabella jta_users
+ * per allinearla al codice dell'applicazione
+ */
+
+// Carica configurazione
+require_once 'config/database.php';
+
+echo "🔄 Aggiornamento Database - Assistente Farmacia Panel\n";
+echo "==================================================\n\n";
+
+try {
+    // 1. Verifica connessione database
+    echo "1. Verifica connessione database...\n";
+    $test_connection = db()->getConnection();
+    echo "   ✅ Connessione database riuscita\n\n";
+    
+    // 2. Verifica struttura attuale della tabella
+    echo "2. Analisi struttura tabella jta_users...\n";
+    $columns = db_fetch_all("SHOW COLUMNS FROM jta_users");
+    $existing_columns = array_column($columns, 'Field');
+    
+    echo "   Colonne esistenti: " . implode(', ', $existing_columns) . "\n\n";
+    
+    // 3. Definizione delle colonne da aggiungere (senza first_name/last_name)
+    $columns_to_add = [
+        'email' => "VARCHAR(255) NULL AFTER phone_number",
+        'role' => "ENUM('admin', 'pharmacist', 'user') DEFAULT 'user' AFTER email",
+        'phone' => "VARCHAR(20) NULL AFTER phone_number",
+        'is_active' => "TINYINT(1) DEFAULT 1 AFTER status_id"
+    ];
+    
+    // 4. Aggiungi colonne mancanti
+    echo "3. Aggiunta colonne mancanti...\n";
+    $added_columns = [];
+    
+    foreach ($columns_to_add as $column => $definition) {
+        if (!in_array($column, $existing_columns)) {
+            try {
+                $sql = "ALTER TABLE jta_users ADD COLUMN {$column} {$definition}";
+                db()->query($sql);
+                echo "   ✅ Aggiunta colonna: {$column}\n";
+                $added_columns[] = $column;
+            } catch (Exception $e) {
+                echo "   ❌ Errore aggiunta colonna {$column}: " . $e->getMessage() . "\n";
+            }
+        } else {
+            echo "   ⏭️  Colonna {$column} già esistente\n";
+        }
+    }
+    
+    echo "\n";
+    
+    // 5. Migrazione dati esistenti
+    echo "4. Migrazione dati esistenti...\n";
+    
+    // Migra phone_number a phone
+    if (in_array('phone_number', $existing_columns) && in_array('phone', $existing_columns)) {
+        try {
+            db()->query("UPDATE jta_users SET phone = phone_number WHERE phone IS NULL");
+            echo "   ✅ Migrati dati da 'phone_number' a 'phone'\n";
+        } catch (Exception $e) {
+            echo "   ❌ Errore migrazione phone: " . $e->getMessage() . "\n";
+        }
+    }
+    
+    // Migra status_id a is_active
+    if (in_array('status_id', $existing_columns) && in_array('is_active', $existing_columns)) {
+        try {
+            db()->query("UPDATE jta_users SET is_active = CASE WHEN status_id = 1 THEN 1 ELSE 0 END WHERE is_active IS NULL");
+            echo "   ✅ Migrati dati da 'status_id' a 'is_active'\n";
+        } catch (Exception $e) {
+            echo "   ❌ Errore migrazione status: " . $e->getMessage() . "\n";
+        }
+    }
+    
+    // Imposta ruolo admin per l'utente admin esistente
+    if (in_array('role', $existing_columns)) {
+        try {
+            $admin_user = db_fetch_one("SELECT id FROM jta_users WHERE slug_name = 'admin' AND is_deleted = 0");
+            if ($admin_user) {
+                db()->query("UPDATE jta_users SET role = 'admin' WHERE id = ?", [$admin_user['id']]);
+                echo "   ✅ Impostato ruolo 'admin' per l'utente admin\n";
+            }
+        } catch (Exception $e) {
+            echo "   ❌ Errore impostazione ruolo admin: " . $e->getMessage() . "\n";
+        }
+    }
+    
+    echo "\n";
+    
+    // 6. Verifica struttura finale
+    echo "5. Verifica struttura finale...\n";
+    $final_columns = db_fetch_all("SHOW COLUMNS FROM jta_users");
+    $final_column_names = array_column($final_columns, 'Field');
+    
+    echo "   Colonne finali: " . implode(', ', $final_column_names) . "\n\n";
+    
+    // 7. Verifica dati
+    echo "6. Verifica dati...\n";
+    $user_count = db_fetch_one("SELECT COUNT(*) as count FROM jta_users WHERE is_deleted = 0");
+    $admin_count = db_fetch_one("SELECT COUNT(*) as count FROM jta_users WHERE role = 'admin' AND is_deleted = 0");
+    
+    echo "   Utenti totali: {$user_count['count']}\n";
+    echo "   Amministratori: {$admin_count['count']}\n\n";
+    
+    // 8. Verifica che le tabelle necessarie esistano
+    echo "7. Verifica tabelle necessarie...\n";
+    $required_tables = ['jta_pharmas', 'activity_logs'];
+    
+    foreach ($required_tables as $table) {
+        try {
+            $table_exists = db_fetch_one("SHOW TABLES LIKE ?", [$table]);
+            if ($table_exists) {
+                echo "   ✅ Tabella {$table} esistente\n";
+            } else {
+                echo "   ⚠️  Tabella {$table} mancante (da creare manualmente se necessaria)\n";
+            }
+        } catch (Exception $e) {
+            echo "   ❌ Errore verifica tabella {$table}: " . $e->getMessage() . "\n";
+        }
+    }
+    
+    echo "\n";
+    
+    // 9. Riepilogo
+    echo "🎉 AGGIORNAMENTO COMPLETATO!\n";
+    echo "============================\n";
+    echo "✅ Database aggiornato con successo\n";
+    echo "✅ Colonne aggiunte: " . count($added_columns) . "\n";
+    if (!empty($added_columns)) {
+        echo "   - " . implode("\n   - ", $added_columns) . "\n";
+    }
+    echo "✅ Dati migrati correttamente\n";
+    echo "✅ Struttura allineata al codice\n";
+    echo "ℹ️  Note: Usando 'name' e 'surname' esistenti invece di creare 'first_name'/'last_name'\n\n";
+    
+    echo "📋 Prossimi passi:\n";
+    echo "1. Aggiorna il codice per usare 'name' e 'surname' invece di 'first_name'/'last_name'\n";
+    echo "2. Testa l'applicazione per verificare il funzionamento\n";
+    echo "3. Controlla che il login funzioni correttamente\n";
+    echo "4. Verifica che la gestione utenti funzioni\n";
+    echo "5. Rimuovi questo script dopo aver verificato tutto\n\n";
+    
+} catch (Exception $e) {
+    echo "❌ ERRORE CRITICO: " . $e->getMessage() . "\n";
+    echo "Verifica che:\n";
+    echo "1. Il database sia accessibile\n";
+    echo "2. Le credenziali siano corrette\n";
+    echo "3. L'utente abbia i permessi necessari\n";
+    exit(1);
+}
+?> 
