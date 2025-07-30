@@ -58,6 +58,8 @@ $current_page = $current_page ?? 'dashboard';
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="css/navbar.css">
     <link rel="stylesheet" href="css/sidebars.css">
+    
+
     <?php if (isset($additional_css)): ?>
         <?php foreach ($additional_css as $css): ?>
             <link rel="stylesheet" href="<?= $css ?>">
@@ -192,4 +194,4 @@ $current_page = $current_page ?? 'dashboard';
                     <!-- Pulsante logout rimosso - ora solo nel sidebar -->
                 </div>
             </div>
-        </nav> 
+        </nav>

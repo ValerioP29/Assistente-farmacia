@@ -25,6 +25,7 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
 });
 ?>
 
+
 <div class="sidebar-left">
     <ul class="nav nav-pills flex-column mb-auto">
         <?php foreach ($visible_menu_items as $page => $item): ?>
@@ -122,4 +123,6 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
 .sidebar-left::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
 }
-</style> 
+</style>
+
+ 

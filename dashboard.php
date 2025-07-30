@@ -16,9 +16,16 @@ requirePharmacistOrAdmin();
 require_once 'includes/header.php';
 
 // Imposta variabili per il template
-$page_title = 'Dashboard - ' . APP_NAME;
-$page_description = 'Pannello di controllo principale';
 $current_page = 'dashboard';
+
+// Imposta titolo dinamico basato sul ruolo
+if (isAdmin()) {
+    $page_title = 'Pannello Amministrativo';
+    $page_description = 'Gestione Sistema Multi-Farmacia';
+} else {
+    $page_title = htmlspecialchars($pharmacy['nice_name'] ?? 'Dashboard Farmacia');
+    $page_description = 'Pannello di controllo farmacia';
+}
 
 // Ottieni statistiche
 $stats = getDashboardStats();
@@ -30,76 +37,29 @@ $isOpen = isPharmacyOpen();
 $nextOpening = getNextOpeningTime();
 ?>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg">
-    <div class="container-fluid">
-        <!-- Logo a sinistra -->
-        <div class="text-light fw-bold">
-            <i class="fas fa-pills"></i> <?= APP_NAME ?>
-        </div>
-        
-        <!-- Toggler offcanvas (mobile) -->
-        <button class="offcanvas-toggler d-lg-none ms-auto" 
-                type="button"
-                data-bs-toggle="offcanvas"
-                data-bs-target="#sidebarOffcanvas"
-                aria-controls="sidebarOffcanvas">
-            <span class="navbar-toggler-icon"></span>
-        </button>
 
-        <!-- Titolo centrale -->
-        <div class="navbar-center mx-auto text-light text-center">
-            <?= htmlspecialchars($pharmacy['nice_name'] ?? 'Farmacia') ?>
-            <?php if ($isOpen): ?>
-                <span class="badge bg-success ms-2">
-                    <i class="fas fa-circle"></i> Aperta
-                </span>
-            <?php else: ?>
-                <span class="badge bg-danger ms-2">
-                    <i class="fas fa-circle"></i> Chiusa
-                    <?php if ($nextOpening): ?>
-                        <small class="d-block">Apre: <?= $nextOpening ?></small>
-                    <?php endif; ?>
-                </span>
-            <?php endif; ?>
-        </div>
 
-        <!-- Logout rimosso - ora solo nel sidebar -->
-        <div class="d-none d-lg-block ms-auto">
-            <!-- Pulsante logout rimosso -->
-        </div>
-    </div>
-</nav>
-
-<!-- Offcanvas per mobile -->
-<div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title">Menu</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body p-0">
-        <?php include 'includes/sidebar.php'; ?>
-    </div>
-</div>
-
-<!-- Layout generale -->
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar desktop -->
-        <aside class="d-none d-lg-block sidebar-left">
-            <?php include 'includes/sidebar.php'; ?>
-        </aside>
-
-        <!-- Main content -->
-        <main class="col-12 col-lg-9 p-3">
+        <?php require_once 'includes/sidebar.php'; ?>
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <!-- Header Dashboard -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 class="h3 mb-0">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                        <i class="fas fa-tachometer-alt"></i> 
+                        <?php if (isAdmin()): ?>
+                            Dashboard Amministrativa
+                        <?php else: ?>
+                            Dashboard
+                        <?php endif; ?>
                     </h1>
                     <p class="text-muted mb-0">
                         Benvenuto, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Utente') ?>!
+                        <?php if (isAdmin()): ?>
+                            <br><small>Panoramica completa di tutte le farmacie del sistema</small>
+                        <?php endif; ?>
                     </p>
                 </div>
                 <div class="text-end">
@@ -116,7 +76,13 @@ $nextOpening = getNextOpeningTime();
                     <div class="card-body">
                         <i class="fas fa-users mb-2 text-primary"></i>
                         <h5 class="card-title mt-2"><?= number_format($stats['customers']) ?></h5>
-                        <p class="card-text">Numero di clienti</p>
+                        <p class="card-text">
+                            <?php if (isAdmin()): ?>
+                                Clienti Totali
+                            <?php else: ?>
+                                Numero di clienti
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
 
@@ -124,7 +90,13 @@ $nextOpening = getNextOpeningTime();
                     <div class="card-body">
                         <i class="fas fa-clock mb-2 text-warning"></i>
                         <h5 class="card-title mt-2"><?= number_format($stats['pending_requests']) ?></h5>
-                        <p class="card-text">Richieste in corso</p>
+                        <p class="card-text">
+                            <?php if (isAdmin()): ?>
+                                Richieste in Corso
+                            <?php else: ?>
+                                Richieste in corso
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
 
@@ -132,7 +104,13 @@ $nextOpening = getNextOpeningTime();
                     <div class="card-body">
                         <i class="fas fa-check-circle mb-2 text-success"></i>
                         <h5 class="card-title mt-2"><?= number_format($stats['completed_requests']) ?></h5>
-                        <p class="card-text">Richieste completate</p>
+                        <p class="card-text">
+                            <?php if (isAdmin()): ?>
+                                Richieste Completate
+                            <?php else: ?>
+                                Richieste completate
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
 
@@ -140,7 +118,13 @@ $nextOpening = getNextOpeningTime();
                     <div class="card-body">
                         <i class="fas fa-pills mb-2 text-info"></i>
                         <h5 class="card-title mt-2"><?= number_format($stats['products']) ?></h5>
-                        <p class="card-text">Prodotti in catalogo</p>
+                        <p class="card-text">
+                            <?php if (isAdmin()): ?>
+                                Prodotti Totali
+                            <?php else: ?>
+                                Prodotti in catalogo
+                            <?php endif; ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -149,7 +133,12 @@ $nextOpening = getNextOpeningTime();
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-line"></i> Prenotazioni Ultimi 30 Giorni
+                        <i class="fas fa-chart-line"></i> 
+                        <?php if (isAdmin()): ?>
+                            Prenotazioni Sistema (Ultimi 30 Giorni)
+                        <?php else: ?>
+                            Prenotazioni Ultimi 30 Giorni
+                        <?php endif; ?>
                     </h5>
                 </div>
                 <div class="card-body">
@@ -157,7 +146,8 @@ $nextOpening = getNextOpeningTime();
                 </div>
             </div>
 
-            <!-- Informazioni Rapide -->
+            <!-- Informazioni Rapide - Solo per farmacisti -->
+            <?php if (!isAdmin()): ?>
             <div class="row mt-4">
                 <div class="col-md-6">
                     <div class="card">
@@ -230,6 +220,7 @@ $nextOpening = getNextOpeningTime();
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </main>
     </div>
 </div>

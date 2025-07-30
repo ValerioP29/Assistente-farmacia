@@ -248,4 +248,252 @@ function logDebug($message, $data = null) {
 function h($value, $default = '') {
     return htmlspecialchars($value ?? $default, ENT_QUOTES, 'UTF-8');
 }
+
+/**
+ * Ottiene statistiche dashboard
+ */
+function getDashboardStats() {
+    try {
+        $stats = [];
+        
+        // Se è admin, mostra dati di tutte le farmacie
+        if (isAdmin()) {
+            // Numero clienti totali
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE is_deleted = 0";
+            $result = db_fetch_one($sql);
+            $stats['customers'] = $result['count'];
+            
+            // Richieste in corso totali
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'in elaborazione'";
+            $result = db_fetch_one($sql);
+            $stats['pending_requests'] = $result['count'];
+            
+            // Richieste completate totali
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato'";
+            $result = db_fetch_one($sql);
+            $stats['completed_requests'] = $result['count'];
+            
+            // Prodotti totali
+            $sql = "SELECT COUNT(*) as count FROM prodotti";
+            $result = db_fetch_one($sql);
+            $stats['products'] = $result['count'];
+        } else {
+            // Se è farmacista, mostra solo dati della sua farmacia
+            $pharmacy = getCurrentPharmacy();
+            $pharmacyId = $pharmacy['id'] ?? 0;
+            
+            // Numero clienti della farmacia
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE is_deleted = 0 AND pharmacy_id = ?";
+            $result = db_fetch_one($sql, [$pharmacyId]);
+            $stats['customers'] = $result['count'];
+            
+            // Richieste in corso della farmacia
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'in elaborazione' AND pharmacy_id = ?";
+            $result = db_fetch_one($sql, [$pharmacyId]);
+            $stats['pending_requests'] = $result['count'];
+            
+            // Richieste completate della farmacia
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato' AND pharmacy_id = ?";
+            $result = db_fetch_one($sql, [$pharmacyId]);
+            $stats['completed_requests'] = $result['count'];
+            
+            // Prodotti della farmacia
+            $sql = "SELECT COUNT(*) as count FROM prodotti WHERE pharmacy_id = ?";
+            $result = db_fetch_one($sql, [$pharmacyId]);
+            $stats['products'] = $result['count'];
+        }
+        
+        return $stats;
+    } catch (Exception $e) {
+        return [
+            'customers' => 0,
+            'pending_requests' => 0,
+            'completed_requests' => 0,
+            'products' => 0
+        ];
+    }
+}
+
+/**
+ * Ottiene dati per grafico
+ */
+function getChartData($days = 30) {
+    try {
+        // Se è admin, mostra dati di tutte le farmacie
+        if (isAdmin()) {
+            $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
+                    FROM prenotazioni 
+                    WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                    GROUP BY DATE(data_prenotazione)
+                    ORDER BY date";
+            
+            $results = db_fetch_all($sql, [$days]);
+        } else {
+            // Se è farmacista, mostra solo dati della sua farmacia
+            $pharmacy = getCurrentPharmacy();
+            $pharmacyId = $pharmacy['id'] ?? 0;
+            
+            $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
+                    FROM prenotazioni 
+                    WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                    AND pharmacy_id = ?
+                    GROUP BY DATE(data_prenotazione)
+                    ORDER BY date";
+            
+            $results = db_fetch_all($sql, [$days, $pharmacyId]);
+        }
+        
+        $data = [];
+        foreach ($results as $row) {
+            $data['labels'][] = formatDate($row['date'], 'd/m');
+            $data['values'][] = (int)$row['count'];
+        }
+        
+        return $data;
+    } catch (Exception $e) {
+        return ['labels' => [], 'values' => []];
+    }
+}
+
+/**
+ * Controlla se la farmacia è aperta
+ */
+function isPharmacyOpen($pharmacyId = null) {
+    $hours = getPharmacyHours($pharmacyId);
+    if (!$hours) return false;
+    
+    $today = date('l'); // Nome del giorno in inglese
+    $currentTime = date('H:i');
+    
+    if (!isset($hours[$today])) return false;
+    
+    $dayHours = $hours[$today];
+    
+    // Controlla orari mattina
+    if (isset($dayHours['mattina'])) {
+        $morning = explode('-', $dayHours['mattina']);
+        if (count($morning) === 2) {
+            if ($currentTime >= $morning[0] && $currentTime <= $morning[1]) {
+                return true;
+            }
+        }
+    }
+    
+    // Controlla orari pomeriggio
+    if (isset($dayHours['pomeriggio'])) {
+        $afternoon = explode('-', $dayHours['pomeriggio']);
+        if (count($afternoon) === 2) {
+            if ($currentTime >= $afternoon[0] && $currentTime <= $afternoon[1]) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Ottiene il prossimo orario di apertura
+ */
+function getNextOpeningTime($pharmacyId = null) {
+    $hours = getPharmacyHours($pharmacyId);
+    if (!$hours) return null;
+    
+    $today = date('l');
+    $currentTime = date('H:i');
+    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Cerca oggi
+    if (isset($hours[$today])) {
+        $dayHours = $hours[$today];
+        
+        // Controlla pomeriggio se siamo in mattina
+        if (isset($dayHours['pomeriggio'])) {
+            $afternoon = explode('-', $dayHours['pomeriggio']);
+            if (count($afternoon) === 2 && $currentTime < $afternoon[0]) {
+                return $afternoon[0];
+            }
+        }
+    }
+    
+    // Cerca nei prossimi giorni
+    $currentIndex = array_search($today, $days);
+    for ($i = 1; $i <= 7; $i++) {
+        $nextDay = $days[($currentIndex + $i) % 7];
+        if (isset($hours[$nextDay])) {
+            $dayHours = $hours[$nextDay];
+            if (isset($dayHours['mattina'])) {
+                $morning = explode('-', $dayHours['mattina']);
+                if (count($morning) === 2) {
+                    return $morning[0];
+                }
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Ottiene orari farmacia
+ */
+function getPharmacyHours($pharmacyId = null) {
+    if (!$pharmacyId) {
+        $pharmacy = getCurrentPharmacy();
+        $pharmacyId = $pharmacy['id'] ?? 1;
+    }
+    
+    try {
+        $sql = "SELECT working_info FROM jta_pharmas WHERE id = ?";
+        $result = db_fetch_one($sql, [$pharmacyId]);
+        
+        if ($result && $result['working_info']) {
+            return json_decode($result['working_info'], true);
+        }
+        
+        return null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Formatta orari per visualizzazione
+ */
+function formatWorkingHours($hours) {
+    if (!$hours) return [];
+    
+    $formatted = [];
+    $days = [
+        'Monday' => 'Lunedì',
+        'Tuesday' => 'Martedì', 
+        'Wednesday' => 'Mercoledì',
+        'Thursday' => 'Giovedì',
+        'Friday' => 'Venerdì',
+        'Saturday' => 'Sabato',
+        'Sunday' => 'Domenica'
+    ];
+    
+    foreach ($hours as $day => $times) {
+        $dayName = $days[$day] ?? $day;
+        $timeStr = '';
+        
+        if (isset($times['mattina'])) {
+            $timeStr .= $times['mattina'];
+        }
+        
+        if (isset($times['pomeriggio'])) {
+            if ($timeStr) $timeStr .= ' - ';
+            $timeStr .= $times['pomeriggio'];
+        }
+        
+        if (!$timeStr) {
+            $timeStr = 'Chiuso';
+        }
+        
+        $formatted[$dayName] = $timeStr;
+    }
+    
+    return $formatted;
+}
 ?>
