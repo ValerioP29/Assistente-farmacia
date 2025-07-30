@@ -2,7 +2,7 @@
 
 ## 📋 Panoramica del Progetto
 
-**Assistente Farmacia Panel** è un sistema di gestione completo per farmacie che permette agli amministratori di gestire utenti, farmacie e controllare l'accesso alle risorse del sistema.
+**Assistente Farmacia Panel** è un sistema di gestione completo per farmacie che permette agli amministratori di gestire utenti, farmacie e controllare l'accesso alle risorse del sistema. Il sistema include funzionalità avanzate per la gestione di profili, orari, WhatsApp Business e accesso impersonificato.
 
 ## 🏗️ Architettura del Sistema
 
@@ -130,6 +130,211 @@ requireApiAuth(['admin', 'pharmacist']); // Admin o farmacista
 - ✅ Telefono valido
 - ✅ Stato valido (active/inactive/deleted)
 
+## 👤 Gestione Profilo Farmacia
+
+### Funzionalità
+- **Modifica dati anagrafici** della farmacia
+- **Campi modificabili**:
+  - Email
+  - Telefono
+  - Ragione sociale
+  - Nome farmacia
+  - Città
+  - Indirizzo
+  - Posizione (lat/lng)
+  - Descrizione
+
+### Sicurezza
+- Solo i **farmacisti** possono modificare la propria farmacia
+- **Validazione CSRF** per tutti i form
+- **Validazione lato client e server**
+- **Sanitizzazione** di tutti gli input
+
+### File Implementati
+- `profilo.php` - Pagina principale
+- `assets/js/profile.js` - JavaScript per gestione form
+- `api/pharmacies/update-profile.php` - API per aggiornamento
+
+### Validazioni
+- **Email**: Formato valido (se fornita)
+- **Telefono**: Formato valido (se fornito)
+- **Campi obbligatori**: business_name, nice_name, city, address
+- **Nome unico**: Controllo duplicati nice_name
+
+## 🕐 Gestione Orari Farmacia
+
+### Funzionalità
+- **Gestione orari di apertura** per tutti i giorni della settimana
+- **Orari mattina e pomeriggio** separati
+- **Opzione "Chiuso"** per ogni giorno
+- **Giorno di turno** configurabile
+- **Validazione orari** (apertura prima della chiusura)
+
+### Struttura Orari
+Ogni giorno ha:
+- **Mattina**: Orario apertura e chiusura
+- **Pomeriggio**: Orario apertura e chiusura
+- **Chiuso**: Checkbox per marcare il giorno come chiuso
+
+### File Implementati
+- `orari.php` - Pagina principale
+- `assets/js/orari.js` - JavaScript per gestione form
+- `api/pharmacies/update-hours.php` - API per aggiornamento orari
+- `api/pharmacies/update-turno.php` - API per aggiornamento turno
+
+### Formato Orari (JSON)
+```json
+{
+  "lun": {
+    "closed": false,
+    "morning_open": "08:00",
+    "morning_close": "12:00",
+    "afternoon_open": "15:00",
+    "afternoon_close": "19:00"
+  },
+  "mar": {
+    "closed": true
+  }
+}
+```
+
+### Validazioni
+- **Orari obbligatori**: Se il giorno non è chiuso
+- **Apertura < Chiusura**: Validazione logica orari
+- **Formato orari**: HH:MM valido
+- **Giorno turno**: Valore tra quelli consentiti
+
+## 🔄 Accesso come Farmacia (Login-as)
+
+### Panoramica
+Questa funzionalità permette agli amministratori di accedere alla piattaforma con l'account di una farmacia specifica, operando a nome della farmacia e visualizzando tutte le sezioni dedicate alla farmacia.
+
+### Come Utilizzare
+
+#### 1. Accesso come Farmacia
+1. Accedi come amministratore
+2. Vai alla sezione "Gestione Utenti"
+3. Trova l'utente farmacista per la farmacia desiderata
+4. Clicca sul pulsante verde "Accedi come" (icona di login)
+5. Conferma l'azione
+6. Verrai reindirizzato alla dashboard della farmacia
+
+#### 2. Indicatori Visivi
+Quando sei in modalità "accesso come farmacia", vedrai:
+- **Sidebar**: Un indicatore blu che mostra "Accesso come Farmacia" con il nome della farmacia
+- **Dashboard**: Un alert informativo che indica la modalità di accesso
+- **Menu**: Tutte le voci del menu farmacista sono ora disponibili
+
+#### 3. Operazioni Disponibili
+In modalità "accesso come farmacia" puoi:
+- Visualizzare la dashboard della farmacia
+- Gestire clienti
+- Modificare orari di apertura
+- Gestire prodotti e promozioni
+- Visualizzare richieste
+- Gestire il profilo della farmacia
+- Utilizzare WhatsApp
+
+#### 4. Tornare alla Lista Utenti
+Per tornare alla lista utenti:
+1. Clicca sul pulsante "Torna Admin" nella sidebar (icona freccia a sinistra)
+2. Conferma l'azione
+3. Verrai reindirizzato alla lista utenti
+
+### Sicurezza
+- Solo gli amministratori possono utilizzare questa funzionalità
+- L'accesso è tracciato nei log del sistema
+- È sempre possibile tornare all'account amministratore
+- I dati dell'admin originale sono preservati durante l'accesso come farmacia
+
+### File Modificati
+- `utenti.php` - Aggiunto pulsante "Accedi come" per farmacisti
+- `includes/sidebar.php` - Aggiunto indicatore e pulsante "Torna Admin"
+- `dashboard.php` - Aggiunto alert informativo
+- `assets/js/utenti.js` - Aggiornate funzioni JavaScript
+- `assets/js/main.js` - Aggiunta funzione returnToAdmin globale
+
+### API Utilizzate
+- `api/users/login-as.php` - Per accedere come farmacia
+- `api/users/return-admin.php` - Per tornare all'account admin
+
+### Note Tecniche
+- La funzionalità utilizza il flag `$_SESSION['login_as']` per tracciare la modalità
+- I dati dell'admin originale sono salvati in `$_SESSION['original_admin_*']`
+- Il menu si adatta automaticamente in base al ruolo dell'utente impersonificato
+
+## 📱 Integrazione WhatsApp Business
+
+### Panoramica
+Il sistema WhatsApp è stato integrato nel pannello di gestione farmacia per permettere la connessione e gestione del servizio WhatsApp Business.
+
+### Configurazione
+
+#### 1. Configurazione URL Servizi
+Modifica i file di configurazione per impostare l'URL base del servizio WhatsApp:
+
+**File: `config/database.php`**
+```php
+// Configurazione WhatsApp
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+```
+
+**File: `config/development.php` (per sviluppo)**
+```php
+// Configurazione WhatsApp per sviluppo
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+```
+
+#### 2. URL Configurabili
+- **WHATSAPP_BASE_URL**: URL base del servizio WhatsApp
+  - Status/Disconnect: `{WHATSAPP_BASE_URL}/status` e `{WHATSAPP_BASE_URL}/disconnect`
+  - QR Code: `{WHATSAPP_BASE_URL}/qr`
+
+### Funzionalità
+
+#### 1. Controllo Stato Connessione
+- **Endpoint**: `api/whatsapp/check-status.php`
+- **Metodo**: GET
+- **Funzione**: Verifica se WhatsApp è connesso
+
+#### 2. Generazione QR Code
+- **Endpoint**: `api/whatsapp/get-qr.php`
+- **Metodo**: POST
+- **Funzione**: Genera QR code per la connessione
+
+#### 3. Disconnessione
+- **Endpoint**: `api/whatsapp/disconnect.php`
+- **Metodo**: POST
+- **Funzione**: Disconnette WhatsApp
+
+### Struttura File
+```
+whatsapp.php                    # Pagina principale WhatsApp
+├── assets/js/core/pharma_wa.js # Script JavaScript frontend
+└── api/whatsapp/
+    ├── functions.php           # Funzioni comuni
+    ├── check-status.php        # API controllo stato
+    ├── get-qr.php             # API generazione QR
+    └── disconnect.php         # API disconnessione
+```
+
+### Utilizzo
+1. **Accesso**: Vai su "WhatsApp" nel menu laterale
+2. **Connessione**: Inquadra il QR code con WhatsApp
+3. **Stato**: Il sistema controlla automaticamente lo stato ogni 20 secondi
+4. **Disconnessione**: Usa il pulsante "Disconnetti" per scollegare
+
+### Sicurezza
+- Tutte le API richiedono autenticazione
+- Le richieste sono validate tramite sessione
+- Gli URL dei servizi sono configurabili per ambiente
+
+### Note Tecniche
+- Il sistema utilizza cURL per le chiamate API esterne
+- SSL verification è disabilitata per localhost
+- Il polling automatico si attiva solo quando WhatsApp è disconnesso
+- Tutti i messaggi di errore sono localizzati in italiano
+
 ## 🗄️ Ottimizzazioni Database
 
 ### Tabella `jta_users` (Ottimizzata)
@@ -213,6 +418,9 @@ DEBUG_MODE, LOG_LEVEL, ERROR_REPORTING
 
 // Sicurezza
 SESSION_TIMEOUT, CSRF_TOKEN_LIFETIME
+
+// WhatsApp
+WHATSAPP_BASE_URL
 ```
 
 ## 🚀 Installazione
@@ -342,6 +550,15 @@ curl -X POST http://localhost:8000/api/users/list.php
 
 ## 📝 Changelog
 
+### Versione 2.1.0 (2025-07-30)
+- ✅ Gestione profilo farmacia completa
+- ✅ Gestione orari di apertura
+- ✅ Integrazione WhatsApp Business
+- ✅ Accesso impersonificato (login-as)
+- ✅ Sistema di logout migliorato
+- ✅ Validazioni avanzate
+- ✅ UI/UX ottimizzata
+
 ### Versione 2.0.0 (2025-07-29)
 - ✅ Sistema di controllo accessi completo
 - ✅ Gestione utenti CRUD completa
@@ -358,4 +575,4 @@ curl -X POST http://localhost:8000/api/users/list.php
 
 ---
 
-**Assistente Farmacia Panel** - Sistema di gestione completo per farmacie 
+**Assistente Farmacia Panel** - Sistema di gestione completo per farmacie con funzionalità avanzate di profilo, orari, WhatsApp e accesso impersonificato. 
