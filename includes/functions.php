@@ -218,6 +218,16 @@ function arrayToSelectOptions($array, $selected = null, $empty_option = '') {
     return $html;
 }
 
+/**
+ * Imposta un messaggio di alert nella sessione
+ */
+function setAlert($message, $type = 'info') {
+    $_SESSION['alert'] = [
+        'message' => $message,
+        'type' => $type
+    ];
+}
+
 // Funzioni di utilità per file
 function getFileExtension($filename) {
     return strtolower(pathinfo($filename, PATHINFO_EXTENSION));
