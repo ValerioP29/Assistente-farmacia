@@ -40,6 +40,7 @@ if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
 // Configurazione WhatsApp (opzionale) - solo se non già definite
 if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', '');
 if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', '');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
 
 // Configurazione Google Maps (opzionale) - solo se non già definite
 if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', '');

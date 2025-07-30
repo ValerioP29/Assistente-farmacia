@@ -50,6 +50,7 @@ if (!defined('SMTP_PASS')) define('SMTP_PASS', '');
 // Configurazione WhatsApp per sviluppo (solo se non già definite)
 if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', 'test_key');
 if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', 'test_phone');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
 
 // Configurazione Google Maps per sviluppo (solo se non già definite)
 if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', 'test_key');
