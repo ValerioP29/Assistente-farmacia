@@ -60,7 +60,7 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
             <li><hr class="border-light"></li>
         <?php endif; ?>
         
-        <li><a href="#" class="nav-link exit logout-link"><i class="fas fa-sign-out-alt me-2"></i> Esci</a></li>
+        <li><a href="logout.php" class="nav-link exit logout-link" onclick="return confirm('Sei sicuro di voler uscire?')"><i class="fas fa-sign-out-alt me-2"></i> Esci</a></li>
     </ul>
 </div>
 
