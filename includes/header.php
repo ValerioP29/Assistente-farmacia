@@ -164,10 +164,6 @@ $current_page = $current_page ?? 'dashboard';
         <!-- Navbar -->
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">
-                <div class="text-light fw-bold">
-                    <?= APP_NAME ?>
-                </div>
-                
                 <button class="offcanvas-toggler d-lg-none ms-auto" 
                         type="button"
                         data-bs-toggle="offcanvas"

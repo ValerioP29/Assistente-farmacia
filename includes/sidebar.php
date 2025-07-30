@@ -12,12 +12,12 @@ $menu_items = [
     'dashboard' => ['icon' => 'fas fa-tachometer-alt', 'label' => 'Dashboard', 'url' => 'dashboard.php', 'roles' => ['admin', 'pharmacist']],
     'utenti' => ['icon' => 'fas fa-users', 'label' => 'Gestione Utenti', 'url' => 'utenti.php', 'roles' => ['admin']],
     'farmacie' => ['icon' => 'fas fa-clinic-medical', 'label' => 'Gestione Farmacie', 'url' => 'farmacie.php', 'roles' => ['admin']],
-    'whatsapp' => ['icon' => 'fab fa-whatsapp', 'label' => 'WhatsApp', 'url' => 'whatsapp.php', 'roles' => ['pharmacist']],
-    'clienti' => ['icon' => 'fas fa-user-friends', 'label' => 'Clienti', 'url' => 'clienti.php', 'roles' => ['pharmacist']],
-    'profilo' => ['icon' => 'fas fa-user-cog', 'label' => 'Profilo', 'url' => 'profilo.php', 'roles' => ['pharmacist']],
-    'orari' => ['icon' => 'fas fa-clock', 'label' => 'Modifica Orari', 'url' => 'orari.php', 'roles' => ['pharmacist']],
-    'prodotti' => ['icon' => 'fas fa-pills', 'label' => 'Promo', 'url' => 'prodotti.php', 'roles' => ['pharmacist']],
     'richieste' => ['icon' => 'fas fa-calendar-check', 'label' => 'Richieste', 'url' => 'richieste.php', 'roles' => ['pharmacist']],
+    'prodotti' => ['icon' => 'fas fa-boxes', 'label' => 'Prodotti', 'url' => 'prodotti.php', 'roles' => ['pharmacist']],
+    'promo' => ['icon' => 'fas fa-pills', 'label' => 'Promo', 'url' => 'promo.php', 'roles' => ['pharmacist']],
+    'orari' => ['icon' => 'fas fa-clock', 'label' => 'Modifica Orari', 'url' => 'orari.php', 'roles' => ['pharmacist']],
+    'whatsapp' => ['icon' => 'fab fa-whatsapp', 'label' => 'WhatsApp', 'url' => 'whatsapp.php', 'roles' => ['pharmacist']],
+    'profilo' => ['icon' => 'fas fa-user-cog', 'label' => 'Profilo', 'url' => 'profilo.php', 'roles' => ['pharmacist']],
 ];
 
 // Filtra menu items in base al ruolo

@@ -68,12 +68,12 @@ echo "\n";
 // Verifica file principali
 echo coloredOutput("📁 Verifica File Principali:\n", 'bold');
 $mainFiles = [
-    'dashboard.html' => 'Dashboard principale',
+    'dashboard.php' => 'Dashboard principale',
     'login.php' => 'Pagina di login',
-    'prodotti.html' => 'Gestione prodotti',
-    'prenotazioni.html' => 'Sistema prenotazioni',
-    'css/dashboard.css' => 'Stili dashboard',
-    'js/navbar.js' => 'Navigazione'
+    'prodotti.php' => 'Gestione prodotti',
+    'richieste.php' => 'Sistema richieste',
+    'assets/css/main.css' => 'Stili principali',
+    'assets/js/main.js' => 'JavaScript principale'
 ];
 
 foreach ($mainFiles as $file => $description) {
@@ -89,10 +89,10 @@ echo "\n";
 // URL di accesso
 $url = "http://{$host}:{$port}";
 echo coloredOutput("🌐 URL di Accesso:\n", 'bold');
-echo coloredOutput("   • Dashboard: ", 'yellow') . $url . "/dashboard.html\n";
+echo coloredOutput("   • Dashboard: ", 'yellow') . $url . "/dashboard.php\n";
 echo coloredOutput("   • Login: ", 'yellow') . $url . "/login.php\n";
-echo coloredOutput("   • Prodotti: ", 'yellow') . $url . "/prodotti.html\n";
-echo coloredOutput("   • Prenotazioni: ", 'yellow') . $url . "/prenotazioni.html\n";
+echo coloredOutput("   • Prodotti: ", 'yellow') . $url . "/prodotti.php\n";
+echo coloredOutput("   • Richieste: ", 'yellow') . $url . "/richieste.php\n";
 echo "\n";
 
 // Istruzioni
