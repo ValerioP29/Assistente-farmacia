@@ -155,6 +155,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             KEY `created_at` (`created_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         
+        // Tabella richieste
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `jta_requests` (
+            `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+            `request_type` enum('event','service','promos','reservation') NOT NULL,
+            `user_id` int(11) UNSIGNED NOT NULL,
+            `pharma_id` int(11) UNSIGNED NOT NULL,
+            `message` mediumtext NOT NULL,
+            `metadata` longtext NOT NULL,
+            `status` tinyint(1) NOT NULL DEFAULT 0,
+            `created_at` datetime NOT NULL,
+            `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `deleted_at` datetime DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY `status` (`status`),
+            KEY `pharma_id` (`pharma_id`),
+            KEY `user_id` (`user_id`),
+            KEY `request_type` (`request_type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        
         echo coloredOutput("   ✅ Tabelle database create\n", 'green');
         
         // Crea utente admin se non esiste

@@ -1,0 +1,588 @@
+/**
+ * JavaScript per la gestione delle richieste
+ * Assistente Farmacia Panel
+ */
+
+class RichiesteManager {
+    constructor() {
+        this.currentPage = 1;
+        this.currentFilters = {};
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadRequests();
+        this.updateStatistics();
+        this.updateResetButtonState();
+    }
+
+    bindEvents() {
+        // Filtri
+        document.getElementById('applyFilters').addEventListener('click', () => {
+            this.applyFilters();
+        });
+
+        // Reset filtri
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            this.resetFilters();
+        });
+
+        // Ricerca con Enter
+        document.getElementById('searchFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.applyFilters();
+            }
+        });
+
+        // Aggiorna stato pulsante reset quando cambiano i filtri
+        document.getElementById('statusFilter').addEventListener('change', () => {
+            this.updateResetButtonState();
+        });
+        
+        document.getElementById('typeFilter').addEventListener('change', () => {
+            this.updateResetButtonState();
+        });
+        
+        document.getElementById('searchFilter').addEventListener('input', () => {
+            this.updateResetButtonState();
+        });
+
+        // Pulsante aggiorna
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            this.loadRequests();
+            this.updateStatistics();
+        });
+
+        // Salva stato
+        document.getElementById('saveStatusBtn').addEventListener('click', () => {
+            this.updateRequestStatus();
+        });
+
+        // Conferma eliminazione
+        document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+            this.deleteRequest();
+        });
+    }
+
+    applyFilters() {
+        this.currentFilters = {
+            status: document.getElementById('statusFilter').value,
+            request_type: document.getElementById('typeFilter').value,
+            search: document.getElementById('searchFilter').value
+        };
+        this.currentPage = 1;
+        this.loadRequests();
+        this.updateResetButtonState();
+    }
+
+    resetFilters() {
+        // Reset dei valori dei filtri
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('typeFilter').value = '';
+        document.getElementById('searchFilter').value = '';
+        
+        // Reset dei filtri correnti
+        this.currentFilters = {};
+        this.currentPage = 1;
+        
+        // Ricarica le richieste
+        this.loadRequests();
+        
+        // Aggiorna stato pulsante
+        this.updateResetButtonState();
+        
+        // Mostra feedback
+        this.showSuccess('Filtri resettati');
+    }
+
+    updateResetButtonState() {
+        const resetBtn = document.getElementById('resetFilters');
+        const filterCountBadge = document.getElementById('filterCount');
+        
+        // Conta i filtri attivi
+        let activeFiltersCount = 0;
+        if (this.currentFilters.status) activeFiltersCount++;
+        if (this.currentFilters.request_type) activeFiltersCount++;
+        if (this.currentFilters.search) activeFiltersCount++;
+        
+        const hasActiveFilters = activeFiltersCount > 0;
+        
+        if (hasActiveFilters) {
+            resetBtn.classList.remove('btn-outline-secondary');
+            resetBtn.classList.add('btn-warning');
+            resetBtn.title = `Reset ${activeFiltersCount} filtro${activeFiltersCount > 1 ? 'i' : ''} attivo${activeFiltersCount > 1 ? 'i' : ''}`;
+            
+            // Mostra badge con conteggio
+            filterCountBadge.textContent = activeFiltersCount;
+            filterCountBadge.style.display = 'inline';
+        } else {
+            resetBtn.classList.remove('btn-warning');
+            resetBtn.classList.add('btn-outline-secondary');
+            resetBtn.title = 'Reset filtri';
+            
+            // Nascondi badge
+            filterCountBadge.style.display = 'none';
+        }
+    }
+
+    async loadRequests() {
+        try {
+            this.showLoading();
+            
+            const params = new URLSearchParams({
+                page: this.currentPage,
+                limit: 20,
+                ...this.currentFilters
+            });
+
+            const response = await fetch(`api/requests/list.php?${params}`);
+            const data = await response.json();
+
+            if (data.success) {
+                this.renderRequests(data.data);
+                this.renderPagination(data.pagination);
+            } else {
+                this.showError('Errore nel caricamento delle richieste: ' + data.error);
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
+    }
+
+    renderRequests(requests) {
+        const tbody = document.getElementById('requestsTableBody');
+        
+        if (requests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p>Nessuna richiesta trovata</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = requests.map(request => `
+            <tr>
+                <td><strong>#${request.id}</strong></td>
+                <td>
+                    <span class="badge bg-primary">${request.request_type_label}</span>
+                </td>
+                <td>
+                    <div>
+                        <strong>${request.pharmacy_name || 'N/A'}</strong>
+                        ${request.pharmacy_nice_name ? `<br><small class="text-muted">${request.pharmacy_nice_name}</small>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <div>
+                        <strong>${request.user_username || 'N/A'}</strong>
+                        ${request.user_email ? `<br><small class="text-muted"><i class="fas fa-envelope me-1"></i>${request.user_email}</small>` : ''}
+                        ${request.user_phone ? `<br><small class="text-muted"><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user_phone)}</small>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <div class="text-truncate" style="max-width: 200px;" title="${request.message}">
+                        ${request.message}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-${request.status_color}">${request.status_label}</span>
+                </td>
+                <td>
+                    <small>${request.created_at_formatted}</small>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" 
+                                onclick="richiesteManager.viewDetails(${request.id})" 
+                                title="Visualizza dettagli">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" 
+                                onclick="richiesteManager.openUpdateStatus(${request.id})" 
+                                title="Aggiorna stato">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" 
+                                onclick="richiesteManager.openDeleteRequest(${request.id})" 
+                                title="Elimina richiesta">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    renderPagination(pagination) {
+        const paginationEl = document.getElementById('pagination');
+        
+        if (pagination.pages <= 1) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+
+        let paginationHtml = '';
+
+        // Pulsante precedente
+        if (pagination.page > 1) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${pagination.page - 1})">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+            `;
+        }
+
+        // Pagine
+        const startPage = Math.max(1, pagination.page - 2);
+        const endPage = Math.min(pagination.pages, pagination.page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
+                <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${i})">${i}</a>
+                </li>
+            `;
+        }
+
+        // Pulsante successivo
+        if (pagination.page < pagination.pages) {
+            paginationHtml += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${pagination.page + 1})">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            `;
+        }
+
+        paginationEl.innerHTML = paginationHtml;
+    }
+
+    goToPage(page) {
+        this.currentPage = page;
+        this.loadRequests();
+    }
+
+    async viewDetails(requestId) {
+        try {
+            const response = await fetch(`api/requests/get.php?id=${requestId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                this.renderRequestDetails(data.data);
+                new bootstrap.Modal(document.getElementById('requestDetailsModal')).show();
+            } else {
+                this.showError('Errore nel caricamento dei dettagli: ' + data.error);
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
+    }
+
+    renderRequestDetails(request) {
+        const content = document.getElementById('requestDetailsContent');
+        
+        content.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-clipboard-list me-2"></i>Informazioni Richiesta</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>ID:</strong></td>
+                            <td>#${request.id}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Tipo:</strong></td>
+                            <td><span class="badge bg-primary">${request.request_type_label}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Stato:</strong></td>
+                            <td><span class="badge bg-${request.status_color}">${request.status_label}</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Data Creazione:</strong></td>
+                            <td>${request.created_at_formatted}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-user me-2"></i>Informazioni Cliente</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Nome:</strong></td>
+                            <td>${request.user.username || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Email:</strong></td>
+                            <td><i class="fas fa-envelope me-1"></i>${request.user.email || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Telefono:</strong></td>
+                            <td><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user.phone) || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6><i class="fas fa-comment me-2"></i>Messaggio</h6>
+                    <div class="alert alert-info">
+                        ${request.message}
+                    </div>
+                </div>
+            </div>
+            
+            ${request.notes && request.notes.length > 0 ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fas fa-sticky-note me-2"></i>Note</h6>
+                        <div class="timeline">
+                            ${request.notes.map(note => `
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-${this.getStatusColor(note.status)}"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between">
+                                            <strong>${this.getStatusLabel(note.status)}</strong>
+                                            <small class="text-muted">${new Date(note.updated_at).toLocaleString('it-IT')}</small>
+                                        </div>
+                                        <p class="mb-0">${note.text}</p>
+                                        <small class="text-muted">Aggiornato da: ${note.updated_by}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    openUpdateStatus(requestId) {
+        document.getElementById('updateRequestId').value = requestId;
+        new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+    }
+
+    openDeleteRequest(requestId) {
+        document.getElementById('deleteRequestId').value = requestId;
+        document.getElementById('deleteReason').value = '';
+        new bootstrap.Modal(document.getElementById('deleteRequestModal')).show();
+    }
+
+    async updateRequestStatus() {
+        const requestId = document.getElementById('updateRequestId').value;
+        const status = document.getElementById('newStatus').value;
+        const note = document.getElementById('statusNote').value;
+
+        try {
+            const response = await fetch('api/requests/update-status.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    request_id: requestId,
+                    status: status,
+                    note: note
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showSuccess('Stato aggiornato con successo');
+                bootstrap.Modal.getInstance(document.getElementById('updateStatusModal')).hide();
+                document.getElementById('statusNote').value = '';
+                this.loadRequests();
+                this.updateStatistics();
+            } else {
+                this.showError('Errore nell\'aggiornamento: ' + data.error);
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
+    }
+
+    async deleteRequest() {
+        const requestId = document.getElementById('deleteRequestId').value;
+        const reason = document.getElementById('deleteReason').value;
+
+        try {
+            const response = await fetch('api/requests/delete.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    request_id: requestId,
+                    reason: reason
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showSuccess('Richiesta eliminata con successo');
+                bootstrap.Modal.getInstance(document.getElementById('deleteRequestModal')).hide();
+                document.getElementById('deleteReason').value = '';
+                this.loadRequests();
+                this.updateStatistics();
+            } else {
+                this.showError('Errore nell\'eliminazione: ' + data.error);
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
+    }
+
+    async updateStatistics() {
+        try {
+            const response = await fetch('api/requests/stats.php');
+            const data = await response.json();
+
+            if (data.success) {
+                const stats = data.data.status_stats;
+                
+                document.getElementById('pendingCount').textContent = stats.pending;
+                document.getElementById('processingCount').textContent = stats.processing;
+                document.getElementById('completedCount').textContent = stats.completed;
+                document.getElementById('rejectedCount').textContent = stats.rejected;
+                document.getElementById('cancelledCount').textContent = stats.cancelled;
+                document.getElementById('totalCount').textContent = stats.total;
+            }
+        } catch (error) {
+            console.error('Errore nel caricamento delle statistiche:', error);
+        }
+    }
+
+    showLoading() {
+        const tbody = document.getElementById('requestsTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    showError(message) {
+        // Crea un toast di errore
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-danger border-0';
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.appendChild(toast);
+        document.body.appendChild(container);
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Rimuovi il toast dopo che è stato nascosto
+        toast.addEventListener('hidden.bs.toast', () => {
+            document.body.removeChild(container);
+        });
+    }
+
+    showSuccess(message) {
+        // Crea un toast di successo
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-success border-0';
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.appendChild(toast);
+        document.body.appendChild(container);
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Rimuovi il toast dopo che è stato nascosto
+        toast.addEventListener('hidden.bs.toast', () => {
+            document.body.removeChild(container);
+        });
+    }
+
+    getStatusLabel(status) {
+        const labels = {
+            0: 'In attesa',
+            1: 'In lavorazione',
+            2: 'Completata',
+            3: 'Rifiutata',
+            4: 'Annullata'
+        };
+        return labels[status] || 'Sconosciuto';
+    }
+
+    getStatusColor(status) {
+        const colors = {
+            0: 'warning',
+            1: 'info',
+            2: 'success',
+            3: 'danger',
+            4: 'secondary'
+        };
+        return colors[status] || 'secondary';
+    }
+
+    formatPhoneNumber(phone) {
+        if (!phone) return null;
+        
+        // Rimuovi spazi e caratteri speciali
+        let cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+        
+        // Rimuovi prefisso internazionale +39 o 39
+        if (cleanPhone.startsWith('+39')) {
+            cleanPhone = cleanPhone.substring(3);
+        } else if (cleanPhone.startsWith('39')) {
+            cleanPhone = cleanPhone.substring(2);
+        }
+        
+        // Formatta il numero per una migliore leggibilità
+        if (cleanPhone.length === 10) {
+            // Formato: 320 283 8555
+            return cleanPhone.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+        } else if (cleanPhone.length === 9) {
+            // Formato: 320 283 855
+            return cleanPhone.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+        }
+        
+        return cleanPhone;
+    }
+
+}
+
+// Inizializza il manager quando il DOM è caricato
+document.addEventListener('DOMContentLoaded', () => {
+    window.richiesteManager = new RichiesteManager();
+}); 
