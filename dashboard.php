@@ -44,6 +44,20 @@ $nextOpening = getNextOpeningTime();
         <?php require_once 'includes/sidebar.php'; ?>
         
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <?php if (isset($_SESSION['login_as']) && $_SESSION['login_as']): ?>
+                <!-- Indicatore modalità accesso come -->
+                <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-secret me-2"></i>
+                        <div>
+                            <strong>Modalità Accesso come Farmacia</strong>
+                            <br><small>Stai operando come: <?= htmlspecialchars($_SESSION['user_name'] ?? 'Farmacia') ?></small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
             <!-- Header Dashboard -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>

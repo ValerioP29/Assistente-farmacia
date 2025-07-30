@@ -122,14 +122,47 @@ APP.utils = {
 // API functions
 APP.api = {
     /**
+     * Ottieni token CSRF
+     */
+    getCSRFToken: function() {
+        // Prova prima dal meta tag
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            return metaToken.getAttribute('content');
+        }
+        
+        // Prova da APP_CONFIG
+        if (window.APP_CONFIG && window.APP_CONFIG.csrfToken) {
+            return window.APP_CONFIG.csrfToken;
+        }
+        
+        // Prova da APP.config
+        if (APP.config && APP.config.csrfToken) {
+            return APP.config.csrfToken;
+        }
+        
+        // Fallback: cerca nel form
+        const formToken = document.querySelector('input[name="csrf_token"]');
+        if (formToken) {
+            return formToken.value;
+        }
+        
+        return '';
+    },
+
+    /**
      * Richiesta API generica
      */
     request: async function(url, options = {}) {
+        const csrfToken = this.getCSRFToken();
         const defaultOptions = {
-            headers: {
-                'X-CSRF-Token': APP.config.csrfToken
-            }
+            headers: {}
         };
+
+        // Aggiungi token CSRF solo se disponibile
+        if (csrfToken) {
+            defaultOptions.headers['X-CSRF-Token'] = csrfToken;
+        }
 
         const finalOptions = { ...defaultOptions, ...options };
         
@@ -188,10 +221,16 @@ APP.api = {
             options.body = data;
         } else {
             // Per JSON o altri dati
+            const csrfToken = this.getCSRFToken();
             options.headers = {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': APP.config.csrfToken
+                'Content-Type': 'application/json'
             };
+            
+            // Aggiungi token CSRF solo se disponibile
+            if (csrfToken) {
+                options.headers['X-CSRF-Token'] = csrfToken;
+            }
+            
             if (typeof data === 'object') {
                 options.body = JSON.stringify(data);
             } else {

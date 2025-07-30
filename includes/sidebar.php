@@ -6,6 +6,7 @@
 
 $current_page = $current_page ?? 'dashboard';
 $user_role = $_SESSION['user_role'] ?? 'user';
+$is_login_as = isset($_SESSION['login_as']) && $_SESSION['login_as'];
 
 $menu_items = [
     'dashboard' => ['icon' => 'fas fa-tachometer-alt', 'label' => 'Dashboard', 'url' => 'dashboard.php', 'roles' => ['admin', 'pharmacist']],
@@ -27,6 +28,17 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
 
 
 <div class="sidebar-left">
+    <?php if ($is_login_as): ?>
+        <!-- Indicatore modalità accesso come -->
+        <div class="login-as-indicator">
+            <div class="alert alert-info mb-3 mx-2">
+                <i class="fas fa-user-secret me-2"></i>
+                <strong>Accesso come Farmacia</strong>
+                <br><small>Stai operando come: <?= htmlspecialchars($_SESSION['user_name'] ?? 'Farmacia') ?></small>
+            </div>
+        </div>
+    <?php endif; ?>
+    
     <ul class="nav nav-pills flex-column mb-auto">
         <?php foreach ($visible_menu_items as $page => $item): ?>
             <li>
@@ -37,6 +49,17 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
             </li>
         <?php endforeach; ?>
         <li><hr class="border-light"></li>
+        
+        <?php if ($is_login_as): ?>
+            <!-- Pulsante per tornare admin -->
+            <li>
+                <a href="#" class="nav-link return-admin-link" onclick="returnToAdmin()">
+                    <i class="fas fa-arrow-left me-2"></i> Torna Admin
+                </a>
+            </li>
+            <li><hr class="border-light"></li>
+        <?php endif; ?>
+        
         <li><a href="#" class="nav-link exit logout-link"><i class="fas fa-sign-out-alt me-2"></i> Esci</a></li>
     </ul>
 </div>
@@ -86,6 +109,41 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
 .sidebar-left .nav-link i {
     width: 20px;
     text-align: center;
+}
+
+/* Stili per l'indicatore di accesso come */
+.login-as-indicator .alert {
+    border: none;
+    background: rgba(52, 152, 219, 0.2);
+    color: white;
+    font-size: 0.85rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.login-as-indicator .alert strong {
+    color: white;
+    font-weight: 600;
+}
+
+.login-as-indicator .alert small {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.8rem;
+}
+
+/* Stili per il pulsante torna admin */
+.sidebar-left .nav-link.return-admin-link {
+    color: #f39c12;
+    background-color: rgba(243, 156, 18, 0.1);
+    border-left-color: #f39c12;
+    font-weight: 600;
+}
+
+.sidebar-left .nav-link.return-admin-link:hover {
+    color: #e67e22;
+    background-color: rgba(243, 156, 18, 0.2);
+    border-left-color: #e67e22;
 }
 
 /* Responsive improvements */

@@ -380,19 +380,55 @@ async function savePharmacyChange() {
 
 // Accedi come utente
 async function loginAsUser(userId) {
-    if (!confirm('Sei sicuro di voler accedere come questo utente?')) {
+    if (!confirm('Sei sicuro di voler accedere come questa farmacia? Potrai tornare alla lista utenti in qualsiasi momento.')) {
         return;
     }
     
     try {
+        // Ottieni il token CSRF dal meta tag o dal form
+        let csrfToken = '';
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        
+        if (metaToken) {
+            csrfToken = metaToken.getAttribute('content');
+        } else if (window.APP_CONFIG && window.APP_CONFIG.csrfToken) {
+            csrfToken = window.APP_CONFIG.csrfToken;
+        } else {
+            // Fallback: cerca nel form
+            const formToken = document.querySelector('input[name="csrf_token"]');
+            if (formToken) {
+                csrfToken = formToken.value;
+            }
+        }
+        
+        if (!csrfToken) {
+            throw new Error('Token CSRF non trovato');
+        }
+        
         const formData = new FormData();
         formData.append('user_id', userId);
-        formData.append('csrf_token', APP.config.csrfToken);
+        formData.append('csrf_token', csrfToken);
         
-        const response = await APP.api.post('api/users/login-as.php', formData);
+        // Prova prima con APP.api, se fallisce usa fetch diretto
+        let response;
+        try {
+            response = await APP.api.post('api/users/login-as.php', formData);
+        } catch (apiError) {
+            // Fallback con fetch diretto
+            const fetchResponse = await fetch('api/users/login-as.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!fetchResponse.ok) {
+                throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+            }
+            
+            response = await fetchResponse.json();
+        }
         
         if (response.success) {
-            APP.ui.showAlert('Accesso effettuato come utente', 'success');
+            APP.ui.showAlert('Accesso effettuato come farmacia. Ora puoi operare a nome della farmacia.', 'success');
             // Reindirizza alla dashboard dell'utente
             setTimeout(() => window.location.href = 'dashboard.php', 1000);
         } else {
@@ -400,7 +436,51 @@ async function loginAsUser(userId) {
         }
     } catch (error) {
         console.error('Errore:', error);
-        APP.ui.showAlert('Errore di connessione', 'danger');
+        APP.ui.showAlert('Errore di connessione: ' + error.message, 'danger');
+    }
+}
+
+// Torna admin
+async function returnToAdmin() {
+    if (!confirm('Sei sicuro di voler tornare alla lista utenti?')) {
+        return;
+    }
+    
+    try {
+        // Ottieni il token CSRF dal meta tag o dal form
+        let csrfToken = '';
+        const metaToken = document.querySelector('meta[name="csrf-token"]');
+        if (metaToken) {
+            csrfToken = metaToken.getAttribute('content');
+        } else if (window.APP_CONFIG && window.APP_CONFIG.csrfToken) {
+            csrfToken = window.APP_CONFIG.csrfToken;
+        } else {
+            // Fallback: cerca nel form
+            const formToken = document.querySelector('input[name="csrf_token"]');
+            if (formToken) {
+                csrfToken = formToken.value;
+            }
+        }
+        
+        if (!csrfToken) {
+            throw new Error('Token CSRF non trovato');
+        }
+        
+        const formData = new FormData();
+        formData.append('csrf_token', csrfToken);
+        
+        const response = await APP.api.post('api/users/return-admin.php', formData);
+        
+        if (response.success) {
+            APP.ui.showAlert('Tornato alla lista utenti', 'success');
+            // Reindirizza alla lista utenti
+            setTimeout(() => window.location.href = 'utenti.php', 1000);
+        } else {
+            APP.ui.showAlert(response.message || 'Errore durante il ritorno', 'danger');
+        }
+    } catch (error) {
+        console.error('Errore:', error);
+        APP.ui.showAlert('Errore di connessione: ' + error.message, 'danger');
     }
 }
 
@@ -523,6 +603,7 @@ function resetFilters() {
 window.changePharmacy = changePharmacy;
 window.savePharmacyChange = savePharmacyChange;
 window.loginAsUser = loginAsUser;
+window.returnToAdmin = returnToAdmin;
 window.editUser = editUser;
 window.deleteUser = deleteUser;
 window.exportUsers = exportUsers;

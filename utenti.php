@@ -133,6 +133,13 @@ require_once 'includes/header.php';
                                         <td><?= date('d/m/Y H:i', strtotime($user['created_at'])) ?></td>
                                         <td>
                                             <div class="btn-group" role="group">
+                                                <?php if ($user['role'] === 'pharmacist'): ?>
+                                                    <button class="btn btn-sm btn-outline-success" 
+                                                            onclick="loginAsUser(<?= $user['id'] ?>)"
+                                                            title="Accedi come Farmacia">
+                                                        <i class="fas fa-sign-in-alt"></i>
+                                                    </button>
+                                                <?php endif; ?>
                                                 <button class="btn btn-sm btn-outline-warning" 
                                                         onclick="editUser(<?= $user['id'] ?>)"
                                                         title="Modifica">
