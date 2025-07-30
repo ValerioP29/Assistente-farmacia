@@ -179,6 +179,30 @@ function slugify($text) {
     return trim($text, '-');
 }
 
+// Genera slug URL unico per farmacia
+function generatePharmacySlugUrl($nice_name, $existing_id = null) {
+    $base_slug = slugify($nice_name);
+    $slug = $base_slug;
+    $counter = 1;
+    
+    // Controlla se lo slug esiste già
+    $sql = "SELECT id FROM jta_pharmas WHERE slug_url = ? AND status != 'deleted'";
+    $params = [$slug];
+    
+    if ($existing_id) {
+        $sql .= " AND id != ?";
+        $params[] = $existing_id;
+    }
+    
+    while (db_fetch_one($sql, $params)) {
+        $slug = $base_slug . '-' . $counter;
+        $params[0] = $slug;
+        $counter++;
+    }
+    
+    return $slug;
+}
+
 // Funzioni di utilità per array
 function arrayToSelectOptions($array, $selected = null, $empty_option = '') {
     $html = '';

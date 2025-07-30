@@ -79,6 +79,7 @@ require_once 'includes/header.php';
                             <thead>
                                 <tr>
                                     <th>Nome</th>
+                                    <th>URL</th>
                                     <th>Indirizzo</th>
                                     <th>Telefono</th>
                                     <th>Email</th>
@@ -93,6 +94,13 @@ require_once 'includes/header.php';
                                             <strong><?= htmlspecialchars($pharmacy['nice_name'] ?? '') ?></strong>
                                             <?php if ($pharmacy['business_name']): ?>
                                                 <br><small class="text-muted"><?= htmlspecialchars($pharmacy['business_name']) ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($pharmacy['slug_url']): ?>
+                                                <code class="text-primary"><?= htmlspecialchars($pharmacy['slug_url']) ?></code>
+                                            <?php else: ?>
+                                                <span class="text-muted">Non impostato</span>
                                             <?php endif; ?>
                                         </td>
                                         <td><?= htmlspecialchars($pharmacy['address'] ?? 'Non specificato') ?></td>
@@ -153,6 +161,12 @@ require_once 'includes/header.php';
                                 <input type="text" class="form-control" id="pharmacyBusinessName" name="business_name">
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pharmacySlugUrl" class="form-label">URL Personalizzato</label>
+                        <input type="text" class="form-control" id="pharmacySlugUrl" name="slug_url" placeholder="es: farmacia-rossi-milano">
+                        <div class="form-text">Lascia vuoto per generare automaticamente dall'URL del nome farmacia</div>
                     </div>
                     
                     <div class="mb-3">
@@ -280,6 +294,12 @@ require_once 'includes/header.php';
                                 <input type="text" class="form-control" id="editPharmacyBusinessName" name="business_name">
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPharmacySlugUrl" class="form-label">URL Personalizzato</label>
+                        <input type="text" class="form-control" id="editPharmacySlugUrl" name="slug_url" placeholder="es: farmacia-rossi-milano">
+                        <div class="form-text">Lascia vuoto per generare automaticamente dall'URL del nome farmacia</div>
                     </div>
                     
                     <div class="mb-3">

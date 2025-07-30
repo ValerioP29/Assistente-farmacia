@@ -13,6 +13,7 @@ let currentFilters = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeFilters();
     initializeFormHandlers();
+    initializeSlugUrlGeneration();
 });
 
 // Inizializza filtri
@@ -94,29 +95,32 @@ function createPharmacyRow(pharmacy) {
                         <strong>${escapeHtml(pharmacy.nice_name || '')}</strong>
                         ${pharmacy.business_name ? `<br><small class="text-muted">${escapeHtml(pharmacy.business_name)}</small>` : ''}
                     </td>
-        <td>${escapeHtml(pharmacy.address || 'Non specificato')}</td>
-        <td>${escapeHtml(pharmacy.phone || 'Non specificato')}</td>
-        <td>${escapeHtml(pharmacy.email || 'Non specificato')}</td>
-        <td>
-            <span class="badge bg-${pharmacy.status === 'active' ? 'success' : 'secondary'}">
-                ${pharmacy.status === 'active' ? 'Attiva' : 'Inattiva'}
-            </span>
-        </td>
-        <td>
-            <div class="btn-group" role="group">
-                <button class="btn btn-sm btn-outline-warning" 
-                        onclick="editPharmacy(${pharmacy.id})"
-                        title="Modifica">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" 
-                        onclick="deletePharmacy(${pharmacy.id}, '${escapeHtml(pharmacy.nice_name)}')"
-                        title="Elimina">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </td>
-    `;
+                    <td>
+                        ${pharmacy.slug_url ? `<code class="text-primary">${escapeHtml(pharmacy.slug_url)}</code>` : '<span class="text-muted">Non impostato</span>'}
+                    </td>
+                    <td>${escapeHtml(pharmacy.address || 'Non specificato')}</td>
+                    <td>${escapeHtml(pharmacy.phone_number || 'Non specificato')}</td>
+                    <td>${escapeHtml(pharmacy.email || 'Non specificato')}</td>
+                    <td>
+                        <span class="badge bg-${pharmacy.status === 'active' ? 'success' : 'secondary'}">
+                            ${pharmacy.status === 'active' ? 'Attiva' : 'Inattiva'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-outline-warning" 
+                                    onclick="editPharmacy(${pharmacy.id})"
+                                    title="Modifica">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="deletePharmacy(${pharmacy.id}, '${escapeHtml(pharmacy.nice_name)}')"
+                                    title="Elimina">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
     
     return row;
 }
@@ -203,6 +207,7 @@ async function editPharmacy(pharmacyId) {
                                                 // Popola il form con i dati della farmacia
             document.getElementById('editPharmacyId').value = pharmacy.id;
             document.getElementById('editPharmacyName').value = pharmacy.nice_name || '';
+            document.getElementById('editPharmacySlugUrl').value = pharmacy.slug_url || '';
             document.getElementById('editPharmacyBusinessName').value = pharmacy.business_name || '';
             document.getElementById('editPharmacyAddress').value = pharmacy.address || '';
             document.getElementById('editPharmacyCity').value = pharmacy.city || '';
@@ -398,6 +403,43 @@ function resetFilters() {
     };
     
     filterTable();
+}
+
+// Genera slug URL dal nome farmacia
+function generateSlugUrl(name) {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Rimuovi caratteri speciali
+        .replace(/\s+/g, '-') // Sostituisci spazi con trattini
+        .replace(/-+/g, '-') // Rimuovi trattini multipli
+        .trim('-'); // Rimuovi trattini iniziali e finali
+}
+
+// Aggiorna automaticamente lo slug URL quando cambia il nome farmacia
+function initializeSlugUrlGeneration() {
+    // Per il modal di aggiunta
+    const pharmacyNameInput = document.getElementById('pharmacyName');
+    const pharmacySlugUrlInput = document.getElementById('pharmacySlugUrl');
+    
+    if (pharmacyNameInput && pharmacySlugUrlInput) {
+        pharmacyNameInput.addEventListener('input', function() {
+            if (!pharmacySlugUrlInput.value) { // Solo se lo slug è vuoto
+                pharmacySlugUrlInput.value = generateSlugUrl(this.value);
+            }
+        });
+    }
+    
+    // Per il modal di modifica
+    const editPharmacyNameInput = document.getElementById('editPharmacyName');
+    const editPharmacySlugUrlInput = document.getElementById('editPharmacySlugUrl');
+    
+    if (editPharmacyNameInput && editPharmacySlugUrlInput) {
+        editPharmacyNameInput.addEventListener('input', function() {
+            if (!editPharmacySlugUrlInput.value) { // Solo se lo slug è vuoto
+                editPharmacySlugUrlInput.value = generateSlugUrl(this.value);
+            }
+        });
+    }
 }
 
 // Esporta funzioni globalmente

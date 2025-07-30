@@ -41,6 +41,7 @@ try {
     // Validazione input
     $pharmacy_id = (int)($_POST['pharmacy_id'] ?? 0);
     $nice_name = sanitize($_POST['nice_name'] ?? '');
+    $slug_url = sanitize($_POST['slug_url'] ?? '');
     $business_name = sanitize($_POST['business_name'] ?? '');
     $address = sanitize($_POST['address'] ?? '');
     $city = sanitize($_POST['city'] ?? '');
@@ -90,9 +91,22 @@ try {
         exit;
     }
 
+    // Genera slug_url se non fornito
+    if (empty($slug_url)) {
+        $slug_url = generatePharmacySlugUrl($nice_name, $pharmacy_id);
+    } else {
+        // Controllo slug_url unico (escludendo la farmacia corrente)
+        $duplicate_slug = db_fetch_one("SELECT id FROM jta_pharmas WHERE slug_url = ? AND id != ? AND status != 'deleted'", [$slug_url, $pharmacy_id]);
+        if ($duplicate_slug) {
+            echo json_encode(['success' => false, 'message' => 'URL personalizzato già esistente']);
+            exit;
+        }
+    }
+
     // Prepara dati per l'aggiornamento
     $update_data = [
         'nice_name' => $nice_name,
+        'slug_url' => $slug_url,
         'business_name' => $business_name,
         'address' => $address,
         'city' => $city,
