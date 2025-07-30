@@ -1,8 +1,8 @@
 :root {
-    --primary-color: #7A62A6;
-    --secondary-color: #634f88;      /* Verde chiaro per accenti o hover */
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;      /* Blu scuro per accenti o hover */
 
-    --accent-color: #039be5;         /* Blu salute, fresco e professionale */
+    --accent-color: #2c3e50;         /* Blu scuro, professionale e leggibile */
     --background-color: #f4fdf4;     /* Verde molto chiaro per sfondo */
     --text-color: #2c3e50;           /* Grigio-blu scuro, molto leggibile */
     --text-light: #ffffff;           /* Bianco, per testi su sfondi scuri */

@@ -89,9 +89,10 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
     border-left-color: rgba(255, 255, 255, 0.3);
 }
 
-.sidebar-left .nav-link.selected {
+.sidebar-left .nav-link.selected,
+.sidebar-left .nav-link.active {
     color: white;
-    background-color: var(--accent-color, #3498db);
+    background-color: var(--accent-color, #2c3e50);
     border-left-color: white;
     font-weight: 600;
 }
