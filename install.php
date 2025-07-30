@@ -64,7 +64,7 @@ foreach ($requiredExtensions as $ext) {
 }
 
 // Verifica permessi directory
-$directories = ['config', 'includes', 'api', 'assets', 'uploads', 'logs', 'classes'];
+$directories = ['config', 'includes', 'api', 'api/whatsapp', 'api/auth', 'api/dashboard', 'api/pharmacies', 'api/users', 'assets', 'assets/css', 'assets/js', 'assets/js/core', 'uploads', 'logs', 'classes', 'images'];
 foreach ($directories as $dir) {
     if (!is_dir($dir)) {
         if (mkdir($dir, 0755, true)) {
@@ -101,24 +101,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
         echo coloredOutput("   ✅ Database creato/selezionato: ", 'green') . $dbName . "\n";
         
-        // Importa schema
-        $sqlFile = 'database_setup.sql';
-        if (file_exists($sqlFile)) {
-            $sql = file_get_contents($sqlFile);
-            $pdo->exec("USE `{$dbName}`");
-            
-            // Esegui comandi SQL uno per uno
-            $statements = explode(';', $sql);
-            foreach ($statements as $statement) {
-                $statement = trim($statement);
-                if (!empty($statement)) {
-                    $pdo->exec($statement);
-                }
-            }
-            
-            echo coloredOutput("   ✅ Schema database importato\n", 'green');
-        } else {
-            echo coloredOutput("   ⚠️  File schema non trovato: ", 'yellow') . $sqlFile . "\n";
+        // Crea tabelle base se non esistono
+        $pdo->exec("USE `{$dbName}`");
+        
+        // Tabella utenti
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `jta_users` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `username` varchar(50) NOT NULL,
+            `password` varchar(255) NOT NULL,
+            `email` varchar(100) NOT NULL,
+            `role` enum('admin','pharmacist') NOT NULL DEFAULT 'pharmacist',
+            `pharmacy_id` int(11) DEFAULT NULL,
+            `is_active` tinyint(1) NOT NULL DEFAULT 1,
+            `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `username` (`username`),
+            UNIQUE KEY `email` (`email`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        
+        // Tabella farmacie
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `jta_pharmas` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `business_name` varchar(255) NOT NULL,
+            `nice_name` varchar(100) NOT NULL,
+            `email` varchar(100) NOT NULL,
+            `phone_number` varchar(20) DEFAULT NULL,
+            `city` varchar(100) DEFAULT NULL,
+            `address` text DEFAULT NULL,
+            `latlng` varchar(50) DEFAULT NULL,
+            `description` text DEFAULT NULL,
+            `working_info` json DEFAULT NULL,
+            `turno_giorno` varchar(10) DEFAULT NULL,
+            `is_active` tinyint(1) NOT NULL DEFAULT 1,
+            `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `nice_name` (`nice_name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        
+        // Tabella log attività
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `jta_activity_log` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `user_id` int(11) DEFAULT NULL,
+            `action` varchar(100) NOT NULL,
+            `details` json DEFAULT NULL,
+            `ip_address` varchar(45) DEFAULT NULL,
+            `user_agent` text DEFAULT NULL,
+            `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `user_id` (`user_id`),
+            KEY `action` (`action`),
+            KEY `created_at` (`created_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        
+        echo coloredOutput("   ✅ Tabelle database create\n", 'green');
+        
+        // Crea utente admin se non esiste
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM jta_users WHERE username = 'admin'");
+        $stmt->execute();
+        if ($stmt->fetchColumn() == 0) {
+            $adminPassword = password_hash('password', PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO jta_users (username, password, email, role) VALUES (?, ?, ?, ?)");
+            $stmt->execute(['admin', $adminPassword, 'admin@assistentefarmacia.it', 'admin']);
+            echo coloredOutput("   ✅ Utente admin creato\n", 'green');
         }
         
         // Crea file di configurazione
@@ -128,31 +174,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  * Assistente Farmacia Panel
  */
 
-// Configurazione Database
-define('DB_HOST', '{$dbHost}');
-define('DB_NAME', '{$dbName}');
-define('DB_USER', '{$dbUser}');
-define('DB_PASS', '{$dbPass}');
-define('DB_CHARSET', 'utf8mb4');
+// Configurazione Database (solo se non già definite)
+if (!defined('DB_HOST')) define('DB_HOST', '{$dbHost}');
+if (!defined('DB_NAME')) define('DB_NAME', '{$dbName}');
+if (!defined('DB_USER')) define('DB_USER', '{$dbUser}');
+if (!defined('DB_PASS')) define('DB_PASS', '{$dbPass}');
+if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
-// Configurazione Applicazione
-define('APP_NAME', 'Assistente Farmacia Panel');
-define('APP_VERSION', '1.0.0');
-define('APP_URL', 'http://localhost:8000');
-define('APP_PATH', __DIR__ . '/../');
+// Configurazione Applicazione (solo se non già definite)
+if (!defined('APP_NAME')) define('APP_NAME', 'Assistente Farmacia Panel');
+if (!defined('APP_VERSION')) define('APP_VERSION', '2.1.0');
+if (!defined('APP_URL')) define('APP_URL', 'http://localhost:8000');
+if (!defined('APP_PATH')) define('APP_PATH', __DIR__ . '/../');
 
-// Configurazione Sessione
-define('SESSION_NAME', 'assistente_farmacia');
-define('SESSION_LIFETIME', 3600);
+// Configurazione Sessione (solo se non già definite)
+if (!defined('SESSION_NAME')) define('SESSION_NAME', 'assistente_farmacia');
+if (!defined('SESSION_LIFETIME')) define('SESSION_LIFETIME', 3600); // 1 ora
 
-// Configurazione Sicurezza
-define('HASH_COST', 12);
-define('JWT_SECRET', '" . bin2hex(random_bytes(32)) . "');
+// Configurazione Sicurezza (solo se non già definite)
+if (!defined('HASH_COST')) define('HASH_COST', 12);
+if (!defined('JWT_SECRET')) define('JWT_SECRET', '" . bin2hex(random_bytes(32)) . "');
 
-// Configurazione Upload
-define('UPLOAD_PATH', APP_PATH . 'uploads/');
-define('MAX_FILE_SIZE', 5 * 1024 * 1024);
-define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'pdf']);
+// Configurazione Upload (solo se non già definite)
+if (!defined('UPLOAD_PATH')) define('UPLOAD_PATH', APP_PATH . 'uploads/');
+if (!defined('MAX_FILE_SIZE')) define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
+if (!defined('ALLOWED_EXTENSIONS')) define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'pdf']);
+
+// Configurazione Email (opzionale) - solo se non già definite
+if (!defined('SMTP_HOST')) define('SMTP_HOST', 'smtp.gmail.com');
+if (!defined('SMTP_PORT')) define('SMTP_PORT', 587);
+if (!defined('SMTP_USER')) define('SMTP_USER', '');
+if (!defined('SMTP_PASS')) define('SMTP_PASS', '');
+if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
+
+// Configurazione WhatsApp (opzionale) - solo se non già definite
+if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', '');
+if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', '');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+
+// Configurazione Google Maps (opzionale) - solo se non già definite
+if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', '');
 
 // Configurazione Timezone
 date_default_timezone_set('Europe/Rome');
@@ -166,8 +227,8 @@ if (defined('DEVELOPMENT_MODE') && DEVELOPMENT_MODE) {
     ini_set('display_errors', 0);
 }
 
-// Carica configurazione sviluppo se presente
-if (file_exists(__DIR__ . '/development.php')) {
+// Carica configurazione sviluppo se presente e non già caricata
+if (file_exists(__DIR__ . '/development.php') && !defined('DEVELOPMENT_MODE')) {
     require_once __DIR__ . '/development.php';
 }
 
@@ -282,6 +343,53 @@ function db_fetch_one(\$sql, \$params = []) {
         } else {
             echo coloredOutput("   ❌ Errore creazione file configurazione\n", 'red');
             exit;
+        }
+        
+        // Crea file development.php
+        $developmentContent = "<?php
+/**
+ * Configurazione Sviluppo
+ * Assistente Farmacia Panel
+ */
+
+// Modalità sviluppo
+define('DEVELOPMENT_MODE', true);
+
+// Configurazione Applicazione (solo se non già definite)
+if (!defined('APP_URL')) define('APP_URL', 'http://localhost:8000');
+
+// Configurazione Database (solo se non già definite)
+if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
+if (!defined('DB_NAME')) define('DB_NAME', 'jt_assistente_farmacia');
+if (!defined('DB_USER')) define('DB_USER', 'root');
+if (!defined('DB_PASS')) define('DB_PASS', 'root');
+
+// Configurazione Email (solo se non già definite)
+if (!defined('SMTP_HOST')) define('SMTP_HOST', 'smtp.gmail.com');
+if (!defined('SMTP_PORT')) define('SMTP_PORT', 587);
+if (!defined('SMTP_USER')) define('SMTP_USER', '');
+if (!defined('SMTP_PASS')) define('SMTP_PASS', '');
+if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
+
+// Configurazione WhatsApp (solo se non già definite)
+if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', '');
+if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', '');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+
+// Configurazione Google Maps (solo se non già definite)
+if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', '');
+
+// Configurazione Error Reporting per sviluppo
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../logs/development.log');
+?>";
+
+        if (file_put_contents('config/development.php', $developmentContent)) {
+            echo coloredOutput("   ✅ File configurazione sviluppo creato\n", 'green');
+        } else {
+            echo coloredOutput("   ⚠️  Errore creazione file sviluppo\n", 'yellow');
         }
         
         echo "\n";

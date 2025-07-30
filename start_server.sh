@@ -49,7 +49,7 @@ fi
 URL="http://$HOST:$PORT"
 echo -e "${BLUE}🌐 URL di Accesso:${NC}"
 echo -e "${YELLOW}   • Dashboard:${NC} $URL/dashboard.html"
-echo -e "${YELLOW}   • Login:${NC} $URL/login.html"
+echo -e "${YELLOW}   • Login:${NC} $URL/login.php"
 echo -e "${YELLOW}   • Prodotti:${NC} $URL/prodotti.html"
 echo -e "${YELLOW}   • Prenotazioni:${NC} $URL/prenotazioni.html"
 echo ""

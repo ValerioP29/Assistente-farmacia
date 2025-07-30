@@ -63,7 +63,7 @@ function checkApiAccess($required_roles = ['admin']) {
 }
 
 function saveReturnUrl() {
-    if ($_SERVER['REQUEST_URI'] !== '/login.php' && $_SERVER['REQUEST_URI'] !== '/login.html') {
+    if ($_SERVER['REQUEST_URI'] !== '/login.php') {
         $_SESSION['return_url'] = $_SERVER['REQUEST_URI'];
     }
 }

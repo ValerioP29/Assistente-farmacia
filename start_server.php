@@ -69,7 +69,7 @@ echo "\n";
 echo coloredOutput("📁 Verifica File Principali:\n", 'bold');
 $mainFiles = [
     'dashboard.html' => 'Dashboard principale',
-    'login.html' => 'Pagina di login',
+    'login.php' => 'Pagina di login',
     'prodotti.html' => 'Gestione prodotti',
     'prenotazioni.html' => 'Sistema prenotazioni',
     'css/dashboard.css' => 'Stili dashboard',
@@ -90,7 +90,7 @@ echo "\n";
 $url = "http://{$host}:{$port}";
 echo coloredOutput("🌐 URL di Accesso:\n", 'bold');
 echo coloredOutput("   • Dashboard: ", 'yellow') . $url . "/dashboard.html\n";
-echo coloredOutput("   • Login: ", 'yellow') . $url . "/login.html\n";
+echo coloredOutput("   • Login: ", 'yellow') . $url . "/login.php\n";
 echo coloredOutput("   • Prodotti: ", 'yellow') . $url . "/prodotti.html\n";
 echo coloredOutput("   • Prenotazioni: ", 'yellow') . $url . "/prenotazioni.html\n";
 echo "\n";
