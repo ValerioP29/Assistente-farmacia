@@ -144,7 +144,7 @@ include 'includes/header.php';
                                     <th>Messaggio</th>
                                     <th>Stato</th>
                                     <th>Data</th>
-                                    <th style="width: 120px;">Azioni</th>
+                                    <th style="width: 160px;">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody id="requestsTableBody">
@@ -252,6 +252,48 @@ include 'includes/header.php';
                 <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
                     <i class="fas fa-trash me-1"></i>
                     Elimina
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Invia WhatsApp -->
+<div class="modal fade" id="whatsappModal" tabindex="-1" aria-labelledby="whatsappModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="whatsappModalLabel">
+                    <i class="fab fa-whatsapp text-success me-2"></i>
+                    Invia Messaggio WhatsApp
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="whatsappForm">
+                    <input type="hidden" id="whatsappRequestId">
+                    <div class="mb-3">
+                        <label for="whatsappPhone" class="form-label">Numero di Telefono</label>
+                        <div class="input-group">
+                            <span class="input-group-text">+39</span>
+                            <input type="text" class="form-control" id="whatsappPhone" placeholder="320 283 8555" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="whatsappMessage" class="form-label">Messaggio</label>
+                        <textarea class="form-control" id="whatsappMessage" rows="6" placeholder="Scrivi il tuo messaggio qui..." required></textarea>
+                        <div class="form-text">
+                            <span id="messageLength">0</span> caratteri
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-success" id="sendWhatsAppBtn">
+                    <i class="fab fa-whatsapp me-1"></i>
+                    Invia
                 </button>
             </div>
         </div>

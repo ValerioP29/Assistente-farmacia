@@ -63,6 +63,16 @@ class RichiesteManager {
         document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
             this.deleteRequest();
         });
+
+        // Invia WhatsApp
+        document.getElementById('sendWhatsAppBtn').addEventListener('click', () => {
+            this.sendWhatsAppMessage();
+        });
+
+        // Conta caratteri messaggio WhatsApp
+        document.getElementById('whatsappMessage').addEventListener('input', (e) => {
+            document.getElementById('messageLength').textContent = e.target.value.length;
+        });
     }
 
     applyFilters() {
@@ -156,7 +166,7 @@ class RichiesteManager {
         if (requests.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted">
+                    <td colspan="9" class="text-center text-muted">
                         <i class="fas fa-inbox fa-2x mb-2"></i>
                         <p>Nessuna richiesta trovata</p>
                     </td>
@@ -206,6 +216,12 @@ class RichiesteManager {
                                 onclick="richiesteManager.openUpdateStatus(${request.id})" 
                                 title="Aggiorna stato">
                             <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-success" 
+                                onclick="richiesteManager.openWhatsAppMessage(${request.id}, '${request.user_phone || ''}')" 
+                                title="Invia WhatsApp"
+                                ${!request.user_phone ? 'disabled' : ''}>
+                            <i class="fab fa-whatsapp"></i>
                         </button>
                         <button type="button" class="btn btn-outline-danger" 
                                 onclick="richiesteManager.openDeleteRequest(${request.id})" 
@@ -362,6 +378,29 @@ class RichiesteManager {
                     </div>
                 </div>
             ` : ''}
+            
+            ${request.metadata.whatsapp_messages && request.metadata.whatsapp_messages.length > 0 ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fab fa-whatsapp me-2"></i>Messaggi WhatsApp Inviati</h6>
+                        <div class="timeline">
+                            ${request.metadata.whatsapp_messages.map(msg => `
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-success"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between">
+                                            <strong><i class="fab fa-whatsapp me-1"></i>Messaggio WhatsApp</strong>
+                                            <small class="text-muted">${new Date(msg.sent_at).toLocaleString('it-IT')}</small>
+                                        </div>
+                                        <p class="mb-0">${msg.message}</p>
+                                        <small class="text-muted">Inviato da: ${msg.sent_by} | ID: ${msg.whatsapp_data.messageId || 'N/A'}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
         `;
     }
 
@@ -374,6 +413,20 @@ class RichiesteManager {
         document.getElementById('deleteRequestId').value = requestId;
         document.getElementById('deleteReason').value = '';
         new bootstrap.Modal(document.getElementById('deleteRequestModal')).show();
+    }
+
+    openWhatsAppMessage(requestId, phone) {
+        if (!phone) {
+            this.showError('Numero di telefono non disponibile per questo cliente');
+            return;
+        }
+
+        document.getElementById('whatsappRequestId').value = requestId;
+        document.getElementById('whatsappPhone').value = this.formatPhoneNumber(phone);
+        document.getElementById('whatsappMessage').value = '';
+        document.getElementById('messageLength').textContent = '0';
+        
+        new bootstrap.Modal(document.getElementById('whatsappModal')).show();
     }
 
     async updateRequestStatus() {
@@ -442,6 +495,67 @@ class RichiesteManager {
         }
     }
 
+    async sendWhatsAppMessage() {
+        const requestId = document.getElementById('whatsappRequestId').value;
+        const phone = document.getElementById('whatsappPhone').value;
+        const message = document.getElementById('whatsappMessage').value;
+
+        if (!message.trim()) {
+            this.showError('Inserisci un messaggio');
+            return;
+        }
+
+        try {
+            // Formatta il numero per WhatsApp (aggiungi prefisso 39)
+            const whatsappPhone = '39' + phone.replace(/\s/g, '');
+            
+            const response = await fetch('https://waservice.jungleteam.it/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    phone: whatsappPhone,
+                    message: message
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.showSuccess('Messaggio WhatsApp inviato con successo!');
+                bootstrap.Modal.getInstance(document.getElementById('whatsappModal')).hide();
+                document.getElementById('whatsappMessage').value = '';
+                document.getElementById('messageLength').textContent = '0';
+                
+                // Log dell'invio nei metadata della richiesta
+                this.logWhatsAppMessage(requestId, message, data.data);
+            } else {
+                this.showError('Errore nell\'invio: ' + (data.message || 'Errore sconosciuto'));
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
+    }
+
+    async logWhatsAppMessage(requestId, message, whatsappData) {
+        try {
+            const response = await fetch('api/requests/log-whatsapp.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    request_id: requestId,
+                    message: message,
+                    whatsapp_data: whatsappData
+                })
+            });
+        } catch (error) {
+            console.error('Errore nel logging del messaggio WhatsApp:', error);
+        }
+    }
+
     async updateStatistics() {
         try {
             const response = await fetch('api/requests/stats.php');
@@ -466,7 +580,7 @@ class RichiesteManager {
         const tbody = document.getElementById('requestsTableBody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center">
+                <td colspan="9" class="text-center">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Caricamento...</span>
                     </div>
