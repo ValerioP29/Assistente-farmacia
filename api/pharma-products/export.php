@@ -1,44 +1,45 @@
 <?php
 /**
- * API Export Prodotti
+ * API Export Prodotti Farmacia
  * Assistente Farmacia Panel
  */
 
 require_once '../../config/database.php';
 require_once '../../includes/auth_middleware.php';
 
-// Verifica accesso admin per API
-if (!isLoggedIn()) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Autenticazione richiesta'
-    ]);
-    exit;
-}
-
-if (!isAdmin()) {
-    http_response_code(403);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Accesso negato - Solo admin'
-    ]);
-    exit;
-}
+// Verifica accesso farmacista
+checkAccess(['pharmacist']);
 
 try {
-    // Parametri filtri
+    // Ottieni farmacia corrente
+    $pharmacy = getCurrentPharmacy();
+    $pharmacyId = $pharmacy['id'] ?? 0;
+    
+    if (!$pharmacyId) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Farmacia non trovata'
+        ]);
+        exit;
+    }
+    
+    // Parametri di filtro
     $search = trim($_GET['search'] ?? '');
     $category = trim($_GET['category'] ?? '');
     $brand = trim($_GET['brand'] ?? '');
     $status = $_GET['status'] ?? '';
     
-    // Costruisci la query
-    $sql = "SELECT * FROM jta_global_prods WHERE 1=1";
-    $params = [];
+    // Costruisci query con JOIN
+    $sql = "SELECT pp.*, gp.category, gp.brand, gp.active_ingredient, gp.dosage_form, gp.strength, gp.package_size 
+            FROM jta_pharma_prods pp 
+            LEFT JOIN jta_global_prods gp ON pp.product_id = gp.id 
+            WHERE pp.pharma_id = ?";
+    $params = [$pharmacyId];
     
+    // Aggiungi filtri
     if ($search) {
-        $sql .= " AND (sku LIKE ? OR name LIKE ? OR description LIKE ? OR active_ingredient LIKE ?)";
+        $sql .= " AND (pp.sku LIKE ? OR pp.name LIKE ? OR pp.description LIKE ? OR gp.active_ingredient LIKE ?)";
         $searchParam = "%{$search}%";
         $params[] = $searchParam;
         $params[] = $searchParam;
@@ -47,41 +48,40 @@ try {
     }
     
     if ($category) {
-        $sql .= " AND category = ?";
+        $sql .= " AND gp.category = ?";
         $params[] = $category;
     }
     
     if ($brand) {
-        $sql .= " AND brand = ?";
+        $sql .= " AND gp.brand = ?";
         $params[] = $brand;
     }
     
     if ($status !== '') {
-        $sql .= " AND is_active = ?";
+        $sql .= " AND pp.is_active = ?";
         $params[] = intval($status);
     }
     
-    $sql .= " ORDER BY name ASC";
+    $sql .= " ORDER BY pp.name ASC";
     
     // Esegui query
     $products = db_fetch_all($sql, $params);
     
     // Imposta headers per download CSV
-    $filename = 'prodotti_globali_' . date('Y-m-d_H-i-s') . '.csv';
-    
+    $filename = 'prodotti_farmacia_' . date('Y-m-d_H-i-s') . '.csv';
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
     header('Expires: 0');
     
-    // Crea output stream
+    // Output BOM per UTF-8
+    echo "\xEF\xBB\xBF";
+    
+    // Apri output stream
     $output = fopen('php://output', 'w');
     
-    // BOM per UTF-8
-    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-    
-    // Intestazioni CSV
-    $headers = [
+    // Headers CSV
+    fputcsv($output, [
         'ID',
         'SKU',
         'Nome',
@@ -90,42 +90,42 @@ try {
         'Brand',
         'Principio Attivo',
         'Forma Farmaceutica',
-        'Dosaggio',
+        'Concentrazione',
         'Confezione',
-        'Richiede Ricetta',
+        'Prezzo',
+        'Prezzo Scontato',
         'Stato',
+
         'Data Creazione',
         'Data Aggiornamento'
-    ];
-    
-    fputcsv($output, $headers, ';');
+    ]);
     
     // Dati prodotti
     foreach ($products as $product) {
-        $row = [
+        fputcsv($output, [
             $product['id'],
             $product['sku'],
             $product['name'],
-            $product['description'] ?? '',
-            $product['category'] ?? '',
-            $product['brand'] ?? '',
-            $product['active_ingredient'] ?? '',
-            $product['dosage_form'] ?? '',
-            $product['strength'] ?? '',
-            $product['package_size'] ?? '',
-            $product['requires_prescription'] ? 'Sì' : 'No',
+            $product['description'],
+            $product['category'],
+            $product['brand'],
+            $product['active_ingredient'],
+            $product['dosage_form'],
+            $product['strength'],
+            $product['package_size'],
+            $product['price'],
+            $product['sale_price'],
             $product['is_active'] ? 'Attivo' : 'Inattivo',
             $product['created_at'],
             $product['updated_at']
-        ];
-        
-        fputcsv($output, $row, ';');
+        ]);
     }
     
     fclose($output);
     
     // Log attività
     logActivity('products_exported', [
+        'pharma_id' => $pharmacyId,
         'count' => count($products),
         'filters' => [
             'search' => $search,
@@ -137,7 +137,9 @@ try {
     
 } catch (Exception $e) {
     http_response_code(500);
-    echo "Errore nell'export: " . $e->getMessage();
+    echo json_encode([
+        'success' => false,
+        'message' => 'Errore interno del server: ' . $e->getMessage()
+    ]);
 }
-
 ?> 

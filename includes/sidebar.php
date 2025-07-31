@@ -14,7 +14,7 @@ $menu_items = [
     'farmacie' => ['icon' => 'fas fa-clinic-medical', 'label' => 'Gestione Farmacie', 'url' => 'farmacie.php', 'roles' => ['admin']],
     'prodotti_globali' => ['icon' => 'fas fa-boxes', 'label' => 'Gestione Prodotti', 'url' => 'prodotti_globali.php', 'roles' => ['admin']],
     'richieste' => ['icon' => 'fas fa-calendar-check', 'label' => 'Richieste', 'url' => 'richieste.php', 'roles' => ['pharmacist']],
-    'prodotti' => ['icon' => 'fas fa-boxes', 'label' => 'Prodotti', 'url' => 'prodotti.php', 'roles' => ['pharmacist']],
+    'prodotti' => ['icon' => 'fas fa-boxes', 'label' => 'Gestione Prodotti', 'url' => 'prodotti.php', 'roles' => ['pharmacist']],
     'promo' => ['icon' => 'fas fa-pills', 'label' => 'Promo', 'url' => 'promo.php', 'roles' => ['pharmacist']],
     'orari' => ['icon' => 'fas fa-clock', 'label' => 'Modifica Orari', 'url' => 'orari.php', 'roles' => ['pharmacist']],
     'whatsapp' => ['icon' => 'fab fa-whatsapp', 'label' => 'WhatsApp', 'url' => 'whatsapp.php', 'roles' => ['pharmacist']],

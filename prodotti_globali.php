@@ -72,8 +72,9 @@ include 'includes/header.php';
                 <div class="col-md-2">
                     <select id="statusFilter" class="form-select">
                         <option value="">Tutti gli stati</option>
-                        <option value="1">Attivo</option>
-                        <option value="0">Inattivo</option>
+                        <option value="active">Attivo</option>
+                        <option value="inactive">Inattivo</option>
+                        <option value="pending_approval">Da Approvare</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -294,7 +295,8 @@ include 'includes/header.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Sei sicuro di voler eliminare questo prodotto?</p>
+                <p>Sei sicuro di voler eliminare questo prodotto globale?</p>
+                <p class="text-warning"><strong>ATTENZIONE:</strong> Verranno eliminati anche tutti i prodotti farmacia collegati a questo prodotto globale.</p>
                 <p class="text-danger"><strong>Questa azione non può essere annullata.</strong></p>
             </div>
             <div class="modal-footer">

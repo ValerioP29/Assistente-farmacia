@@ -4,6 +4,11 @@
  * Assistente Farmacia Panel
  */
 
+// Avvia sessione se non già avviata
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Carica configurazione
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
@@ -18,11 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Verifica CSRF token
+// Verifica CSRF token (opzionale per il logout)
 $headers = getallheaders();
 $csrf_token = $headers['X-CSRF-Token'] ?? '';
 
-if (!verifyCSRFToken($csrf_token)) {
+// Se il token è fornito, verificalo; altrimenti procedi comunque
+if (!empty($csrf_token) && !verifyCSRFToken($csrf_token)) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Token di sicurezza non valido']);
     exit;

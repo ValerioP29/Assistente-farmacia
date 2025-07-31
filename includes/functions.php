@@ -293,7 +293,7 @@ function getDashboardStats() {
         // Se è admin, mostra dati di tutte le farmacie
         if (isAdmin()) {
             // Numero prodotti globali
-            $sql = "SELECT COUNT(*) as count FROM jta_global_prods WHERE is_active = 1";
+            $sql = "SELECT COUNT(*) as count FROM jta_global_prods WHERE is_active = 'active'";
             $result = db_fetch_one($sql);
             $stats['global_products'] = $result['count'];
             
@@ -582,5 +582,75 @@ function formatWorkingHours($hours) {
     }
     
     return $formatted;
+}
+
+/**
+ * Elimina un prodotto globale e tutti i prodotti farmacia collegati
+ * @param int $globalProductId ID del prodotto globale da eliminare
+ * @return array Risultato dell'operazione
+ */
+function deleteGlobalProductWithCascade($globalProductId) {
+    try {
+        // Trova il prodotto globale
+        $globalProduct = db_fetch_one("SELECT * FROM jta_global_prods WHERE id = ?", [$globalProductId]);
+        if (!$globalProduct) {
+            return [
+                'success' => false,
+                'message' => 'Prodotto globale non trovato'
+            ];
+        }
+        
+        // Trova tutti i prodotti farmacia collegati
+        $pharmaProducts = db_fetch_all("SELECT id, image FROM jta_pharma_prods WHERE product_id = ?", [$globalProductId]);
+        $deletedPharmaProducts = count($pharmaProducts);
+        
+        // Elimina immagini dei prodotti farmacia collegati
+        foreach ($pharmaProducts as $pharmaProduct) {
+            if ($pharmaProduct['image']) {
+                deleteProductImage($pharmaProduct['image']);
+            }
+        }
+        
+        // Elimina tutti i prodotti farmacia collegati
+        if (!empty($pharmaProducts)) {
+            db()->delete('jta_pharma_prods', 'product_id = ?', [$globalProductId]);
+        }
+        
+        // Elimina immagine del prodotto globale se presente
+        if ($globalProduct['image']) {
+            deleteProductImage($globalProduct['image']);
+        }
+        
+        // Elimina il prodotto globale
+        $affected = db()->delete('jta_global_prods', 'id = ?', [$globalProductId]);
+        
+        if ($affected === 0) {
+            return [
+                'success' => false,
+                'message' => 'Errore nell\'eliminazione del prodotto globale'
+            ];
+        }
+        
+        // Log attività
+        logActivity('global_product_deleted_cascade', [
+            'product_id' => $globalProductId,
+            'sku' => $globalProduct['sku'],
+            'name' => $globalProduct['name'],
+            'deleted_pharma_products' => $deletedPharmaProducts
+        ]);
+        
+        return [
+            'success' => true,
+            'message' => "Prodotto globale eliminato con successo e {$deletedPharmaProducts} prodotto" . ($deletedPharmaProducts > 1 ? 'i' : '') . " farmacia collegati",
+            'deleted_pharma_products' => $deletedPharmaProducts
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Errore eliminazione prodotto globale: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Errore interno del server: ' . $e->getMessage()
+        ];
+    }
 }
 ?>

@@ -135,8 +135,8 @@ function renderProducts(products) {
                 </span>
             </td>
             <td>
-                <span class="badge ${product.is_active ? 'bg-success' : 'bg-secondary'}">
-                    ${product.is_active ? 'Attivo' : 'Inattivo'}
+                <span class="badge ${getStatusBadgeClass(product.is_active)}">
+                    ${getStatusText(product.is_active)}
                 </span>
             </td>
             <td>
@@ -269,7 +269,7 @@ function editProduct(id) {
                 document.getElementById('strength').value = product.strength || '';
                 document.getElementById('package_size').value = product.package_size || '';
                 document.getElementById('requires_prescription').checked = product.requires_prescription == 1;
-                document.getElementById('is_active').checked = product.is_active == 1;
+                document.getElementById('is_active').checked = product.is_active === 'active';
                 
                 // Mostra preview immagine se presente
                 if (product.image) {
@@ -303,7 +303,19 @@ function handleProductSubmit(e) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Controlla se la risposta è JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // Se non è JSON, leggi il testo per il debug
+            return response.text().then(text => {
+                console.error('Risposta non JSON ricevuta:', text);
+                throw new Error('Risposta non JSON ricevuta dal server');
+            });
+        }
+    })
     .then(data => {
         if (data.success) {
             showAlert(productId ? 'Prodotto aggiornato con successo!' : 'Prodotto creato con successo!', 'success');
@@ -315,15 +327,19 @@ function handleProductSubmit(e) {
     })
     .catch(error => {
         console.error('Errore:', error);
-        showAlert('Errore di connessione', 'danger');
+        showAlert('Errore di connessione: ' + error.message, 'danger');
     });
 }
 
 // Elimina prodotto
 function deleteProduct(id) {
     productToDelete = id;
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
+    
+    // Mostra conferma con avviso sui prodotti farmacia collegati
+    if (confirm('ATTENZIONE: Eliminando questo prodotto globale verranno eliminati anche tutti i prodotti farmacia collegati. Sei sicuro di voler procedere?')) {
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
 }
 
 // Conferma eliminazione
@@ -340,7 +356,7 @@ function confirmDelete() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('Prodotto eliminato con successo!', 'success');
+            showAlert(data.message, 'success');
             bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
             loadProducts();
         } else {
@@ -438,6 +454,27 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Funzioni helper per gestire i status
+function getStatusText(status) {
+    switch (status) {
+        case 'active': return 'Attivo';
+        case 'inactive': return 'Inattivo';
+        case 'pending_approval': return 'Da Approvare';
+        case 'deleted': return 'Eliminato';
+        default: return 'Sconosciuto';
+    }
+}
+
+function getStatusBadgeClass(status) {
+    switch (status) {
+        case 'active': return 'bg-success';
+        case 'inactive': return 'bg-secondary';
+        case 'pending_approval': return 'bg-warning';
+        case 'deleted': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
 }
 
 function debounce(func, wait) {

@@ -1,35 +1,32 @@
 <?php
 /**
- * API Elimina Prodotto
+ * API Elimina Prodotto Farmacia
  * Assistente Farmacia Panel
  */
 
 require_once '../../config/database.php';
 require_once '../../includes/auth_middleware.php';
-require_once '../../includes/image_manager.php';
 
-// Verifica accesso admin per API
-if (!isLoggedIn()) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Autenticazione richiesta'
-    ]);
-    exit;
-}
-
-if (!isAdmin()) {
-    http_response_code(403);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Accesso negato - Solo admin'
-    ]);
-    exit;
-}
+// Verifica accesso farmacista
+checkAccess(['pharmacist']);
 
 header('Content-Type: application/json');
 
 try {
+    // Ottieni farmacia corrente
+    $pharmacy = getCurrentPharmacy();
+    $pharmacyId = $pharmacy['id'] ?? 0;
+    
+    if (!$pharmacyId) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Farmacia non trovata'
+        ]);
+        exit;
+    }
+    
+    // Verifica metodo
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode([
@@ -52,8 +49,8 @@ try {
         exit;
     }
     
-    // Verifica se prodotto esiste
-    $product = db_fetch_one("SELECT * FROM jta_global_prods WHERE id = ?", [$id]);
+    // Verifica se prodotto esiste e appartiene alla farmacia
+    $product = db_fetch_one("SELECT * FROM jta_pharma_prods WHERE id = ? AND pharma_id = ?", [$id, $pharmacyId]);
     if (!$product) {
         http_response_code(404);
         echo json_encode([
@@ -63,16 +60,30 @@ try {
         exit;
     }
     
-    // Usa la funzione helper per eliminazione in cascata
-    $result = deleteGlobalProductWithCascade($id);
+    // Elimina dal database
+    $affected = db()->delete('jta_pharma_prods', 'id = ?', [$id]);
     
-    if (!$result['success']) {
+    if ($affected === 0) {
         http_response_code(500);
-        echo json_encode($result);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Errore nell\'eliminazione del prodotto'
+        ]);
         exit;
     }
     
-    echo json_encode($result);
+    // Log attività
+    logActivity('product_deleted', [
+        'product_id' => $id,
+        'pharma_id' => $pharmacyId,
+        'sku' => $product['sku'],
+        'name' => $product['name']
+    ]);
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Prodotto eliminato con successo'
+    ]);
     
 } catch (Exception $e) {
     http_response_code(500);
@@ -81,5 +92,4 @@ try {
         'message' => 'Errore interno del server: ' . $e->getMessage()
     ]);
 }
-
 ?> 

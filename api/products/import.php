@@ -7,8 +7,24 @@
 require_once '../../config/database.php';
 require_once '../../includes/auth_middleware.php';
 
-// Verifica accesso admin
-checkAdminAccess();
+// Verifica accesso admin per API
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Autenticazione richiesta'
+    ]);
+    exit;
+}
+
+if (!isAdmin()) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Accesso negato - Solo admin'
+    ]);
+    exit;
+}
 
 header('Content-Type: application/json');
 
@@ -145,11 +161,11 @@ try {
                 'strength' => trim($row[$columnMap['strength']] ?? ''),
                 'package_size' => trim($row[$columnMap['package_size']] ?? ''),
                 'requires_prescription' => strtolower(trim($row[$columnMap['requires_prescription']] ?? '')) === 'sì' ? 1 : 0,
-                'is_active' => strtolower(trim($row[$columnMap['is_active']] ?? '')) === 'attivo' ? 1 : 0
+                'is_active' => strtolower(trim($row[$columnMap['is_active']] ?? '')) === 'attivo' ? 'active' : 'inactive'
             ];
             
-            // Verifica se prodotto esiste
-            $existingProduct = db_fetch_one("SELECT id FROM jta_global_prods WHERE sku = ?", [$sku]);
+            // Verifica se prodotto esiste (solo prodotti attivi)
+            $existingProduct = db_fetch_one("SELECT id FROM jta_global_prods WHERE sku = ? AND is_active = 'active'", [$sku]);
             
             if ($existingProduct) {
                 if ($updateExisting) {

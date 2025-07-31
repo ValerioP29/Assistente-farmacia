@@ -7,8 +7,24 @@
 require_once '../../config/database.php';
 require_once '../../includes/auth_middleware.php';
 
-// Verifica accesso admin
-checkAdminAccess();
+// Verifica accesso admin per API
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Autenticazione richiesta'
+    ]);
+    exit;
+}
+
+if (!isAdmin()) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Accesso negato - Solo admin'
+    ]);
+    exit;
+}
 
 header('Content-Type: application/json');
 

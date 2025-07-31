@@ -138,13 +138,7 @@
 
         // Gestione logout
         function logout() {
-            console.log('Logout function called');
-            console.log('User role:', window.APP_CONFIG.userRole);
-            console.log('CSRF token:', window.APP_CONFIG.csrfToken);
-            
             if (confirm('Sei sicuro di voler uscire?')) {
-                console.log('User confirmed logout');
-                
                 // Prova prima con l'API
                 fetch('api/auth/logout.php', {
                     method: 'POST',
@@ -154,25 +148,17 @@
                     }
                 })
                 .then(response => {
-                    console.log('Logout response status:', response.status);
-                    console.log('Logout response ok:', response.ok);
-                    
                     if (response.ok) {
-                        console.log('Logout successful, redirecting to login');
                         window.location.href = 'login.php';
                     } else {
                         // Se c'è un errore HTTP, usa il logout diretto
-                        console.warn('Logout API error, using direct logout');
                         window.location.href = 'logout.php';
                     }
                 })
                 .catch(error => {
                     // Se c'è un errore di rete, usa il logout diretto
-                    console.warn('Logout network error, using direct logout:', error);
                     window.location.href = 'logout.php';
                 });
-            } else {
-                console.log('User cancelled logout');
             }
         }
 
