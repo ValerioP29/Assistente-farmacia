@@ -29,10 +29,7 @@ try {
     $stats = getDashboardStats();
     
     // Risposta di successo
-    echo json_encode([
-        'success' => true,
-        'data' => $stats
-    ]);
+    echo json_encode($stats);
     
 } catch (Exception $e) {
     http_response_code(500);

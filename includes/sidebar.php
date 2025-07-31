@@ -12,6 +12,7 @@ $menu_items = [
     'dashboard' => ['icon' => 'fas fa-tachometer-alt', 'label' => 'Dashboard', 'url' => 'dashboard.php', 'roles' => ['admin', 'pharmacist']],
     'utenti' => ['icon' => 'fas fa-users', 'label' => 'Gestione Utenti', 'url' => 'utenti.php', 'roles' => ['admin']],
     'farmacie' => ['icon' => 'fas fa-clinic-medical', 'label' => 'Gestione Farmacie', 'url' => 'farmacie.php', 'roles' => ['admin']],
+    'prodotti_globali' => ['icon' => 'fas fa-boxes', 'label' => 'Gestione Prodotti', 'url' => 'prodotti_globali.php', 'roles' => ['admin']],
     'richieste' => ['icon' => 'fas fa-calendar-check', 'label' => 'Richieste', 'url' => 'richieste.php', 'roles' => ['pharmacist']],
     'prodotti' => ['icon' => 'fas fa-boxes', 'label' => 'Prodotti', 'url' => 'prodotti.php', 'roles' => ['pharmacist']],
     'promo' => ['icon' => 'fas fa-pills', 'label' => 'Promo', 'url' => 'promo.php', 'roles' => ['pharmacist']],
@@ -60,7 +61,7 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
             <li><hr class="border-light"></li>
         <?php endif; ?>
         
-        <li><a href="logout.php" class="nav-link exit logout-link" onclick="return confirm('Sei sicuro di voler uscire?')"><i class="fas fa-sign-out-alt me-2"></i> Esci</a></li>
+        <li><a href="logout.php" class="nav-link exit logout-link"><i class="fas fa-sign-out-alt me-2"></i> Esci</a></li>
     </ul>
 </div>
 

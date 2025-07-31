@@ -35,10 +35,7 @@ try {
     $chartData = getChartData($days);
     
     // Risposta di successo
-    echo json_encode([
-        'success' => true,
-        'data' => $chartData
-    ]);
+    echo json_encode($chartData);
     
 } catch (Exception $e) {
     http_response_code(500);

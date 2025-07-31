@@ -86,61 +86,81 @@ $nextOpening = getNextOpeningTime();
 
             <!-- Statistiche Cards -->
             <div id="card_container" class="d-flex flex-wrap justify-content-center align-items-center gap-3 mb-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-users mb-2 text-primary"></i>
-                        <h5 class="card-title mt-2"><?= number_format($stats['customers']) ?></h5>
-                        <p class="card-text">
-                            <?php if (isAdmin()): ?>
-                                Clienti Totali
-                            <?php else: ?>
-                                Numero di clienti
-                            <?php endif; ?>
-                        </p>
+                <?php if (isAdmin()): ?>
+                    <!-- KPI per Admin -->
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-boxes mb-2 text-primary"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['global_products']) ?></h5>
+                            <p class="card-text">Prodotti Globali</p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-clock mb-2 text-warning"></i>
-                        <h5 class="card-title mt-2"><?= number_format($stats['pending_requests']) ?></h5>
-                        <p class="card-text">
-                            <?php if (isAdmin()): ?>
-                                Richieste in Corso
-                            <?php else: ?>
-                                Richieste in corso
-                            <?php endif; ?>
-                        </p>
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle mb-2 text-success"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['completed_requests']) ?></h5>
+                            <p class="card-text">Richieste Completate</p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-check-circle mb-2 text-success"></i>
-                        <h5 class="card-title mt-2"><?= number_format($stats['completed_requests']) ?></h5>
-                        <p class="card-text">
-                            <?php if (isAdmin()): ?>
-                                Richieste Completate
-                            <?php else: ?>
-                                Richieste completate
-                            <?php endif; ?>
-                        </p>
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock mb-2 text-warning"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['pending_requests']) ?></h5>
+                            <p class="card-text">Richieste in Corso</p>
+                        </div>
                     </div>
-                </div>
 
-                <div class="card text-center">
-                    <div class="card-body">
-                        <i class="fas fa-pills mb-2 text-info"></i>
-                        <h5 class="card-title mt-2"><?= number_format($stats['products']) ?></h5>
-                        <p class="card-text">
-                            <?php if (isAdmin()): ?>
-                                Prodotti Totali
-                            <?php else: ?>
-                                Prodotti in catalogo
-                            <?php endif; ?>
-                        </p>
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-users mb-2 text-info"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['total_users']) ?></h5>
+                            <p class="card-text">Utenti Totali</p>
+                        </div>
                     </div>
-                </div>
+
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clinic-medical mb-2 text-secondary"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['total_pharmacies']) ?></h5>
+                            <p class="card-text">Farmacie Totali</p>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <!-- KPI per Farmacisti -->
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-users mb-2 text-primary"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['customers']) ?></h5>
+                            <p class="card-text">Numero di clienti</p>
+                        </div>
+                    </div>
+
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock mb-2 text-warning"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['pending_requests']) ?></h5>
+                            <p class="card-text">Richieste in corso</p>
+                        </div>
+                    </div>
+
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle mb-2 text-success"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['completed_requests']) ?></h5>
+                            <p class="card-text">Richieste completate</p>
+                        </div>
+                    </div>
+
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-pills mb-2 text-info"></i>
+                            <h5 class="card-title mt-2"><?= number_format($stats['products']) ?></h5>
+                            <p class="card-text">Prodotti in catalogo</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Grafico Prenotazioni -->
@@ -252,14 +272,28 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: chartData.labels,
             datasets: [{
-                label: 'Prenotazioni',
-                data: chartData.values,
+                label: 'Richieste Totali',
+                data: chartData.total_requests || chartData.values,
                 borderColor: 'rgb(52, 152, 219)',
                 backgroundColor: 'rgba(52, 152, 219, 0.1)',
                 borderWidth: 2,
-                fill: true,
+                fill: false,
                 tension: 0.4,
                 pointBackgroundColor: 'rgb(52, 152, 219)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'Richieste Completate',
+                data: chartData.completed_requests || [],
+                borderColor: 'rgb(46, 204, 113)',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
+                pointBackgroundColor: 'rgb(46, 204, 113)',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
                 pointRadius: 4,
@@ -271,7 +305,15 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 12
+                        }
+                    }
                 },
                 tooltip: {
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -312,7 +354,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 myChart.data.labels = data.labels;
-                myChart.data.datasets[0].data = data.values;
+                myChart.data.datasets[0].data = data.total_requests || data.values;
+                myChart.data.datasets[1].data = data.completed_requests || [];
                 myChart.update('none');
             })
             .catch(error => {
@@ -326,10 +369,21 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 // Aggiorna i numeri nelle card
-                document.querySelectorAll('#card_container .card-title').forEach((title, index) => {
-                    const values = [data.customers, data.pending_requests, data.completed_requests, data.products];
-                    if (values[index] !== undefined) {
-                        title.textContent = new Intl.NumberFormat('it-IT').format(values[index]);
+                const cardTitles = document.querySelectorAll('#card_container .card-title');
+                cardTitles.forEach((title, index) => {
+                    let value;
+                    if (data.global_products !== undefined) {
+                        // Admin dashboard
+                        const adminValues = [data.global_products, data.completed_requests, data.pending_requests, data.total_users, data.total_pharmacies];
+                        value = adminValues[index];
+                    } else {
+                        // Farmacista dashboard
+                        const farmacistValues = [data.customers, data.pending_requests, data.completed_requests, data.products];
+                        value = farmacistValues[index];
+                    }
+                    
+                    if (value !== undefined) {
+                        title.textContent = new Intl.NumberFormat('it-IT').format(value);
                     }
                 });
             })

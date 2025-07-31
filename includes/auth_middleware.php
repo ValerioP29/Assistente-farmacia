@@ -56,6 +56,15 @@ function requirePharmacistOrAdmin() {
 }
 
 /**
+ * Middleware per pagine admin-only (alias per requireAdmin)
+ */
+function checkAdminAccess() {
+    return checkAccess(['admin'], true);
+}
+
+
+
+/**
  * Controlla se l'utente può accedere a una risorsa specifica
  * @param string $resource Nome della risorsa
  * @param int $resource_id ID della risorsa (opzionale)

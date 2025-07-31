@@ -292,13 +292,23 @@ function getDashboardStats() {
         
         // Se è admin, mostra dati di tutte le farmacie
         if (isAdmin()) {
-            // Numero clienti totali
-            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE is_deleted = 0";
+            // Numero prodotti globali
+            $sql = "SELECT COUNT(*) as count FROM jta_global_prods WHERE is_active = 1";
             $result = db_fetch_one($sql);
-            $stats['customers'] = $result['count'];
+            $stats['global_products'] = $result['count'];
             
-            // Richieste in corso totali
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'in elaborazione'";
+            // Numero utenti totali
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status != 'deleted'";
+            $result = db_fetch_one($sql);
+            $stats['total_users'] = $result['count'];
+            
+            // Numero farmacie totali
+            $sql = "SELECT COUNT(*) as count FROM farmacie";
+            $result = db_fetch_one($sql);
+            $stats['total_pharmacies'] = $result['count'];
+            
+            // Richieste in corso totali (in elaborazione + da elaborare)
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status IN ('in elaborazione', 'da elaborare')";
             $result = db_fetch_one($sql);
             $stats['pending_requests'] = $result['count'];
             
@@ -306,45 +316,50 @@ function getDashboardStats() {
             $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato'";
             $result = db_fetch_one($sql);
             $stats['completed_requests'] = $result['count'];
-            
-            // Prodotti totali
-            $sql = "SELECT COUNT(*) as count FROM prodotti";
-            $result = db_fetch_one($sql);
-            $stats['products'] = $result['count'];
         } else {
             // Se è farmacista, mostra solo dati della sua farmacia
             $pharmacy = getCurrentPharmacy();
             $pharmacyId = $pharmacy['id'] ?? 0;
             
             // Numero clienti della farmacia
-            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE is_deleted = 0 AND pharmacy_id = ?";
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status != 'deleted' AND starred_pharma = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['customers'] = $result['count'];
             
-            // Richieste in corso della farmacia
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'in elaborazione' AND pharmacy_id = ?";
+            // Richieste in corso della farmacia (in elaborazione + da elaborare)
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status IN ('in elaborazione', 'da elaborare') AND farmacia_id = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['pending_requests'] = $result['count'];
             
             // Richieste completate della farmacia
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato' AND pharmacy_id = ?";
+            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato' AND farmacia_id = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['completed_requests'] = $result['count'];
             
             // Prodotti della farmacia
-            $sql = "SELECT COUNT(*) as count FROM prodotti WHERE pharmacy_id = ?";
+            $sql = "SELECT COUNT(*) as count FROM prodotti WHERE farmacia_id = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['products'] = $result['count'];
         }
         
         return $stats;
     } catch (Exception $e) {
-        return [
-            'customers' => 0,
-            'pending_requests' => 0,
-            'completed_requests' => 0,
-            'products' => 0
-        ];
+        if (isAdmin()) {
+            return [
+                'global_products' => 0,
+                'total_users' => 0,
+                'total_pharmacies' => 0,
+                'pending_requests' => 0,
+                'completed_requests' => 0
+            ];
+        } else {
+            return [
+                'customers' => 0,
+                'pending_requests' => 0,
+                'completed_requests' => 0,
+                'products' => 0
+            ];
+        }
     }
 }
 
@@ -353,8 +368,11 @@ function getDashboardStats() {
  */
 function getChartData($days = 30) {
     try {
+        $data = [];
+        
         // Se è admin, mostra dati di tutte le farmacie
         if (isAdmin()) {
+            // Richieste totali
             $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
                     FROM prenotazioni 
                     WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -362,11 +380,22 @@ function getChartData($days = 30) {
                     ORDER BY date";
             
             $results = db_fetch_all($sql, [$days]);
+            
+            // Richieste completate
+            $sql_completed = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
+                             FROM prenotazioni 
+                             WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                             AND status = 'completato'
+                             GROUP BY DATE(data_prenotazione)
+                             ORDER BY date";
+            
+            $results_completed = db_fetch_all($sql_completed, [$days]);
         } else {
             // Se è farmacista, mostra solo dati della sua farmacia
             $pharmacy = getCurrentPharmacy();
             $pharmacyId = $pharmacy['id'] ?? 0;
             
+            // Richieste totali
             $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
                     FROM prenotazioni 
                     WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -375,12 +404,36 @@ function getChartData($days = 30) {
                     ORDER BY date";
             
             $results = db_fetch_all($sql, [$days, $pharmacyId]);
+            
+            // Richieste completate
+            $sql_completed = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
+                             FROM prenotazioni 
+                             WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                             AND pharmacy_id = ? AND status = 'completato'
+                             GROUP BY DATE(data_prenotazione)
+                             ORDER BY date";
+            
+            $results_completed = db_fetch_all($sql_completed, [$days, $pharmacyId]);
         }
         
+        // Prepara dati per il grafico
         $data = [];
         foreach ($results as $row) {
             $data['labels'][] = formatDate($row['date'], 'd/m');
-            $data['values'][] = (int)$row['count'];
+            $data['total_requests'][] = (int)$row['count'];
+        }
+        
+        // Prepara dati per richieste completate
+        $data['completed_requests'] = [];
+        foreach ($results as $row) {
+            $completed_count = 0;
+            foreach ($results_completed as $completed_row) {
+                if ($completed_row['date'] == $row['date']) {
+                    $completed_count = (int)$completed_row['count'];
+                    break;
+                }
+            }
+            $data['completed_requests'][] = $completed_count;
         }
         
         return $data;
