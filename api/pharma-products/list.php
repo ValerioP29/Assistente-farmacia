@@ -36,6 +36,10 @@ try {
     $brand = trim($_GET['brand'] ?? '');
     $status = $_GET['status'] ?? '';
     
+    // Filtri specifici per promozioni
+    $promotion_status = $_GET['promotion_status'] ?? '';
+    $discount_range = $_GET['discount_range'] ?? '';
+    
     // Costruisci la query base con JOIN per ottenere dati del prodotto globale
     $sql = "SELECT pp.*, gp.category, gp.brand, gp.active_ingredient, gp.dosage_form, gp.strength, gp.package_size, gp.image as global_image 
             FROM jta_pharma_prods pp 
@@ -66,6 +70,42 @@ try {
     if ($status !== '') {
         $sql .= " AND pp.is_active = ?";
         $params[] = intval($status);
+    }
+    
+    // Filtri per promozioni
+    if ($promotion_status) {
+        switch ($promotion_status) {
+            case 'active':
+                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_start_date) <= CURDATE() AND DATE(pp.sale_end_date) >= CURDATE()";
+                break;
+            case 'inactive':
+                $sql .= " AND pp.is_on_sale = 0";
+                break;
+            case 'expired':
+                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_end_date) < CURDATE()";
+                break;
+            case 'upcoming':
+                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_start_date) > CURDATE()";
+                break;
+        }
+    }
+    
+    // Filtro per range di sconto
+    if ($discount_range) {
+        switch ($discount_range) {
+            case '0-10':
+                $sql .= " AND pp.sale_price > 0 AND ((pp.price - pp.sale_price) / pp.price) * 100 BETWEEN 0 AND 10";
+                break;
+            case '10-25':
+                $sql .= " AND pp.sale_price > 0 AND ((pp.price - pp.sale_price) / pp.price) * 100 BETWEEN 10 AND 25";
+                break;
+            case '25-50':
+                $sql .= " AND pp.sale_price > 0 AND ((pp.price - pp.sale_price) / pp.price) * 100 BETWEEN 25 AND 50";
+                break;
+            case '50+':
+                $sql .= " AND pp.sale_price > 0 AND ((pp.price - pp.sale_price) / pp.price) * 100 > 50";
+                break;
+        }
     }
     
     // Conta totale record

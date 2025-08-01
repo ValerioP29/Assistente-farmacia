@@ -63,10 +63,10 @@ try {
         }
     }
     
-    // Campi promozioni (non gestiti dall'interfaccia)
-    $isOnSale = 0;
-    $saleStartDate = null;
-    $saleEndDate = null;
+    // Campi promozioni
+    $isOnSale = isset($_POST['is_on_sale']) ? 1 : 0;
+    $saleStartDate = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : null;
+    $saleEndDate = !empty($_POST['sale_end_date']) ? $_POST['sale_end_date'] : null;
     
     // Validazione
     if (empty($name)) {
