@@ -227,13 +227,10 @@ include 'includes/header.php';
                             <div class="mb-3">
                                 <label for="salePrice" class="form-label">Prezzo Scontato *</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">€</span>
+                                    <span class="input-group-text" id="priceLabel">€</span>
                                     <input type="number" class="form-control" id="salePrice" name="sale_price" step="0.01" min="0" required>
                                 </div>
-                                <div class="form-text">
-                                    <span id="discountPercentage" class="text-success fw-bold"></span>
-                                    di sconto
-                                </div>
+
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -241,7 +238,7 @@ include 'includes/header.php';
                                 <label for="discountType" class="form-label">Tipo di Sconto</label>
                                 <select class="form-select" id="discountType" name="discount_type">
                                     <option value="percentage">Percentuale</option>
-                                    <option value="fixed">Importo fisso</option>
+                                    <option value="amount">Importo</option>
                                 </select>
                             </div>
                         </div>

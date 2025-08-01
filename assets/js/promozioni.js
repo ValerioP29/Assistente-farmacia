@@ -28,9 +28,18 @@ function setupEventListeners() {
     // Form promozione
     document.getElementById('promotionForm').addEventListener('submit', handlePromotionSubmit);
     document.getElementById('productSelect').addEventListener('change', handleProductSelect);
-    document.getElementById('salePrice').addEventListener('input', calculateDiscount);
+    document.getElementById('salePrice').addEventListener('input', function() {
+        const discountType = document.getElementById('discountType').value;
+        if (discountType === 'percentage') {
+            calculatePriceFromPercentage();
+        } else {
+            calculateDiscount();
+        }
+    });
     document.getElementById('saleStartDate').addEventListener('change', validateDates);
     document.getElementById('saleEndDate').addEventListener('change', validateDates);
+    
+
     
     // Import form
     document.getElementById('importForm').addEventListener('submit', handleImportSubmit);
@@ -125,7 +134,7 @@ function createPromotionCard(promotion) {
     const timeRemaining = calculateTimeRemaining(endDate);
     const progressPercentage = calculateProgressPercentage(startDate, endDate);
     
-    // Immagine prodotto
+    // Immagine prodotto con gestione errori migliorata
     const productImage = promotion.image || promotion.global_image || 'images/default-product.png';
     
     return `
@@ -141,7 +150,8 @@ function createPromotionCard(promotion) {
                 <div class="card-body">
                     <div class="product-image-container">
                         <img src="${productImage}" alt="${promotion.name}" class="product-image" 
-                             onerror="this.src='images/default-product.png'">
+                             onerror="this.onerror=null; this.src='images/default-product.png'; this.style.opacity='0.7';"
+                             onload="this.style.opacity='1';">
                     </div>
                     
                     <div class="product-info">
@@ -287,29 +297,19 @@ function handleProductSelect() {
         document.getElementById('productBrand').textContent = product.brand || 'N/A';
         document.getElementById('productInfo').style.display = 'block';
         
-        // Imposta prezzo scontato iniziale
-        document.getElementById('salePrice').value = product.price;
-        calculateDiscount();
+        // Imposta prezzo scontato iniziale solo se non è già stato impostato (modifica)
+        const currentSalePrice = document.getElementById('salePrice').value;
+        if (!currentSalePrice) {
+            document.getElementById('salePrice').value = product.price;
+        }
+        
+
     }
 }
 
-// Calcolo sconto
-function calculateDiscount() {
-    const productId = document.getElementById('productSelect').value;
-    const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
-    
-    if (!productId || salePrice <= 0) {
-        document.getElementById('discountPercentage').textContent = '';
-        return;
-    }
-    
-    const product = productsList.find(p => p.id == productId);
-    if (product) {
-        const originalPrice = parseFloat(product.price);
-        const discount = Math.round(((originalPrice - salePrice) / originalPrice) * 100);
-        document.getElementById('discountPercentage').textContent = `${discount}%`;
-    }
-}
+
+
+
 
 // Validazione date
 function validateDates() {
@@ -414,13 +414,22 @@ function editPromotion(id) {
                 document.getElementById('promotionModalLabel').innerHTML = '<i class="fas fa-edit me-1"></i> Modifica Promozione';
                 document.getElementById('promotionId').value = promotion.id;
                 document.getElementById('productSelect').value = promotion.product_id || '';
+                
+                // Imposta i valori prima di chiamare handleProductSelect
                 document.getElementById('salePrice').value = promotion.sale_price || '';
-                document.getElementById('saleStartDate').value = formatDate(promotion.sale_start_date);
-                document.getElementById('saleEndDate').value = formatDate(promotion.sale_end_date);
+                
+                // Gestione date
+                const startDate = formatDateForInput(promotion.sale_start_date);
+                const endDate = formatDateForInput(promotion.sale_end_date);
+                
+                document.getElementById('saleStartDate').value = startDate;
+                document.getElementById('saleEndDate').value = endDate;
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
                 
+
+                
+                // Ora chiama handleProductSelect che non sovrascriverà i valori
                 handleProductSelect();
-                calculateDiscount();
                 
                 const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
                 modal.show();
@@ -434,11 +443,40 @@ function editPromotion(id) {
         });
 }
 
-// Formattazione date
-function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 10);
+// Formattazione date per input HTML (formato ISO)
+function formatDateForInput(dateString) {
+    if (!dateString || dateString === 'null' || dateString === 'NULL') {
+        return '';
+    }
+    
+    try {
+        let date;
+        
+        // Se la data è nel formato italiano "DD/MM/YYYY, HH:MM"
+        if (typeof dateString === 'string' && dateString.includes('/')) {
+            const parts = dateString.split(',')[0].split('/');
+            
+            if (parts.length === 3) {
+                // Formato: DD/MM/YYYY
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // month - 1 perché i mesi in JS sono 0-based
+                const year = parseInt(parts[2]);
+                date = new Date(year, month, day);
+            } else {
+                date = new Date(dateString);
+            }
+        } else {
+            date = new Date(dateString);
+        }
+        
+        if (isNaN(date.getTime())) {
+            return '';
+        }
+        
+        return date.toISOString().slice(0, 10);
+    } catch (error) {
+        return '';
+    }
 }
 
 // Gestione submit form
@@ -447,6 +485,8 @@ function handlePromotionSubmit(e) {
     
     const formData = new FormData(e.target);
     const promotionId = formData.get('id');
+    
+
     
     const url = promotionId ? 
         `api/pharma-products/update.php` : 

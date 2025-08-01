@@ -19,7 +19,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $pharma_id = $_SESSION['pharmacy_id'];
+    $db = Database::getInstance();
+    $pdo = $db->getConnection();
+    
+    // Ottieni farmacia corrente
+    $pharmacy = getCurrentPharmacy();
+    $pharma_id = $pharmacy['id'] ?? $_SESSION['pharmacy_id'] ?? null;
+    
+    if (!$pharma_id) {
+        throw new Exception('ID farmacia non valido');
+    }
+    
     $input = json_decode(file_get_contents('php://input'), true);
     
     // Se non è JSON, usa POST
@@ -112,30 +122,17 @@ try {
     
 } catch (Exception $e) {
     error_log("Errore API update promozioni: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Errore interno del server'
+        'message' => 'Errore interno del server: ' . $e->getMessage()
     ]);
-}
-
-function logActivity($action, $details = null) {
-    global $pdo;
-    
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO jta_activity_log (user_id, action, details, ip_address, user_agent) 
-            VALUES (?, ?, ?, ?, ?)
-        ");
-        
-        $stmt->execute([
-            $_SESSION['user_id'] ?? null,
-            $action,
-            $details ? json_encode($details) : null,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null
-        ]);
-    } catch (Exception $e) {
-        error_log("Errore logging attività: " . $e->getMessage());
-    }
+} catch (Error $e) {
+    error_log("Errore fatale API update promozioni: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Errore fatale del server'
+    ]);
 }
 ?> 

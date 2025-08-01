@@ -52,7 +52,23 @@ $current_page = $current_page ?? 'dashboard';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- Fallback Font Awesome -->
+    <script>
+        // Fallback per Font Awesome se il CDN non funziona
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const icons = document.querySelectorAll('.fas, .far, .fab');
+                if (icons.length > 0 && getComputedStyle(icons[0]).fontFamily.indexOf('Font Awesome') === -1) {
+                    // Se Font Awesome non è caricato, usa un CDN alternativo
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = 'https://use.fontawesome.com/releases/v6.5.1/css/all.css';
+                    document.head.appendChild(link);
+                }
+            }, 2000);
+        });
+    </script>
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="assets/css/main.css">
