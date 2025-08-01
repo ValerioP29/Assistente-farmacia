@@ -341,7 +341,7 @@ class RichiesteManager {
                         </tr>
                         <tr>
                             <td><strong>Telefono:</strong></td>
-                            <td><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user.phone) || 'N/A'}</td>
+                            <td><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user.phone_number) || 'N/A'}</td>
                         </tr>
                     </table>
                 </div>

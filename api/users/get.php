@@ -36,7 +36,7 @@ if (!$user_id) {
 try {
     // Recupera dati utente
     $user = db_fetch_one("
-        SELECT u.*, p.nice_name as pharmacy_name 
+        SELECT u.id, u.slug_name, u.name, u.surname, u.email, u.phone_number, u.role, u.status, u.starred_pharma, u.created_at, u.updated_at, u.last_access, p.nice_name as pharmacy_name 
         FROM jta_users u 
         LEFT JOIN jta_pharmas p ON u.starred_pharma = p.id 
         WHERE u.id = ? AND u.role != 'admin' AND u.status != 'deleted'

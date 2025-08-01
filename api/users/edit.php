@@ -44,7 +44,7 @@ try {
     $surname = sanitize($_POST['surname'] ?? '');
     $slug_name = sanitize($_POST['slug_name'] ?? '');
     $email = sanitize($_POST['email'] ?? '');
-    $phone = sanitize($_POST['phone'] ?? '');
+    $phone_number = sanitize($_POST['phone_number'] ?? '');
     $role = sanitize($_POST['role'] ?? '');
     $status = sanitize($_POST['status'] ?? 'active');
     $password = $_POST['password'] ?? '';
@@ -108,7 +108,7 @@ try {
         'surname' => $surname,
         'slug_name' => $slug_name,
         'email' => $email,
-        'phone' => $phone,
+        'phone_number' => $phone_number,
         'role' => $role,
         'status' => $status,
         'starred_pharma' => $starred_pharma,

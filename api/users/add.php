@@ -43,7 +43,7 @@ try {
     $surname = sanitize($_POST['surname'] ?? '');
     $slug_name = sanitize($_POST['slug_name'] ?? '');
     $email = sanitize($_POST['email'] ?? '');
-    $phone = sanitize($_POST['phone'] ?? '');
+    $phone_number = sanitize($_POST['phone_number'] ?? '');
     $role = sanitize($_POST['role'] ?? '');
     $password = $_POST['password'] ?? '';
     $starred_pharma = (int)($_POST['starred_pharma'] ?? 0);
@@ -89,7 +89,7 @@ try {
         'surname' => $surname,
         'slug_name' => $slug_name,
         'email' => $email,
-        'phone' => $phone,
+        'phone_number' => $phone_number,
         'password' => password_hash($password, PASSWORD_DEFAULT),
         'role' => $role,
         'starred_pharma' => $starred_pharma,

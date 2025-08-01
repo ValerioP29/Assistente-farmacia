@@ -160,7 +160,7 @@ function createUserRow(user) {
             <br><small class="text-muted">@${escapeHtml(user.slug_name || '')}</small>
         </td>
         <td>${escapeHtml(user.email || 'Non specificata')}</td>
-        <td>${escapeHtml(user.phone || 'Non specificato')}</td>
+                        <td>${escapeHtml(user.phone_number || 'Non specificato')}</td>
         <td>
             <span class="badge bg-${user.role === 'pharmacist' ? 'primary' : 'secondary'}">
                 ${user.role === 'pharmacist' ? 'Farmacista' : 'Utente'}
@@ -499,7 +499,7 @@ async function editUser(userId) {
             document.getElementById('editLastName').value = user.surname || '';
             document.getElementById('editUsername').value = user.slug_name || '';
             document.getElementById('editEmail').value = user.email || '';
-            document.getElementById('editPhone').value = user.phone || '';
+            document.getElementById('editPhone').value = user.phone_number || '';
             document.getElementById('editRole').value = user.role || '';
             document.getElementById('editStatus').value = user.status || 'active';
             document.getElementById('editPassword').value = ''; // Password sempre vuota per sicurezza
@@ -565,12 +565,12 @@ function exportUsers() {
         const cells = row.querySelectorAll('td');
         const name = cells[0].textContent.trim().split('\n')[0];
         const email = cells[1].textContent.trim();
-        const phone = cells[2].textContent.trim();
+                    const phone_number = cells[2].textContent.trim();
         const role = cells[3].textContent.trim();
         const pharmacy = cells[4].textContent.trim();
         const lastAccess = cells[5].textContent.trim();
         
-        csv += `"${name}","${email}","${phone}","${role}","${pharmacy}","${lastAccess}"\n`;
+                    csv += `"${name}","${email}","${phone_number}","${role}","${pharmacy}","${lastAccess}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

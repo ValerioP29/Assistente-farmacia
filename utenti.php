@@ -118,7 +118,7 @@ require_once 'includes/header.php';
                                             <br><small class="text-muted">@<?= h($user['slug_name']) ?></small>
                                         </td>
                                         <td><?= h($user['email']) ?></td>
-                                        <td><?= htmlspecialchars($user['phone'] ?? 'Non specificato') ?></td>
+                                        <td><?= htmlspecialchars($user['phone_number'] ?? 'Non specificato') ?></td>
                                         <td>
                                             <span class="badge bg-<?= $user['role'] === 'pharmacist' ? 'primary' : 'secondary' ?>">
                                                 <?= $user['role'] === 'pharmacist' ? 'Farmacista' : 'Utente' ?>
@@ -201,8 +201,8 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="mb-3">
-                        <label for="phone" class="form-label">Telefono</label>
-                        <input type="tel" class="form-control" id="phone" name="phone">
+                        <label for="phone_number" class="form-label">Telefono</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number">
                     </div>
                     
                     <div class="mb-3">
@@ -278,7 +278,7 @@ require_once 'includes/header.php';
                     
                     <div class="mb-3">
                         <label for="editPhone" class="form-label">Telefono</label>
-                        <input type="tel" class="form-control" id="editPhone" name="phone">
+                        <input type="tel" class="form-control" id="editPhone" name="phone_number">
                     </div>
                     
                     <div class="mb-3">

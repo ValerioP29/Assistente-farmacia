@@ -32,7 +32,7 @@ try {
                    p.address as pharmacy_address,
                    CONCAT(u.name, ' ', u.surname) as user_username,
                    u.email as user_email,
-                   u.phone as user_phone
+                   u.phone_number as user_phone
             FROM jta_requests r
             LEFT JOIN jta_pharmas p ON r.pharma_id = p.id
             LEFT JOIN jta_users u ON r.user_id = u.id
