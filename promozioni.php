@@ -185,11 +185,11 @@ include 'includes/header.php';
                     <div class="mb-3">
                         <label for="productSearch" class="form-label">Cerca Prodotto *</label>
                         <div class="position-relative">
-                            <input type="text" class="form-control" id="productSearch" placeholder="Inizia a digitare il nome del prodotto..." autocomplete="off">
+                            <input type="text" class="form-control" id="productSearch" placeholder="Cerca un prodotto della tua farmacia..." autocomplete="off">
                             <input type="hidden" id="productSelect" name="product_id" required>
                             <div id="productSearchResults" class="position-absolute w-100 bg-white border rounded shadow-sm" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none;"></div>
                         </div>
-                        <div class="form-text">Digita per cercare il prodotto da mettere in promozione</div>
+                        <div class="form-text">Digita per cercare un prodotto della tua farmacia da mettere in promozione</div>
                     </div>
 
                     <!-- Informazioni Prodotto -->
@@ -239,7 +239,7 @@ include 'includes/header.php';
                                 <label for="discountType" class="form-label">Tipo di Sconto</label>
                                 <select class="form-select" id="discountType" name="discount_type">
                                     <option value="percentage">Percentuale</option>
-                                    <option value="amount">Importo</option>
+                                    <option value="amount" selected>Importo Fisso</option>
                                 </select>
                             </div>
                         </div>

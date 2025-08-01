@@ -41,10 +41,11 @@ try {
     $discount_range = $_GET['discount_range'] ?? '';
     
     // Costruisci la query base con JOIN per ottenere dati del prodotto globale
+    // Mostra solo prodotti con promozioni (is_on_sale IS NOT NULL)
     $sql = "SELECT pp.*, gp.category, gp.brand, gp.active_ingredient, gp.dosage_form, gp.strength, gp.package_size, gp.image as global_image 
             FROM jta_pharma_prods pp 
             LEFT JOIN jta_global_prods gp ON pp.product_id = gp.id 
-            WHERE pp.pharma_id = ?";
+            WHERE pp.pharma_id = ? AND pp.is_on_sale IS NOT NULL";
     $params = [$pharmacyId];
     
     // Aggiungi filtri

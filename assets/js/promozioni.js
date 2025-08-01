@@ -315,7 +315,7 @@ function setupProductSearch() {
     
     // Funzione per cercare prodotti
     function searchProducts(query) {
-        fetch(`api/products/search.php?q=${encodeURIComponent(query)}&limit=10`)
+        fetch(`api/pharma-products/search.php?q=${encodeURIComponent(query)}&limit=10`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -358,8 +358,11 @@ function setupProductSearch() {
     
     // Funzione per selezionare prodotto
     window.selectProduct = function(product) {
-        searchInput.value = product.text;
+        // Crea testo formattato per il campo di ricerca
+        const displayText = `${product.name} - ${product.brand || ''} (${product.category || ''})`.trim();
+        searchInput.value = displayText;
         hiddenInput.value = product.id;
+        
         resultsContainer.style.display = 'none';
         selectedIndex = -1;
         
@@ -494,7 +497,11 @@ function showAddPromotionModal() {
     document.getElementById('promotionForm').reset();
     document.getElementById('promotionId').value = '';
     document.getElementById('productSearch').value = '';
+    document.getElementById('productSelect').value = '';
     document.getElementById('productInfo').style.display = 'none';
+    
+    // Imposta di default la select a "Importo Fisso"
+    document.getElementById('discountType').value = 'amount';
     
     const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
     modal.show();
@@ -524,24 +531,12 @@ function editPromotion(id) {
                 document.getElementById('saleEndDate').value = endDate;
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
                 
-                // Carica le informazioni del prodotto
-                if (promotion.product_id) {
-                    fetch(`api/products/get.php?id=${promotion.product_id}`)
-                        .then(response => response.json())
-                        .then(productData => {
-                            if (productData.success) {
-                                const product = productData.product;
-                                // Imposta il testo di ricerca
-                                document.getElementById('productSearch').value = `${product.name} - ${product.brand} (${product.category})`;
-                                
-                                // Mostra le informazioni del prodotto
-                                showProductInfoInEdit(product);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Errore caricamento prodotto:', error);
-                        });
-                }
+                // Imposta il testo di ricerca con i dati del prodotto
+                const productText = `${promotion.name} - ${promotion.brand || ''} (${promotion.category || ''})`.trim();
+                document.getElementById('productSearch').value = productText;
+                
+                // Mostra le informazioni del prodotto
+                showProductInfoInEdit(promotion);
                 
                 const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
                 modal.show();
@@ -628,12 +623,17 @@ function handlePromotionSubmit(e) {
     
     const formData = new FormData(e.target);
     const promotionId = formData.get('id');
+    const productId = formData.get('product_id');
     
-
+    // Validazione prodotto selezionato
+    if (!promotionId && !productId) {
+        showError('Seleziona un prodotto prima di salvare la promozione');
+        return;
+    }
     
     const url = promotionId ? 
         `api/pharma-products/update.php` : 
-        `api/pharma-products/add.php`;
+        `api/pharma-products/create-promotion.php`;
     
     fetch(url, {
         method: 'POST',
@@ -698,7 +698,7 @@ function deletePromotion(id) {
 function confirmDelete() {
     if (!selectedPromotionId) return;
     
-    fetch('api/pharma-products/delete.php', {
+    fetch('api/pharma-products/delete-promotion.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

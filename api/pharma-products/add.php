@@ -101,7 +101,7 @@ try {
             exit;
         }
     } else {
-        // Per nuovi prodotti, verifica che sia selezionato un prodotto globale o si stia creando uno nuovo
+        // Per nuovi prodotti o promozioni
         if (!$createGlobalProduct && $productId <= 0) {
             http_response_code(400);
             echo json_encode([
@@ -109,6 +109,19 @@ try {
                 'message' => 'Devi selezionare un prodotto dal catalogo globale o creare un nuovo prodotto nel catalogo'
             ]);
             exit;
+        }
+        
+        // Se stiamo creando una promozione (productId > 0), verifica che il prodotto esista nella farmacia
+        if ($productId > 0 && !$createGlobalProduct) {
+            $existingPharmaProduct = db_fetch_one("SELECT id FROM jta_pharma_prods WHERE product_id = ? AND pharma_id = ?", [$productId, $pharmacyId]);
+            if ($existingPharmaProduct) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Questo prodotto è già presente nella tua farmacia'
+                ]);
+                exit;
+            }
         }
     }
     
@@ -302,17 +315,38 @@ try {
                 exit;
             }
             
+            // Se stiamo creando una promozione, ottieni i dati del prodotto globale
+            if ($productId > 0) {
+                $globalProduct = db_fetch_one("SELECT * FROM jta_global_prods WHERE id = ?", [$productId]);
+                if (!$globalProduct) {
+                    http_response_code(400);
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Prodotto globale non trovato'
+                    ]);
+                    exit;
+                }
+                
+                // Usa i dati del prodotto globale per creare la promozione
+                $data['name'] = $globalProduct['name'];
+                $data['description'] = $globalProduct['description'];
+                $data['price'] = $globalProduct['price'] ?? $price; // Usa il prezzo del globale se disponibile
+                $data['sku'] = $globalProduct['sku'] . '-FARM' . $pharmacyId; // SKU unico per farmacia
+            }
+            
             // Inserimento prodotto associato a globale
-            $productId = db()->insert('jta_pharma_prods', $data);
+            $newProductId = db()->insert('jta_pharma_prods', $data);
             $action = 'product_added';
             
             // Log attività
             logActivity($action, [
-                'product_id' => $productId,
+                'product_id' => $newProductId,
                 'pharma_id' => $pharmacyId,
-                'name' => $name,
-                'sku' => $sku
+                'name' => $data['name'],
+                'sku' => $data['sku']
             ]);
+            
+            $productId = $newProductId;
         }
     }
     
