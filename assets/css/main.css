@@ -620,4 +620,40 @@ main {
 .sidebar .nav-link.selected:hover {
   color: white !important;
   background-color: #34495e !important;
-} 
+}
+
+/* Stili per il logo della farmacia */
+.pharmacy-logo {
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pharmacy-logo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.pharmacy-logo-placeholder {
+  transition: all 0.3s ease;
+  border: 2px dashed rgba(255,255,255,0.3);
+}
+
+.pharmacy-logo-placeholder:hover {
+  background: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255,255,255,0.5);
+}
+
+
+
+/* Responsive per il logo nella sidebar */
+@media (max-width: 992px) {
+  .sidebar-left .pharmacy-logo {
+    height: 40px !important;
+    max-width: 100px !important;
+  }
+  
+  .sidebar-left .pharmacy-logo-placeholder {
+    height: 40px !important;
+    width: 100px !important;
+  }
+}

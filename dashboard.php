@@ -191,6 +191,12 @@ $nextOpening = getNextOpeningTime();
                             </h6>
                         </div>
                         <div class="card-body">
+                            <?php if (!empty($pharmacy['logo'])): ?>
+                                <div class="text-center mb-3">
+                                    <img src="<?= h($pharmacy['logo']) ?>" alt="Logo <?= h($pharmacy['nice_name']) ?>" 
+                                         class="pharmacy-logo" style="height: 80px; width: auto; max-width: 200px; object-fit: contain; border-radius: 8px;">
+                                </div>
+                            <?php endif; ?>
                             <ul class="list-unstyled mb-0">
                                 <li class="mb-2">
                                     <strong>Nome:</strong> <?= htmlspecialchars($pharmacy['nice_name'] ?? 'N/A') ?>

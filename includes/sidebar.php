@@ -38,6 +38,30 @@ $visible_menu_items = array_filter($menu_items, function($item) use ($user_role)
                 <br><small>Stai operando come: <?= htmlspecialchars($_SESSION['user_name'] ?? 'Farmacia') ?></small>
             </div>
         </div>
+    <?php elseif (isPharmacist() && !isAdmin()): ?>
+        <!-- Logo e nome farmacia -->
+        <?php 
+        $pharmacy = getCurrentPharmacy();
+        if ($pharmacy): 
+        ?>
+            <div class="pharmacy-info mb-3 mx-2">
+                <div class="card border-0 bg-transparent">
+                    <div class="card-body text-center p-3">
+                        <?php if (!empty($pharmacy['logo'])): ?>
+                            <img src="<?= h($pharmacy['logo']) ?>" alt="Logo <?= h($pharmacy['nice_name']) ?>" 
+                                 class="pharmacy-logo mb-2" style="height: 60px; width: auto; max-width: 150px; object-fit: contain; border-radius: 8px;">
+                        <?php else: ?>
+                            <div class="pharmacy-logo-placeholder mb-2 d-flex align-items-center justify-content-center" 
+                                 style="height: 60px; width: 150px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                                <i class="fas fa-clinic-medical fa-2x text-light"></i>
+                            </div>
+                        <?php endif; ?>
+                        <h6 class="text-light mb-1"><?= h($pharmacy['nice_name']) ?></h6>
+                        <small class="text-light opacity-75"><?= h($pharmacy['city'] ?? '') ?></small>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
     
     <ul class="nav nav-pills flex-column mb-auto">

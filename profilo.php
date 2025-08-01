@@ -115,6 +115,54 @@ include 'includes/header.php';
                     </div>
                 </div>
 
+                <!-- Sezione Logo -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-image me-2"></i>Logo Farmacia
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3 text-center">
+                                        <div class="logo-preview mb-3">
+                                            <?php if (!empty($pharmacy['logo'])): ?>
+                                                <img src="<?= h($pharmacy['logo']) ?>" alt="Logo Farmacia" 
+                                                     class="img-fluid rounded" style="max-height: 150px; max-width: 200px;">
+                                            <?php else: ?>
+                                                <div class="placeholder-logo bg-light border rounded d-flex align-items-center justify-content-center" 
+                                                     style="height: 150px; width: 200px;">
+                                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <div class="form-group">
+                                            <label class="form-label" for="logo">Carica nuovo logo:</label>
+                                            <input class="form-control" type="file" id="logo" name="logo" 
+                                                   accept="image/jpeg,image/jpg,image/png,image/gif">
+                                            <small class="form-text text-muted">
+                                                Formati supportati: JPG, PNG, GIF. Dimensione massima: 5MB
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-primary mt-2" id="uploadLogoBtn">
+                                            <i class="fas fa-upload me-2"></i>Carica Logo
+                                        </button>
+                                        <?php if (!empty($pharmacy['logo'])): ?>
+                                            <button type="button" class="btn btn-danger mt-2 ms-2" id="removeLogoBtn">
+                                                <i class="fas fa-trash me-2"></i>Rimuovi Logo
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-12">
                         <button type="submit" class="btn btn-success mt-3 px-4">
