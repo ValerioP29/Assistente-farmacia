@@ -136,7 +136,7 @@ function getCurrentPharmacy() {
     }
     
     try {
-        $sql = "SELECT * FROM jta_pharmas WHERE id = ? AND status != 'deleted'";
+        $sql = "SELECT * FROM jta_pharmas WHERE id = ? AND status = 'active'";
         return db_fetch_one($sql, [$_SESSION['pharmacy_id'] ?? 1]);
     } catch (Exception $e) {
         error_log("Errore recupero farmacia corrente: " . $e->getMessage());
@@ -298,22 +298,22 @@ function getDashboardStats() {
             $stats['global_products'] = $result['count'];
             
             // Numero utenti totali
-            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status != 'deleted'";
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status = 'active'";
             $result = db_fetch_one($sql);
             $stats['total_users'] = $result['count'];
             
             // Numero farmacie totali
-            $sql = "SELECT COUNT(*) as count FROM farmacie";
+            $sql = "SELECT COUNT(*) as count FROM jta_pharmas WHERE status = 'active'";
             $result = db_fetch_one($sql);
             $stats['total_pharmacies'] = $result['count'];
             
-            // Richieste in corso totali (in elaborazione + da elaborare)
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status IN ('in elaborazione', 'da elaborare')";
+            // Richieste in corso totali (pending + processing)
+            $sql = "SELECT COUNT(*) as count FROM jta_requests WHERE deleted_at IS NULL AND status IN (0, 1)";
             $result = db_fetch_one($sql);
             $stats['pending_requests'] = $result['count'];
             
             // Richieste completate totali
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato'";
+            $sql = "SELECT COUNT(*) as count FROM jta_requests WHERE deleted_at IS NULL AND status = 2";
             $result = db_fetch_one($sql);
             $stats['completed_requests'] = $result['count'];
         } else {
@@ -322,22 +322,22 @@ function getDashboardStats() {
             $pharmacyId = $pharmacy['id'] ?? 0;
             
             // Numero clienti della farmacia
-            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status != 'deleted' AND starred_pharma = ?";
+            $sql = "SELECT COUNT(*) as count FROM jta_users WHERE status = 'active' AND starred_pharma = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['customers'] = $result['count'];
             
-            // Richieste in corso della farmacia (in elaborazione + da elaborare)
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status IN ('in elaborazione', 'da elaborare') AND farmacia_id = ?";
+            // Richieste in corso della farmacia (pending + processing)
+            $sql = "SELECT COUNT(*) as count FROM jta_requests WHERE deleted_at IS NULL AND status IN (0, 1) AND pharma_id = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['pending_requests'] = $result['count'];
             
             // Richieste completate della farmacia
-            $sql = "SELECT COUNT(*) as count FROM prenotazioni WHERE status = 'completato' AND farmacia_id = ?";
+            $sql = "SELECT COUNT(*) as count FROM jta_requests WHERE deleted_at IS NULL AND status = 2 AND pharma_id = ?";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['completed_requests'] = $result['count'];
             
             // Prodotti della farmacia
-            $sql = "SELECT COUNT(*) as count FROM prodotti WHERE farmacia_id = ?";
+            $sql = "SELECT COUNT(*) as count FROM jta_pharma_prods WHERE pharma_id = ? AND is_active = 1";
             $result = db_fetch_one($sql, [$pharmacyId]);
             $stats['products'] = $result['count'];
         }
@@ -373,20 +373,22 @@ function getChartData($days = 30) {
         // Se è admin, mostra dati di tutte le farmacie
         if (isAdmin()) {
             // Richieste totali
-            $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
-                    FROM prenotazioni 
-                    WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
-                    GROUP BY DATE(data_prenotazione)
+            $sql = "SELECT DATE(created_at) as date, COUNT(*) as count 
+                    FROM jta_requests 
+                    WHERE deleted_at IS NULL 
+                    AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                    GROUP BY DATE(created_at)
                     ORDER BY date";
             
             $results = db_fetch_all($sql, [$days]);
             
             // Richieste completate
-            $sql_completed = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
-                             FROM prenotazioni 
-                             WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
-                             AND status = 'completato'
-                             GROUP BY DATE(data_prenotazione)
+            $sql_completed = "SELECT DATE(created_at) as date, COUNT(*) as count 
+                             FROM jta_requests 
+                             WHERE deleted_at IS NULL 
+                             AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                             AND status = 2
+                             GROUP BY DATE(created_at)
                              ORDER BY date";
             
             $results_completed = db_fetch_all($sql_completed, [$days]);
@@ -396,21 +398,23 @@ function getChartData($days = 30) {
             $pharmacyId = $pharmacy['id'] ?? 0;
             
             // Richieste totali
-            $sql = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
-                    FROM prenotazioni 
-                    WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
-                    AND pharmacy_id = ?
-                    GROUP BY DATE(data_prenotazione)
+            $sql = "SELECT DATE(created_at) as date, COUNT(*) as count 
+                    FROM jta_requests 
+                    WHERE deleted_at IS NULL 
+                    AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                    AND pharma_id = ?
+                    GROUP BY DATE(created_at)
                     ORDER BY date";
             
             $results = db_fetch_all($sql, [$days, $pharmacyId]);
             
             // Richieste completate
-            $sql_completed = "SELECT DATE(data_prenotazione) as date, COUNT(*) as count 
-                             FROM prenotazioni 
-                             WHERE data_prenotazione >= DATE_SUB(NOW(), INTERVAL ? DAY)
-                             AND pharmacy_id = ? AND status = 'completato'
-                             GROUP BY DATE(data_prenotazione)
+            $sql_completed = "SELECT DATE(created_at) as date, COUNT(*) as count 
+                             FROM jta_requests 
+                             WHERE deleted_at IS NULL 
+                             AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                             AND pharma_id = ? AND status = 2
+                             GROUP BY DATE(created_at)
                              ORDER BY date";
             
             $results_completed = db_fetch_all($sql_completed, [$days, $pharmacyId]);
@@ -531,7 +535,7 @@ function getPharmacyHours($pharmacyId = null) {
     }
     
     try {
-        $sql = "SELECT working_info FROM jta_pharmas WHERE id = ?";
+        $sql = "SELECT working_info FROM jta_pharmas WHERE id = ? AND status = 'active'";
         $result = db_fetch_one($sql, [$pharmacyId]);
         
         if ($result && $result['working_info']) {
@@ -552,30 +556,38 @@ function formatWorkingHours($hours) {
     
     $formatted = [];
     $days = [
-        'Monday' => 'Lunedì',
-        'Tuesday' => 'Martedì', 
-        'Wednesday' => 'Mercoledì',
-        'Thursday' => 'Giovedì',
-        'Friday' => 'Venerdì',
-        'Saturday' => 'Sabato',
-        'Sunday' => 'Domenica'
+        'lun' => 'Lunedì',
+        'mar' => 'Martedì', 
+        'mer' => 'Mercoledì',
+        'gio' => 'Giovedì',
+        'ven' => 'Venerdì',
+        'sab' => 'Sabato',
+        'dom' => 'Domenica'
     ];
     
     foreach ($hours as $day => $times) {
-        $dayName = $days[$day] ?? $day;
+        $dayName = $days[$day] ?? ucfirst($day);
         $timeStr = '';
         
-        if (isset($times['mattina'])) {
-            $timeStr .= $times['mattina'];
-        }
-        
-        if (isset($times['pomeriggio'])) {
-            if ($timeStr) $timeStr .= ' - ';
-            $timeStr .= $times['pomeriggio'];
-        }
-        
-        if (!$timeStr) {
+        // Controlla se è chiuso
+        if (isset($times['closed']) && $times['closed']) {
             $timeStr = 'Chiuso';
+        } else {
+            // Formatta orari mattina
+            if (isset($times['morning_open']) && isset($times['morning_close'])) {
+                $timeStr .= $times['morning_open'] . '-' . $times['morning_close'];
+            }
+            
+            // Formatta orari pomeriggio
+            if (isset($times['afternoon_open']) && isset($times['afternoon_close'])) {
+                if ($timeStr) $timeStr .= ' - ';
+                $timeStr .= $times['afternoon_open'] . '-' . $times['afternoon_close'];
+            }
+            
+            // Se non ci sono orari, è chiuso
+            if (!$timeStr) {
+                $timeStr = 'Chiuso';
+            }
         }
         
         $formatted[$dayName] = $timeStr;
