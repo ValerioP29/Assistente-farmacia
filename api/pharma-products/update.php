@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $pharma_id = $_SESSION['pharma_id'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     $input = json_decode(file_get_contents('php://input'), true);
     
     // Se non è JSON, usa POST

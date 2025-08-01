@@ -11,7 +11,7 @@ require_once '../../includes/auth_middleware.php';
 checkAccess(['pharmacist']);
 
 try {
-    $pharma_id = $_SESSION['pharma_id'];
+    $pharma_id = $_SESSION['pharmacy_id'];
     
     // Parametri filtri
     $search = trim($_GET['search'] ?? '');

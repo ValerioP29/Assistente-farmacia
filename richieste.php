@@ -209,7 +209,7 @@ include 'includes/header.php';
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="statusNote" class="form-label">Nota (opzionale)</label>
+                        <label for="statusNote" class="form-label">Nota Interna (opzionale)</label>
                         <textarea class="form-control" id="statusNote" rows="3" placeholder="Aggiungi una nota per questo cambio di stato..."></textarea>
                     </div>
                 </form>

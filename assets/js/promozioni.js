@@ -349,16 +349,45 @@ function clearFilters() {
 // Caricamento statistiche
 function loadStatistics() {
     fetch('api/pharma-products/stats.php')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text().then(text => {
+                if (!text) {
+                    throw new Error('Risposta vuota dal server');
+                }
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Risposta non valida dal server:', text);
+                    throw new Error('Risposta non valida dal server');
+                }
+            });
+        })
         .then(data => {
             if (data.success) {
                 document.getElementById('activePromotionsCount').textContent = data.active_promotions || 0;
                 document.getElementById('upcomingPromotionsCount').textContent = data.upcoming_promotions || 0;
                 document.getElementById('expiringPromotionsCount').textContent = data.expiring_promotions || 0;
                 document.getElementById('averageDiscount').textContent = `${data.average_discount || 0}%`;
+            } else {
+                console.error('Errore API statistiche:', data.message);
+                // Imposta valori di default in caso di errore
+                document.getElementById('activePromotionsCount').textContent = '0';
+                document.getElementById('upcomingPromotionsCount').textContent = '0';
+                document.getElementById('expiringPromotionsCount').textContent = '0';
+                document.getElementById('averageDiscount').textContent = '0%';
             }
         })
-        .catch(error => console.error('Errore caricamento statistiche:', error));
+        .catch(error => {
+            console.error('Errore caricamento statistiche:', error);
+            // Imposta valori di default in caso di errore
+            document.getElementById('activePromotionsCount').textContent = '0';
+            document.getElementById('upcomingPromotionsCount').textContent = '0';
+            document.getElementById('expiringPromotionsCount').textContent = '0';
+            document.getElementById('averageDiscount').textContent = '0%';
+        });
 }
 
 // Modal promozione

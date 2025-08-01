@@ -249,6 +249,23 @@
     transform: translateY(-2px);
 }
 
+/* Assicura che il testo delle statistiche sia sempre visibile */
+.card.bg-primary .card-title,
+.card.bg-success .card-title,
+.card.bg-warning .card-title,
+.card.bg-info .card-title {
+    color: white !important;
+    font-weight: 600;
+}
+
+.card.bg-primary h3,
+.card.bg-success h3,
+.card.bg-warning h3,
+.card.bg-info h3 {
+    color: white !important;
+    font-weight: bold;
+}
+
 /* Filtri */
 .filters-section {
     background-color: #f8f9fa;
