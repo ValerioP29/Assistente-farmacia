@@ -166,7 +166,7 @@ class RichiesteManager {
         if (requests.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center text-muted">
+                    <td colspan="7" class="text-center text-muted">
                         <i class="fas fa-inbox fa-2x mb-2"></i>
                         <p>Nessuna richiesta trovata</p>
                     </td>
@@ -180,12 +180,6 @@ class RichiesteManager {
                 <td><strong>#${request.id}</strong></td>
                 <td>
                     <span class="badge bg-primary">${request.request_type_label}</span>
-                </td>
-                <td>
-                    <div>
-                        <strong>${request.pharmacy_name || 'N/A'}</strong>
-                        ${request.pharmacy_nice_name ? `<br><small class="text-muted">${request.pharmacy_nice_name}</small>` : ''}
-                    </div>
                 </td>
                 <td>
                     <div>
@@ -580,7 +574,7 @@ class RichiesteManager {
         const tbody = document.getElementById('requestsTableBody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center">
+                <td colspan="7" class="text-center">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Caricamento...</span>
                     </div>

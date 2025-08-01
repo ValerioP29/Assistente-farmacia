@@ -139,7 +139,6 @@ include 'includes/header.php';
                                 <tr>
                                     <th>ID</th>
                                     <th>Tipo</th>
-                                    <th>Farmacia</th>
                                     <th>Utente</th>
                                     <th>Messaggio</th>
                                     <th>Stato</th>
@@ -149,7 +148,7 @@ include 'includes/header.php';
                             </thead>
                             <tbody id="requestsTableBody">
                                 <tr>
-                                    <td colspan="8" class="text-center">
+                                    <td colspan="7" class="text-center">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Caricamento...</span>
                                         </div>
