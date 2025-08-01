@@ -1,25 +1,7 @@
-# Assistente Farmacia Panel - .htaccess Semplificato
+# Assistente Farmacia Panel - .htaccess Ultra Semplificato
 
 # Abilita rewrite engine
 RewriteEngine On
-
-# Blocca accesso a file sensibili
-<FilesMatch "^(config|logs)/.*$">
-    Require all denied
-</FilesMatch>
-
-<FilesMatch "\.(log|bak|backup|tmp)$">
-    Require all denied
-</FilesMatch>
-
-# Permetti solo immagini in uploads
-<FilesMatch "^uploads/.*\.(jpg|jpeg|png|gif|pdf)$">
-    Require all granted
-</FilesMatch>
-
-<FilesMatch "^uploads/.*$">
-    Require all denied
-</FilesMatch>
 
 # Reindirizzamenti semplici
 RewriteCond %{REQUEST_FILENAME} !-f

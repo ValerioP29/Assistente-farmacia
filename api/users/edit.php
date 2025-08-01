@@ -56,12 +56,13 @@ try {
         exit;
     }
 
-    if (empty($name) || empty($surname) || empty($slug_name) || empty($email) || empty($role)) {
+    if (empty($name) || empty($surname) || empty($slug_name) || empty($role)) {
         echo json_encode(['success' => false, 'message' => 'Tutti i campi obbligatori devono essere compilati']);
         exit;
     }
 
-    if (!validateEmail($email)) {
+    // Validazione email solo se fornita
+    if (!empty($email) && !validateEmail($email)) {
         echo json_encode(['success' => false, 'message' => 'Email non valida']);
         exit;
     }
@@ -95,11 +96,13 @@ try {
         exit;
     }
 
-    // Controllo email unica (escludendo l'utente corrente)
-    $duplicate_email = db_fetch_one("SELECT id FROM jta_users WHERE email = ? AND id != ? AND status != 'deleted'", [$email, $user_id]);
-    if ($duplicate_email) {
-        echo json_encode(['success' => false, 'message' => 'Email già esistente']);
-        exit;
+    // Controllo email unica (escludendo l'utente corrente) solo se fornita
+    if (!empty($email)) {
+        $duplicate_email = db_fetch_one("SELECT id FROM jta_users WHERE email = ? AND id != ? AND status != 'deleted'", [$email, $user_id]);
+        if ($duplicate_email) {
+            echo json_encode(['success' => false, 'message' => 'Email già esistente']);
+            exit;
+        }
     }
 
     // Prepara dati per l'aggiornamento

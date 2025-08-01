@@ -49,12 +49,13 @@ try {
     $starred_pharma = (int)($_POST['starred_pharma'] ?? 0);
 
     // Validazioni
-    if (empty($name) || empty($surname) || empty($slug_name) || empty($email) || empty($role) || empty($password)) {
+    if (empty($name) || empty($surname) || empty($slug_name) || empty($role) || empty($password)) {
         echo json_encode(['success' => false, 'message' => 'Tutti i campi obbligatori devono essere compilati']);
         exit;
     }
 
-    if (!validateEmail($email)) {
+    // Validazione email solo se fornita
+    if (!empty($email) && !validateEmail($email)) {
         echo json_encode(['success' => false, 'message' => 'Email non valida']);
         exit;
     }
@@ -76,11 +77,13 @@ try {
         exit;
     }
 
-    // Controllo email unica
-    $existing_email = db_fetch_one("SELECT id FROM jta_users WHERE email = ? AND status != 'deleted'", [$email]);
-    if ($existing_email) {
-        echo json_encode(['success' => false, 'message' => 'Email già esistente']);
-        exit;
+    // Controllo email unica solo se fornita
+    if (!empty($email)) {
+        $existing_email = db_fetch_one("SELECT id FROM jta_users WHERE email = ? AND status != 'deleted'", [$email]);
+        if ($existing_email) {
+            echo json_encode(['success' => false, 'message' => 'Email già esistente']);
+            exit;
+        }
     }
 
     // Prepara dati per l'inserimento

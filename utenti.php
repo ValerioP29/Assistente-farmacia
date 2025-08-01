@@ -196,8 +196,8 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email *</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
                     </div>
                     
                     <div class="mb-3">
@@ -272,8 +272,8 @@ require_once 'includes/header.php';
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editEmail" class="form-label">Email *</label>
-                        <input type="email" class="form-control" id="editEmail" name="email" required>
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" name="email">
                     </div>
                     
                     <div class="mb-3">

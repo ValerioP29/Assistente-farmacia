@@ -235,6 +235,18 @@ class ProductImageManager {
      * Salva immagine
      */
     private function saveImage($image, $filepath, $extension) {
+        // Verifica che la directory esista
+        $directory = dirname($filepath);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        
+        // Verifica che la directory sia scrivibile
+        if (!is_writable($directory)) {
+            throw new Exception('Directory non scrivibile');
+        }
+        
+        // Salva l'immagine
         switch ($extension) {
             case 'jpg':
             case 'jpeg':
@@ -280,7 +292,9 @@ class ProductImageManager {
      * Ottieni percorso relativo
      */
     private function getRelativePath($absolutePath) {
-        return str_replace(__DIR__ . '/../', '', $absolutePath);
+        $basePath = __DIR__ . '/../';
+        $relativePath = str_replace($basePath, '', $absolutePath);
+        return $relativePath;
     }
     
     /**
