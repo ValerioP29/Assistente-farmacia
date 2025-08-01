@@ -30,6 +30,10 @@ function setupEventListeners() {
     document.getElementById('saleStartDate').addEventListener('change', validateDates);
     document.getElementById('saleEndDate').addEventListener('change', validateDates);
     
+    // Gestione tipo di sconto
+    document.getElementById('discountType').addEventListener('change', handleDiscountTypeChange);
+    document.getElementById('salePrice').addEventListener('input', handleSalePriceChange);
+    
 
     
     // Import form
@@ -400,17 +404,82 @@ function setupProductSearch() {
         // Mostra sezione info
         productInfo.style.display = 'block';
         
-        // Imposta prezzo scontato se vuoto
+        // Imposta prezzo scontato se vuoto e aggiorna l'icona
         const salePriceInput = document.getElementById('salePrice');
         if (!salePriceInput.value) {
             salePriceInput.value = product.price;
         }
+        
+        // Assicurati che l'icona sia corretta
+        handleDiscountTypeChange();
     }
 }
 
 
 
 
+
+// Gestione cambio tipo di sconto
+function handleDiscountTypeChange() {
+    const discountType = document.getElementById('discountType').value;
+    const priceLabel = document.getElementById('priceLabel');
+    const salePriceInput = document.getElementById('salePrice');
+    const currentPriceElement = document.getElementById('currentPrice');
+    
+    // Cambia icona e placeholder
+    if (discountType === 'percentage') {
+        priceLabel.innerHTML = '<i class="fas fa-percentage"></i>';
+        salePriceInput.placeholder = 'Es: 20 per 20% di sconto';
+        salePriceInput.step = '1';
+        salePriceInput.min = '0';
+        salePriceInput.max = '100';
+    } else {
+        priceLabel.innerHTML = '<i class="fas fa-euro-sign"></i>';
+        salePriceInput.placeholder = 'Es: 15.50 per €15.50';
+        salePriceInput.step = '0.01';
+        salePriceInput.min = '0';
+        salePriceInput.max = '';
+    }
+    
+    // Ricalcola prezzo scontato se c'è un valore
+    if (salePriceInput.value && currentPriceElement.textContent) {
+        calculateSalePrice();
+    }
+}
+
+// Gestione cambio prezzo scontato
+function handleSalePriceChange() {
+    calculateSalePrice();
+}
+
+// Calcolo automatico del prezzo scontato
+function calculateSalePrice() {
+    const discountType = document.getElementById('discountType').value;
+    const salePriceInput = document.getElementById('salePrice');
+    const currentPriceElement = document.getElementById('currentPrice');
+    
+    if (!currentPriceElement.textContent) return;
+    
+    const currentPrice = parseFloat(currentPriceElement.textContent.replace('€', '').trim());
+    const salePriceValue = parseFloat(salePriceInput.value);
+    
+    if (isNaN(currentPrice) || isNaN(salePriceValue)) return;
+    
+    let calculatedPrice;
+    
+    if (discountType === 'percentage') {
+        // Calcola prezzo scontato da percentuale
+        if (salePriceValue >= 0 && salePriceValue <= 100) {
+            calculatedPrice = currentPrice * (1 - salePriceValue / 100);
+            // Aggiorna il campo con il prezzo calcolato (solo per display, non per salvataggio)
+            salePriceInput.setAttribute('data-calculated-price', calculatedPrice.toFixed(2));
+        }
+    } else {
+        // Importo fisso - il valore inserito è già il prezzo scontato
+        calculatedPrice = salePriceValue;
+        salePriceInput.removeAttribute('data-calculated-price');
+    }
+}
 
 // Validazione date
 function validateDates() {
@@ -500,8 +569,9 @@ function showAddPromotionModal() {
     document.getElementById('productSelect').value = '';
     document.getElementById('productInfo').style.display = 'none';
     
-    // Imposta di default la select a "Importo Fisso"
+    // Imposta di default la select a "Importo Fisso" e inizializza l'icona
     document.getElementById('discountType').value = 'amount';
+    handleDiscountTypeChange(); // Inizializza l'icona
     
     const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
     modal.show();
@@ -520,8 +590,30 @@ function editPromotion(id) {
                 document.getElementById('promotionId').value = promotion.id;
                 document.getElementById('productSelect').value = promotion.product_id || '';
                 
-                // Imposta i valori prima di caricare le info prodotto
-                document.getElementById('salePrice').value = promotion.sale_price || '';
+                // Calcola il tipo di sconto basato sul prezzo originale e scontato
+                const originalPrice = parseFloat(promotion.price);
+                const salePrice = parseFloat(promotion.sale_price);
+                let discountType = 'amount'; // Default
+                
+                if (!isNaN(originalPrice) && !isNaN(salePrice) && originalPrice > 0) {
+                    const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
+                    // Se lo sconto è una percentuale "pulita" (es. 20%, 25%, 30%), usa percentuale
+                    if (Math.abs(discountPercentage - Math.round(discountPercentage)) < 0.1) {
+                        discountType = 'percentage';
+                    }
+                }
+                
+                // Imposta il tipo di sconto e aggiorna l'icona
+                document.getElementById('discountType').value = discountType;
+                handleDiscountTypeChange();
+                
+                // Imposta il prezzo scontato
+                if (discountType === 'percentage' && !isNaN(originalPrice) && !isNaN(salePrice)) {
+                    const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
+                    document.getElementById('salePrice').value = Math.round(discountPercentage);
+                } else {
+                    document.getElementById('salePrice').value = promotion.sale_price || '';
+                }
                 
                 // Gestione date
                 const startDate = formatDateForInput(promotion.sale_start_date);
@@ -624,11 +716,25 @@ function handlePromotionSubmit(e) {
     const formData = new FormData(e.target);
     const promotionId = formData.get('id');
     const productId = formData.get('product_id');
+    const discountType = formData.get('discount_type');
+    const salePriceInput = document.getElementById('salePrice');
+    const currentPriceElement = document.getElementById('currentPrice');
     
     // Validazione prodotto selezionato
     if (!promotionId && !productId) {
         showError('Seleziona un prodotto prima di salvare la promozione');
         return;
+    }
+    
+    // Calcola il prezzo scontato finale se è percentuale
+    if (discountType === 'percentage' && currentPriceElement.textContent) {
+        const currentPrice = parseFloat(currentPriceElement.textContent.replace('€', '').trim());
+        const percentageValue = parseFloat(salePriceInput.value);
+        
+        if (!isNaN(currentPrice) && !isNaN(percentageValue) && percentageValue >= 0 && percentageValue <= 100) {
+            const calculatedPrice = currentPrice * (1 - percentageValue / 100);
+            formData.set('sale_price', calculatedPrice.toFixed(2));
+        }
     }
     
     const url = promotionId ? 
