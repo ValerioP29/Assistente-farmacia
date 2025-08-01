@@ -74,6 +74,7 @@ $current_page = $current_page ?? 'dashboard';
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/navbar.css">
     <link rel="stylesheet" href="assets/css/sidebars.css">
+    <link rel="stylesheet" href="assets/css/notifications.css">
     
 
     <?php if (isset($additional_css)): ?>

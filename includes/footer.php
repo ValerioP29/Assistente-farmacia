@@ -29,6 +29,7 @@
     <script src="assets/js/main.js"></script>
     <script src="assets/js/navbar.js"></script>
     <script src="assets/js/sidebars.js"></script>
+    <script src="assets/js/notifications.js"></script>
     <?php if (isset($additional_js)): ?>
         <?php foreach ($additional_js as $js): ?>
             <script src="<?= $js ?>"></script>

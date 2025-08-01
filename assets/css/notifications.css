@@ -1,0 +1,179 @@
+/* Badge per notifiche */
+.notification-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: #ff4444;
+    color: white;
+    border-radius: 50%;
+    min-width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    animation: pulse 2s infinite;
+    z-index: 10;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Toast di notifica in-app */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-left: 4px solid #007bff;
+    animation: slideIn 0.3s ease-out;
+    display: none;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification-content {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+    gap: 12px;
+}
+
+.notification-icon {
+    font-size: 20px;
+    color: #007bff;
+    flex-shrink: 0;
+}
+
+.notification-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-text strong {
+    color: #333;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.notification-details {
+    color: #666;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.notification-close:hover {
+    background-color: #f0f0f0;
+    color: #666;
+}
+
+/* Posizionamento badge per link nella navbar */
+.navbar a[href="richieste.php"] {
+    position: relative;
+}
+
+/* Stili specifici per badge nel sidebar */
+.sidebar-left .nav-link {
+    position: relative;
+}
+
+.sidebar-left .notification-badge {
+    top: 12px;
+    right: 12px;
+    background-color: #ff4444;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    font-size: 11px;
+    min-width: 18px;
+    height: 18px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .notification-toast {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .notification-content {
+        padding: 12px;
+    }
+    
+    .notification-text strong {
+        font-size: 13px;
+    }
+    
+    .notification-details {
+        font-size: 11px;
+    }
+}
+
+/* Stili per notifiche multiple */
+.notification-toast.multiple {
+    border-left-color: #ff4444;
+}
+
+.notification-toast.multiple .notification-icon {
+    color: #ff4444;
+}
+
+/* Animazione di uscita */
+.notification-toast.fade-out {
+    animation: slideOut 0.3s ease-in forwards;
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+} 

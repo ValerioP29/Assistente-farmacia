@@ -26,6 +26,17 @@ include 'includes/header.php';
                             <i class="fas fa-sync-alt"></i> Aggiorna
                         </button>
                     </div>
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="notificationPermissionsBtn" title="Richiedi permessi notifiche">
+                            <i class="fas fa-bell"></i> Permessi Notifiche
+                        </button>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-success" id="soundToggleBtn" title="Attiva/Disattiva suono notifiche">
+                            <i class="fas fa-volume-up" id="soundIcon"></i> 
+                            <span id="soundLabel">Suono On</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -302,4 +313,127 @@ include 'includes/header.php';
 <?php include 'includes/footer.php'; ?>
 
 <link rel="stylesheet" href="assets/css/richieste.css">
-<script src="assets/js/richieste.js"></script> 
+<script src="assets/js/richieste.js"></script>
+
+<script>
+// Aggiorna l'ID dell'ultima richiesta vista quando l'utente visita questa pagina
+document.addEventListener('DOMContentLoaded', function() {
+    // Ottieni l'ID della richiesta più recente dalla tabella
+    const requestRows = document.querySelectorAll('#requestsTable tbody tr');
+    if (requestRows.length > 0) {
+        // Trova l'ID più alto (più recente)
+        let maxId = 0;
+        requestRows.forEach(row => {
+            const requestId = parseInt(row.getAttribute('data-request-id') || '0');
+            if (requestId > maxId) {
+                maxId = requestId;
+            }
+        });
+        
+        // Aggiorna l'ID nel sistema di notifiche
+        if (window.notificationSystem && maxId > 0) {
+            window.notificationSystem.updateLastSeenId(maxId);
+        }
+    }
+    
+    // Controllo permessi notifiche con interazione utente
+    let permissionRequested = false;
+    
+    // Funzione per richiedere permessi quando l'utente interagisce
+    function requestNotificationPermissionOnInteraction() {
+        if (!permissionRequested && window.notificationSystem) {
+            if ('Notification' in window && Notification.permission === 'default') {
+                console.log('Richiesta permessi notifiche tramite interazione utente...');
+                window.notificationSystem.requestPermissions();
+                permissionRequested = true;
+            }
+        }
+    }
+    
+    // Richiedi permessi al primo click su qualsiasi elemento della pagina
+    document.addEventListener('click', requestNotificationPermissionOnInteraction, { once: true });
+    
+    // Richiedi permessi anche al primo scroll
+    document.addEventListener('scroll', requestNotificationPermissionOnInteraction, { once: true });
+    
+    // Richiedi permessi anche al primo movimento del mouse
+    document.addEventListener('mousemove', requestNotificationPermissionOnInteraction, { once: true });
+    
+    // Log dello stato iniziale
+    if (window.notificationSystem) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            console.log('Permessi notifiche già concessi');
+        } else if (Notification.permission === 'denied') {
+            console.log('Permessi notifiche negati dall\'utente');
+        } else {
+            console.log('Permessi notifiche: Richiesti al primo click/interazione');
+        }
+    }
+    
+    // Gestione pulsante permessi notifiche
+    document.getElementById('notificationPermissionsBtn').addEventListener('click', function() {
+        if (window.notificationSystem) {
+            window.notificationSystem.requestPermissions();
+        }
+    });
+    
+    // Gestione toggle suono notifiche
+    let soundEnabled = localStorage.getItem('notificationSoundEnabled') !== 'false'; // Default: true
+    
+    function updateSoundButton() {
+        const soundIcon = document.getElementById('soundIcon');
+        const soundLabel = document.getElementById('soundLabel');
+        const soundBtn = document.getElementById('soundToggleBtn');
+        
+        if (soundEnabled) {
+            soundIcon.className = 'fas fa-volume-up';
+            soundLabel.textContent = 'Suono On';
+            soundBtn.className = 'btn btn-sm btn-outline-success';
+        } else {
+            soundIcon.className = 'fas fa-volume-mute';
+            soundLabel.textContent = 'Suono Off';
+            soundBtn.className = 'btn btn-sm btn-outline-secondary';
+        }
+    }
+    
+    // Inizializza stato pulsante suono
+    updateSoundButton();
+    
+    // Gestione click toggle suono
+    document.getElementById('soundToggleBtn').addEventListener('click', function() {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('notificationSoundEnabled', soundEnabled);
+        updateSoundButton();
+        
+        // Aggiorna il sistema di notifiche
+        if (window.notificationSystem) {
+            window.notificationSystem.setSoundEnabled(soundEnabled);
+        }
+        
+        // Mostra feedback
+        const message = soundEnabled ? 'Suono notifiche attivato' : 'Suono notifiche disattivato';
+        showNotificationFeedback(message, soundEnabled ? 'success' : 'info');
+    });
+    
+    // Funzione per mostrare feedback
+    function showNotificationFeedback(message, type = 'info') {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" role="alert" style="z-index: 9999; min-width: 300px;">
+                <div style="padding-right: 30px;">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);"></button>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto-remove dopo 3 secondi
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                alert.remove();
+            }
+        }, 3000);
+    }
+});
+</script> 
