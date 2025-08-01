@@ -11,19 +11,14 @@ session_start();
 if (isLoggedIn()) {
     $user_role = $_SESSION['user_role'] ?? 'user';
     
-    // Reindirizzamento in base al ruolo
-    switch ($user_role) {
-        case 'admin':
-            header('Location: utenti.php');
-            break;
-        case 'pharmacist':
-        case 'user':
-        default:
-            header('Location: dashboard.php');
-            break;
+    if ($user_role === 'admin') {
+        header('Location: utenti.php');
+    } else {
+        header('Location: dashboard.php');
     }
+    exit;
 } else {
     header('Location: login.php');
+    exit;
 }
-exit;
 ?> 

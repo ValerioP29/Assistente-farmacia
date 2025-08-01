@@ -17,7 +17,7 @@ $admin_data = [
     'name' => 'Amministratore',
     'surname' => 'Sistema',
     'email' => 'admin@assistentefarmacia.it',
-    'phone' => '',
+    'phone_number' => '',
     'role' => 'admin',
     'status' => 'active',
     'starred_pharma' => 1, // farmacia di default
@@ -35,6 +35,7 @@ try {
             [
                 'password' => $admin_data['password'],
                 'email' => $admin_data['email'],
+                'phone_number' => $admin_data['phone_number'],
                 'role' => $admin_data['role'],
                 'status' => $admin_data['status'],
                 'updated_at' => $admin_data['updated_at']
@@ -48,6 +49,7 @@ try {
             echo "Username: admin\n";
             echo "Password: {$admin_password}\n";
             echo "Email: {$admin_data['email']}\n";
+            echo "Telefono: " . ($admin_data['phone_number'] ?: 'Non impostato') . "\n";
             echo "Ruolo: {$admin_data['role']}\n";
         } else {
             echo "❌ Errore nell'aggiornamento dell'utente admin\n";
@@ -62,6 +64,7 @@ try {
             echo "Username: admin\n";
             echo "Password: {$admin_password}\n";
             echo "Email: {$admin_data['email']}\n";
+            echo "Telefono: " . ($admin_data['phone_number'] ?: 'Non impostato') . "\n";
             echo "Nome: {$admin_data['name']} {$admin_data['surname']}\n";
             echo "Ruolo: {$admin_data['role']}\n";
         } else {

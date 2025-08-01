@@ -7,14 +7,14 @@
 // Configurazione Database (solo se non già definite)
 if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
 if (!defined('DB_NAME')) define('DB_NAME', 'jt_assistente_farmacia');
-if (!defined('DB_USER')) define('DB_USER', 'root');
-if (!defined('DB_PASS')) define('DB_PASS', 'root');
+if (!defined('DB_USER')) define('DB_USER', 'jta_master_user');
+if (!defined('DB_PASS')) define('DB_PASS', 'Z4s097sJRusj1pjDj?$xJt');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
 // Configurazione Applicazione (solo se non già definite)
 if (!defined('APP_NAME')) define('APP_NAME', 'Assistente Farmacia Panel');
 if (!defined('APP_VERSION')) define('APP_VERSION', '1.0.0');
-if (!defined('APP_URL')) define('APP_URL', 'http://localhost:8000');
+if (!defined('APP_URL')) define('APP_URL', 'https://app.assistentefarmacia.it/panel');
 if (!defined('APP_PATH')) define('APP_PATH', __DIR__ . '/../');
 
 // Configurazione Sessione (solo se non già definite)
@@ -31,8 +31,8 @@ if (!defined('MAX_FILE_SIZE')) define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
 if (!defined('ALLOWED_EXTENSIONS')) define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'pdf']);
 
 // Configurazione Email (opzionale) - solo se non già definite
-if (!defined('SMTP_HOST')) define('SMTP_HOST', 'smtp.gmail.com');
-if (!defined('SMTP_PORT')) define('SMTP_PORT', 587);
+if (!defined('SMTP_HOST')) define('SMTP_HOST', 'localhost');
+if (!defined('SMTP_PORT')) define('SMTP_PORT', 1025); // MailHog per sviluppo
 if (!defined('SMTP_USER')) define('SMTP_USER', '');
 if (!defined('SMTP_PASS')) define('SMTP_PASS', '');
 if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
@@ -57,10 +57,14 @@ if (defined('DEVELOPMENT_MODE') && DEVELOPMENT_MODE) {
     ini_set('display_errors', 0);
 }
 
-// Carica configurazione sviluppo se presente e non già caricata
-if (file_exists(__DIR__ . '/development.php') && !defined('DEVELOPMENT_MODE')) {
-    require_once __DIR__ . '/development.php';
+// Configurazione produzione semplice
+if (!defined('DEVELOPMENT_MODE')) {
+    define('DEVELOPMENT_MODE', false);
 }
+
+// Error reporting per produzione
+error_reporting(0);
+ini_set('display_errors', 0);
 
 /**
  * Classe Database per la connessione
