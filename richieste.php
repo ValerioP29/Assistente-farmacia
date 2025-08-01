@@ -31,6 +31,11 @@ include 'includes/header.php';
                             <i class="fas fa-bell"></i> Permessi Notifiche
                         </button>
                     </div>
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-outline-warning" id="audioPermissionsBtn" title="Testa e configura audio">
+                            <i class="fas fa-volume-up"></i> Test Audio
+                        </button>
+                    </div>
                     <div class="btn-group">
                         <button type="button" class="btn btn-sm btn-outline-success" id="soundToggleBtn" title="Attiva/Disattiva suono notifiche">
                             <i class="fas fa-volume-up" id="soundIcon"></i> 
@@ -373,9 +378,185 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestione pulsante permessi notifiche
     document.getElementById('notificationPermissionsBtn').addEventListener('click', function() {
         if (window.notificationSystem) {
-            window.notificationSystem.requestPermissions();
+            // Controlla se i permessi sono già concessi
+            if ('Notification' in window && Notification.permission === 'granted') {
+                // Mostra popup di avviso
+                showNotificationPermissionsPopup();
+            } else {
+                // Richiedi permessi normalmente
+                window.notificationSystem.requestPermissions();
+            }
         }
     });
+    
+    // Funzione per mostrare popup permessi già concessi
+    function showNotificationPermissionsPopup() {
+        const popupHtml = `
+            <div class="modal fade" id="notificationPermissionsModal" tabindex="-1" aria-labelledby="notificationPermissionsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="notificationPermissionsModalLabel">
+                                <i class="fas fa-bell text-success me-2"></i>
+                                Permessi Notifiche
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                            </div>
+                            <h6 class="text-success">Permessi già abilitati!</h6>
+                            <p class="text-muted mb-0">
+                                Le notifiche desktop sono già attive per questo sito.
+                            </p>
+                        </div>
+                        <div class="modal-footer justify-content-center">
+                            <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+                                <i class="fas fa-check me-1"></i>
+                                Perfetto!
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Rimuovi modal esistente se presente
+        const existingModal = document.getElementById('notificationPermissionsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Aggiungi il nuovo modal
+        document.body.insertAdjacentHTML('beforeend', popupHtml);
+        
+        // Mostra il modal
+        const modal = new bootstrap.Modal(document.getElementById('notificationPermissionsModal'));
+        modal.show();
+        
+        // Rimuovi il modal dal DOM dopo la chiusura
+        document.getElementById('notificationPermissionsModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+    
+    // Gestione pulsante permessi audio
+    document.getElementById('audioPermissionsBtn').addEventListener('click', function() {
+        enableAudioPermissions();
+    });
+    
+    // Funzione per testare e configurare audio
+    function enableAudioPermissions() {
+        // Mostra popup di conferma prima del test
+        showAudioTestPopup();
+    }
+    
+    // Popup per test audio
+    function showAudioTestPopup() {
+        const popupHtml = `
+            <div class="modal fade" id="audioTestModal" tabindex="-1" aria-labelledby="audioTestModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="audioTestModalLabel">
+                                <i class="fas fa-volume-up text-primary me-2"></i>
+                                Test Audio
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <p class="text-muted mb-3">
+                                Clicca "Test Audio" per verificare che il suono funzioni correttamente.
+                            </p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button" class="btn btn-primary" onclick="testAudioSound()">
+                                    <i class="fas fa-play me-1"></i>
+                                    Test Audio
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="confirmAudioWorking()">
+                                    <i class="fas fa-check me-1"></i>
+                                    Funziona!
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-footer justify-content-center">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Chiudi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Rimuovi modal esistente se presente
+        const existingModal = document.getElementById('audioTestModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Aggiungi il nuovo modal
+        document.body.insertAdjacentHTML('beforeend', popupHtml);
+        
+        // Mostra il modal
+        const modal = new bootstrap.Modal(document.getElementById('audioTestModal'));
+        modal.show();
+        
+        // Rimuovi il modal dal DOM dopo la chiusura
+        document.getElementById('audioTestModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+    
+    // Funzione per testare il suono
+    window.testAudioSound = function() {
+        if (window.notificationSystem && window.notificationSystem.audio) {
+            window.notificationSystem.playNotificationSound();
+            showNotificationFeedback('Suono di test riprodotto!', 'info');
+        } else {
+            // Crea un audio temporaneo per il test
+            const testAudio = new Audio('assets/sounds/notification.mp3');
+            testAudio.volume = 0.3;
+            testAudio.play().then(() => {
+                showNotificationFeedback('Suono di test riprodotto!', 'success');
+            }).catch(error => {
+                console.log('Errore test audio:', error);
+                showNotificationFeedback('Errore riproduzione audio. Controlla il volume del browser.', 'warning');
+            });
+        }
+    };
+    
+    // Funzione per confermare che l'audio funziona
+    window.confirmAudioWorking = function() {
+        updateAudioButton(true);
+        showNotificationFeedback('Audio configurato correttamente!', 'success');
+        
+        // Aggiorna il sistema di notifiche
+        if (window.notificationSystem) {
+            window.notificationSystem.initAudio();
+        }
+        
+        // Chiudi il modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('audioTestModal'));
+        if (modal) {
+            modal.hide();
+        }
+    };
+    
+    // Funzione per aggiornare il pulsante audio
+    function updateAudioButton(enabled) {
+        const audioBtn = document.getElementById('audioPermissionsBtn');
+        if (enabled) {
+            audioBtn.className = 'btn btn-sm btn-outline-success';
+            audioBtn.innerHTML = '<i class="fas fa-check"></i> Audio OK';
+            audioBtn.title = 'Permessi audio abilitati';
+        } else {
+            audioBtn.className = 'btn btn-sm btn-outline-warning';
+            audioBtn.innerHTML = '<i class="fas fa-microphone"></i> Permessi Audio';
+            audioBtn.title = 'Clicca per abilitare permessi audio';
+        }
+    }
     
     // Gestione toggle suono notifiche
     let soundEnabled = localStorage.getItem('notificationSoundEnabled') !== 'false'; // Default: true
@@ -398,6 +579,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Inizializza stato pulsante suono
     updateSoundButton();
+    
+    // Controlla stato permessi audio
+    function checkAudioPermissions() {
+        // Controlla se il browser supporta l'API AudioContext
+        if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                const audioContext = new AudioContextClass();
+                
+                if (audioContext.state === 'running') {
+                    console.log('AudioContext già attivo');
+                    updateAudioButton(true);
+                } else {
+                    console.log('AudioContext sospeso');
+                    updateAudioButton(false);
+                }
+                
+                // Chiudi l'audio context per liberare risorse
+                audioContext.close();
+                
+            } catch (error) {
+                console.log('Errore controllo AudioContext:', error);
+                updateAudioButton(false);
+            }
+        } else {
+            // Fallback per browser che non supportano AudioContext
+            console.log('AudioContext non supportato, usando fallback');
+            updateAudioButton(false);
+        }
+    }
+    
+    // Controlla permessi audio all'avvio
+    setTimeout(checkAudioPermissions, 1000);
     
     // Gestione click toggle suono
     document.getElementById('soundToggleBtn').addEventListener('click', function() {

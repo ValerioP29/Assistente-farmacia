@@ -207,6 +207,13 @@ class NotificationSystem {
         console.log('Suono notifiche:', enabled ? 'attivato' : 'disattivato');
     }
     
+    // Metodo per reinizializzare l'audio (utile dopo aver ottenuto i permessi)
+    initAudio() {
+        this.audio = new Audio('assets/sounds/notification.mp3');
+        this.audio.preload = 'auto';
+        console.log('Audio reinizializzato');
+    }
+    
     getLastSeenId() {
         return parseInt(localStorage.getItem('lastSeenRequestId') || '0');
     }
