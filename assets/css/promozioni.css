@@ -1,6 +1,46 @@
-/* Stili per la sezione Promozioni */
+/* Stili per l'autocompletamento prodotti */
+.product-search-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
 
-/* Layout a schede per le promozioni */
+.product-search-item:hover {
+    background-color: #f8f9fa;
+}
+
+.product-search-item:last-child {
+    border-bottom: none;
+}
+
+.product-search-item.selected {
+    background-color: #e3f2fd;
+}
+
+.product-search-item .product-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.product-search-item .product-details {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.product-search-item .product-price {
+    font-weight: 600;
+    color: #28a745;
+}
+
+/* Stili per le statistiche */
+.card-title, .card h3 {
+    color: white !important;
+    font-weight: 600;
+}
+
+/* Stili per le promozioni */
 .promotion-card {
     transition: all 0.3s ease;
     border: none;
@@ -249,29 +289,26 @@
     transform: translateY(-2px);
 }
 
-/* Assicura che il testo delle statistiche sia sempre visibile */
-.card.bg-primary .card-title,
-.card.bg-success .card-title,
-.card.bg-warning .card-title,
-.card.bg-info .card-title {
-    color: white !important;
-    font-weight: 600;
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
 }
 
-.card.bg-primary h3,
-.card.bg-success h3,
-.card.bg-warning h3,
-.card.bg-info h3 {
-    color: white !important;
-    font-weight: bold;
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.5;
 }
 
-/* Filtri */
-.filters-section {
-    background-color: #f8f9fa;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
+.empty-state h4 {
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state p {
+    margin-bottom: 20px;
 }
 
 /* Responsive */
@@ -314,112 +351,42 @@
     animation: fadeInUp 0.6s ease-out;
 }
 
-/* Loading state */
-.loading-skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: #6c757d;
-}
-
-.empty-state i {
-    font-size: 4rem;
-    margin-bottom: 20px;
-    opacity: 0.5;
-}
-
-.empty-state h4 {
-    margin-bottom: 10px;
-    color: #495057;
-}
-
-.empty-state p {
+/* Stili per i filtri */
+.filters-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
     margin-bottom: 20px;
 }
 
-/* Modal personalizzato */
-.modal-content {
-    border-radius: 15px;
-    border: none;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
+/* Stili per la modal */
 .modal-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    border-radius: 15px 15px 0 0;
 }
 
-.modal-title {
-    font-weight: 600;
+.modal-header .btn-close {
+    filter: invert(1);
 }
 
-/* Form personalizzato */
-.form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+/* Stili per i pulsanti di azione */
+.btn-action {
+    padding: 4px 8px;
+    font-size: 0.8em;
 }
 
-.form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+/* Stili per il loading */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
-/* Paginazione personalizzata */
-.pagination .page-link {
-    border-radius: 8px;
-    margin: 0 2px;
-    border: none;
-    color: #667eea;
-}
-
-.pagination .page-link:hover {
-    background-color: #667eea;
-    color: white;
-}
-
-.pagination .page-item.active .page-link {
-    background-color: #667eea;
-    border-color: #667eea;
-}
-
-/* Alert personalizzati */
-.alert {
-    border-radius: 10px;
-    border: none;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-.alert-danger {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-
-.alert-warning {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.alert-info {
-    background-color: #d1ecf1;
-    color: #0c5460;
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 } 

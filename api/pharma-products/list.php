@@ -76,16 +76,13 @@ try {
     if ($promotion_status) {
         switch ($promotion_status) {
             case 'active':
-                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_start_date) <= CURDATE() AND DATE(pp.sale_end_date) >= CURDATE()";
+                $sql .= " AND pp.is_on_sale = 1 AND pp.sale_start_date <= CURDATE() AND pp.sale_end_date >= CURDATE()";
                 break;
             case 'inactive':
                 $sql .= " AND pp.is_on_sale = 0";
                 break;
             case 'expired':
-                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_end_date) < CURDATE()";
-                break;
-            case 'upcoming':
-                $sql .= " AND pp.is_on_sale = 1 AND DATE(pp.sale_start_date) > CURDATE()";
+                $sql .= " AND pp.is_on_sale = 1 AND pp.sale_end_date < CURDATE()";
                 break;
         }
     }
@@ -120,6 +117,8 @@ try {
     // Esegui query
     $products = db_fetch_all($sql, $params);
     
+
+    
     // Gestisci immagini per ogni prodotto
     foreach ($products as &$product) {
         // Se il prodotto farmacia ha un'immagine personalizzata, usa quella
@@ -153,7 +152,8 @@ try {
             'search' => $search,
             'category' => $category,
             'brand' => $brand,
-            'status' => $status
+            'promotion_status' => $promotion_status,
+            'discount_range' => $discount_range
         ]
     ]);
     

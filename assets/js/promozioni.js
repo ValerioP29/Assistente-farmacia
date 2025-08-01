@@ -12,7 +12,7 @@ let selectedPromotionId = null;
 // Inizializzazione
 document.addEventListener('DOMContentLoaded', function() {
     loadPromotions();
-    loadProducts();
+    setupProductSearch();
     setupEventListeners();
     loadStatistics();
 });
@@ -27,15 +27,6 @@ function setupEventListeners() {
     
     // Form promozione
     document.getElementById('promotionForm').addEventListener('submit', handlePromotionSubmit);
-    document.getElementById('productSelect').addEventListener('change', handleProductSelect);
-    document.getElementById('salePrice').addEventListener('input', function() {
-        const discountType = document.getElementById('discountType').value;
-        if (discountType === 'percentage') {
-            calculatePriceFromPercentage();
-        } else {
-            calculateDiscount();
-        }
-    });
     document.getElementById('saleStartDate').addEventListener('change', validateDates);
     document.getElementById('saleEndDate').addEventListener('change', validateDates);
     
@@ -251,59 +242,166 @@ function formatDate(date) {
     });
 }
 
-// Caricamento prodotti per selezione
-function loadProducts() {
-    fetch('api/pharma-products/list.php?limit=1000')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                productsList = data.products || [];
-                populateProductSelect();
-            }
-        })
-        .catch(error => console.error('Errore caricamento prodotti:', error));
-}
-
-// Popolamento select prodotti
-function populateProductSelect() {
-    const select = document.getElementById('productSelect');
-    select.innerHTML = '<option value="">Scegli un prodotto...</option>';
+// Setup ricerca prodotti con autocompletamento
+function setupProductSearch() {
+    const searchInput = document.getElementById('productSearch');
+    const resultsContainer = document.getElementById('productSearchResults');
+    const hiddenInput = document.getElementById('productSelect');
     
-    productsList.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product.id;
-        option.textContent = `${product.name} - €${parseFloat(product.price).toFixed(2)}`;
-        select.appendChild(option);
-    });
-}
-
-// Gestione selezione prodotto
-function handleProductSelect() {
-    const productId = document.getElementById('productSelect').value;
-    const productInfo = document.getElementById('productInfo');
+    let searchTimeout;
+    let selectedIndex = -1;
+    let searchResults = [];
     
-    if (!productId) {
-        productInfo.style.display = 'none';
-        return;
-    }
-    
-    const product = productsList.find(p => p.id == productId);
-    if (product) {
-        document.getElementById('productImage').src = product.image || product.global_image || 'images/default-product.png';
-        document.getElementById('productName').textContent = product.name;
-        document.getElementById('productDescription').textContent = product.description || '';
-        document.getElementById('currentPrice').textContent = `€${parseFloat(product.price).toFixed(2)}`;
-        document.getElementById('productCategory').textContent = product.category || 'N/A';
-        document.getElementById('productBrand').textContent = product.brand || 'N/A';
-        document.getElementById('productInfo').style.display = 'block';
+    // Event listener per input
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
         
-        // Imposta prezzo scontato iniziale solo se non è già stato impostato (modifica)
-        const currentSalePrice = document.getElementById('salePrice').value;
-        if (!currentSalePrice) {
-            document.getElementById('salePrice').value = product.price;
+        // Nascondi risultati se query troppo corta
+        if (query.length < 2) {
+            resultsContainer.style.display = 'none';
+            hiddenInput.value = '';
+            return;
         }
         
-
+        // Debounce della ricerca
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchProducts(query);
+        }, 300);
+    });
+    
+    // Event listener per focus
+    searchInput.addEventListener('focus', function() {
+        const query = this.value.trim();
+        if (query.length >= 2) {
+            resultsContainer.style.display = 'block';
+        }
+    });
+    
+    // Event listener per click fuori
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+            resultsContainer.style.display = 'none';
+        }
+    });
+    
+    // Event listener per tastiera
+    searchInput.addEventListener('keydown', function(e) {
+        if (resultsContainer.style.display === 'none') return;
+        
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, searchResults.length - 1);
+                updateSelection();
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+                    selectProduct(searchResults[selectedIndex]);
+                }
+                break;
+            case 'Escape':
+                resultsContainer.style.display = 'none';
+                selectedIndex = -1;
+                break;
+        }
+    });
+    
+    // Funzione per cercare prodotti
+    function searchProducts(query) {
+        fetch(`api/products/search.php?q=${encodeURIComponent(query)}&limit=10`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    searchResults = data.products || [];
+                    displaySearchResults();
+                }
+            })
+            .catch(error => {
+                console.error('Errore ricerca prodotti:', error);
+                searchResults = [];
+                displaySearchResults();
+            });
+    }
+    
+    // Funzione per visualizzare risultati
+    function displaySearchResults() {
+        if (searchResults.length === 0) {
+            resultsContainer.innerHTML = '<div class="product-search-item">Nessun prodotto trovato</div>';
+        } else {
+            resultsContainer.innerHTML = searchResults.map((product, index) => `
+                <div class="product-search-item ${index === selectedIndex ? 'selected' : ''}" 
+                     data-product='${JSON.stringify(product)}' 
+                     onclick="selectProduct(${JSON.stringify(product).replace(/"/g, '&quot;')})">
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-details">${product.brand} - ${product.category}</div>
+                    <div class="product-price">€ ${product.price}</div>
+                </div>
+            `).join('');
+        }
+        resultsContainer.style.display = 'block';
+    }
+    
+    // Funzione per aggiornare selezione
+    function updateSelection() {
+        const items = resultsContainer.querySelectorAll('.product-search-item');
+        items.forEach((item, index) => {
+            item.classList.toggle('selected', index === selectedIndex);
+        });
+    }
+    
+    // Funzione per selezionare prodotto
+    window.selectProduct = function(product) {
+        searchInput.value = product.text;
+        hiddenInput.value = product.id;
+        resultsContainer.style.display = 'none';
+        selectedIndex = -1;
+        
+        // Mostra informazioni prodotto
+        showProductInfo(product);
+    };
+    
+    // Funzione per mostrare info prodotto
+    function showProductInfo(product) {
+        const productInfo = document.getElementById('productInfo');
+        const productImage = document.getElementById('productImage');
+        const productName = document.getElementById('productName');
+        const productDescription = document.getElementById('productDescription');
+        const currentPrice = document.getElementById('currentPrice');
+        const productCategory = document.getElementById('productCategory');
+        const productBrand = document.getElementById('productBrand');
+        
+        // Imposta immagine
+        if (product.image) {
+            productImage.src = product.image;
+            productImage.onerror = function() {
+                this.src = 'assets/images/default-product.png';
+            };
+        } else {
+            productImage.src = 'assets/images/default-product.png';
+        }
+        
+        // Imposta informazioni
+        productName.textContent = product.name;
+        productDescription.textContent = product.description || '';
+        currentPrice.textContent = `€ ${product.price}`;
+        productCategory.textContent = product.category || '';
+        productBrand.textContent = product.brand || '';
+        
+        // Mostra sezione info
+        productInfo.style.display = 'block';
+        
+        // Imposta prezzo scontato se vuoto
+        const salePriceInput = document.getElementById('salePrice');
+        if (!salePriceInput.value) {
+            salePriceInput.value = product.price;
+        }
     }
 }
 
@@ -327,9 +425,9 @@ function validateDates() {
 function applyFilters() {
     currentFilters = {
         search: document.getElementById('searchInput').value,
-        status: document.getElementById('statusFilter').value,
+        promotion_status: document.getElementById('statusFilter').value,
         category: document.getElementById('categoryFilter').value,
-        discount: document.getElementById('discountFilter').value
+        discount_range: document.getElementById('discountFilter').value
     };
     
     loadPromotions(1);
@@ -368,15 +466,15 @@ function loadStatistics() {
         .then(data => {
             if (data.success) {
                 document.getElementById('activePromotionsCount').textContent = data.active_promotions || 0;
-                document.getElementById('upcomingPromotionsCount').textContent = data.upcoming_promotions || 0;
-                document.getElementById('expiringPromotionsCount').textContent = data.expiring_promotions || 0;
+                document.getElementById('inactivePromotionsCount').textContent = data.inactive_promotions || 0;
+                document.getElementById('expiredPromotionsCount').textContent = data.expired_promotions || 0;
                 document.getElementById('averageDiscount').textContent = `${data.average_discount || 0}%`;
             } else {
                 console.error('Errore API statistiche:', data.message);
                 // Imposta valori di default in caso di errore
                 document.getElementById('activePromotionsCount').textContent = '0';
-                document.getElementById('upcomingPromotionsCount').textContent = '0';
-                document.getElementById('expiringPromotionsCount').textContent = '0';
+                document.getElementById('inactivePromotionsCount').textContent = '0';
+                document.getElementById('expiredPromotionsCount').textContent = '0';
                 document.getElementById('averageDiscount').textContent = '0%';
             }
         })
@@ -384,8 +482,8 @@ function loadStatistics() {
             console.error('Errore caricamento statistiche:', error);
             // Imposta valori di default in caso di errore
             document.getElementById('activePromotionsCount').textContent = '0';
-            document.getElementById('upcomingPromotionsCount').textContent = '0';
-            document.getElementById('expiringPromotionsCount').textContent = '0';
+            document.getElementById('inactivePromotionsCount').textContent = '0';
+            document.getElementById('expiredPromotionsCount').textContent = '0';
             document.getElementById('averageDiscount').textContent = '0%';
         });
 }
@@ -395,8 +493,8 @@ function showAddPromotionModal() {
     document.getElementById('promotionModalLabel').innerHTML = '<i class="fas fa-plus me-1"></i> Nuova Promozione';
     document.getElementById('promotionForm').reset();
     document.getElementById('promotionId').value = '';
+    document.getElementById('productSearch').value = '';
     document.getElementById('productInfo').style.display = 'none';
-    document.getElementById('discountPercentage').textContent = '';
     
     const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
     modal.show();
@@ -415,7 +513,7 @@ function editPromotion(id) {
                 document.getElementById('promotionId').value = promotion.id;
                 document.getElementById('productSelect').value = promotion.product_id || '';
                 
-                // Imposta i valori prima di chiamare handleProductSelect
+                // Imposta i valori prima di caricare le info prodotto
                 document.getElementById('salePrice').value = promotion.sale_price || '';
                 
                 // Gestione date
@@ -426,10 +524,24 @@ function editPromotion(id) {
                 document.getElementById('saleEndDate').value = endDate;
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
                 
-
-                
-                // Ora chiama handleProductSelect che non sovrascriverà i valori
-                handleProductSelect();
+                // Carica le informazioni del prodotto
+                if (promotion.product_id) {
+                    fetch(`api/products/get.php?id=${promotion.product_id}`)
+                        .then(response => response.json())
+                        .then(productData => {
+                            if (productData.success) {
+                                const product = productData.product;
+                                // Imposta il testo di ricerca
+                                document.getElementById('productSearch').value = `${product.name} - ${product.brand} (${product.category})`;
+                                
+                                // Mostra le informazioni del prodotto
+                                showProductInfoInEdit(product);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Errore caricamento prodotto:', error);
+                        });
+                }
                 
                 const modal = new bootstrap.Modal(document.getElementById('promotionModal'));
                 modal.show();
@@ -441,6 +553,37 @@ function editPromotion(id) {
             console.error('Errore:', error);
             showError('Errore di connessione');
         });
+}
+
+// Funzione per mostrare info prodotto in modalità modifica
+function showProductInfoInEdit(product) {
+    const productInfo = document.getElementById('productInfo');
+    const productImage = document.getElementById('productImage');
+    const productName = document.getElementById('productName');
+    const productDescription = document.getElementById('productDescription');
+    const currentPrice = document.getElementById('currentPrice');
+    const productCategory = document.getElementById('productCategory');
+    const productBrand = document.getElementById('productBrand');
+    
+    // Imposta immagine
+    if (product.image) {
+        productImage.src = product.image;
+        productImage.onerror = function() {
+            this.src = 'assets/images/default-product.png';
+        };
+    } else {
+        productImage.src = 'assets/images/default-product.png';
+    }
+    
+    // Imposta informazioni
+    productName.textContent = product.name;
+    productDescription.textContent = product.description || '';
+    currentPrice.textContent = `€ ${product.price}`;
+    productCategory.textContent = product.category || '';
+    productBrand.textContent = product.brand || '';
+    
+    // Mostra sezione info
+    productInfo.style.display = 'block';
 }
 
 // Formattazione date per input HTML (formato ISO)

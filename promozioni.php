@@ -65,7 +65,6 @@ include 'includes/header.php';
                         <option value="active">Attive</option>
                         <option value="inactive">Inattive</option>
                         <option value="expired">Scadute</option>
-                        <option value="upcoming">In arrivo</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -107,30 +106,30 @@ include 'includes/header.php';
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-success text-white">
+                    <div class="card bg-secondary text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">In Arrivo</h6>
-                                    <h3 id="upcomingPromotionsCount">0</h3>
+                                    <h6 class="card-title">Inattive</h6>
+                                    <h3 id="inactivePromotionsCount">0</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="fas fa-clock fa-2x"></i>
+                                    <i class="fas fa-pause fa-2x"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card bg-warning text-white">
+                    <div class="card bg-danger text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="card-title">In Scadenza</h6>
-                                    <h3 id="expiringPromotionsCount">0</h3>
+                                    <h6 class="card-title">Scadute</h6>
+                                    <h3 id="expiredPromotionsCount">0</h3>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                    <i class="fas fa-times-circle fa-2x"></i>
                                 </div>
                             </div>
                         </div>
@@ -184,11 +183,13 @@ include 'includes/header.php';
                     
                     <!-- Selezione Prodotto -->
                     <div class="mb-3">
-                        <label for="productSelect" class="form-label">Seleziona Prodotto *</label>
-                        <select class="form-select" id="productSelect" name="product_id" required>
-                            <option value="">Scegli un prodotto...</option>
-                        </select>
-                        <div class="form-text">Seleziona il prodotto da mettere in promozione</div>
+                        <label for="productSearch" class="form-label">Cerca Prodotto *</label>
+                        <div class="position-relative">
+                            <input type="text" class="form-control" id="productSearch" placeholder="Inizia a digitare il nome del prodotto..." autocomplete="off">
+                            <input type="hidden" id="productSelect" name="product_id" required>
+                            <div id="productSearchResults" class="position-absolute w-100 bg-white border rounded shadow-sm" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none;"></div>
+                        </div>
+                        <div class="form-text">Digita per cercare il prodotto da mettere in promozione</div>
                     </div>
 
                     <!-- Informazioni Prodotto -->
