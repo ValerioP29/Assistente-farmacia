@@ -50,11 +50,11 @@ function loadPromotions(page = 1) {
         ...currentFilters
     });
     
-    fetch(`api/pharma-products/list.php?${params}`)
+    fetch(`api/pharma-products/promotions.php?${params}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayPromotions(data.promotions || data.products || []);
+                displayPromotions(data.promotions || []);
                 updatePagination(data.total_pages || 1, page);
                 totalPages = data.total_pages || 1;
             } else {

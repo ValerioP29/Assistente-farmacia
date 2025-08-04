@@ -75,6 +75,19 @@ function setupEventListeners() {
     if (importForm) {
         importForm.addEventListener('submit', handleImportSubmit);
     }
+    
+    // Modal event listeners
+    const productModal = document.getElementById('productModal');
+    if (productModal) {
+        productModal.addEventListener('hidden.bs.modal', function() {
+            // Reset della sezione di ricerca quando si chiude il modal
+            const productSearchSection = document.getElementById('productSearchSection');
+            if (productSearchSection) {
+                productSearchSection.style.display = 'block';
+            }
+            hideGlobalProductResults();
+        });
+    }
 
     // Ricerca prodotti globali
     const globalProductSearch = document.getElementById('globalProductSearch');
@@ -284,6 +297,12 @@ function showAddProductModal() {
     // Nascondi sezione creazione nuovo prodotto globale
     document.getElementById('newGlobalProductSection').style.display = 'none';
     
+    // Mostra la sezione di ricerca prodotti per nuovi prodotti
+    const productSearchSection = document.getElementById('productSearchSection');
+    if (productSearchSection) {
+        productSearchSection.style.display = 'block';
+    }
+    
     const modal = new bootstrap.Modal(document.getElementById('productModal'));
     modal.show();
 }
@@ -300,6 +319,8 @@ function editProduct(id) {
                 document.getElementById('productId').value = product.id;
                 document.getElementById('selectedGlobalProductId').value = product.product_id || '';
                 document.getElementById('productName').value = product.name;
+                
+
                 document.getElementById('productSku').value = product.sku || '';
                 document.getElementById('productDescription').value = product.description || '';
                 document.getElementById('productPrice').value = product.price;
@@ -310,6 +331,12 @@ function editProduct(id) {
                     showImagePreview(product.image);
                 } else {
                     hideImagePreview();
+                }
+                
+                // Nascondi la sezione di ricerca prodotti quando si modifica
+                const productSearchSection = document.getElementById('productSearchSection');
+                if (productSearchSection) {
+                    productSearchSection.style.display = 'none';
                 }
                 
                 const modal = new bootstrap.Modal(document.getElementById('productModal'));
@@ -337,8 +364,15 @@ function handleProductSubmit(e) {
     const selectedGlobalProductId = document.getElementById('selectedGlobalProductId').value;
     const isEditing = document.getElementById('productId').value > 0;
     
+    // Per nuovi prodotti (non in modifica), è necessario selezionare un prodotto globale o crearne uno nuovo
     if (!isEditing && !isCreatingGlobalProduct && !selectedGlobalProductId) {
         showAlert('Devi selezionare un prodotto dal catalogo globale o creare un nuovo prodotto nel catalogo', 'danger');
+        return;
+    }
+    
+    // Se stiamo modificando un prodotto, assicurati che il product_id sia presente
+    if (isEditing && !selectedGlobalProductId) {
+        showAlert('Errore: ID prodotto globale mancante. Ricarica la pagina e riprova.', 'danger');
         return;
     }
     

@@ -130,7 +130,7 @@ include 'includes/header.php';
                     <input type="hidden" id="selectedGlobalProductId" name="product_id">
                     
                     <!-- Ricerca Prodotto Globale -->
-                    <div class="mb-3">
+                    <div id="productSearchSection" class="mb-3">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-1"></i>
                             <strong>Importante:</strong> Ogni prodotto farmacia deve essere associato a un prodotto del catalogo globale. 
@@ -138,7 +138,7 @@ include 'includes/header.php';
                         </div>
                         <label for="globalProductSearch" class="form-label">Cerca Prodotto nel Catalogo Globale *</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="globalProductSearch" placeholder="Inizia a digitare per cercare..." required>
+                            <input type="text" class="form-control" id="globalProductSearch" placeholder="Inizia a digitare per cercare...">
                             <button class="btn btn-outline-secondary" type="button" onclick="searchGlobalProducts()">
                                 <i class="fas fa-search"></i>
                             </button>

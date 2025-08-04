@@ -1,6 +1,6 @@
 <?php
 /**
- * API Lista Prodotti Farmacia
+ * API Lista Promozioni Farmacia
  * Assistente Farmacia Panel
  */
 
@@ -39,19 +39,13 @@ try {
     // Filtri specifici per promozioni
     $promotion_status = $_GET['promotion_status'] ?? '';
     $discount_range = $_GET['discount_range'] ?? '';
-    $show_only_promotions = $_GET['show_only_promotions'] ?? false;
-    
-    // Filtro per mostrare solo prodotti con promozioni (se richiesto)
-    if ($show_only_promotions) {
-        $sql .= " AND pp.is_on_sale IS NOT NULL";
-    }
     
     // Costruisci la query base con JOIN per ottenere dati del prodotto globale
-    // Mostra tutti i prodotti della farmacia
+    // Mostra SOLO prodotti con promozioni (is_on_sale IS NOT NULL)
     $sql = "SELECT pp.*, gp.category, gp.brand, gp.active_ingredient, gp.dosage_form, gp.strength, gp.package_size, gp.image as global_image 
             FROM jta_pharma_prods pp 
             LEFT JOIN jta_global_prods gp ON pp.product_id = gp.id 
-            WHERE pp.pharma_id = ?";
+            WHERE pp.pharma_id = ? AND pp.is_on_sale IS NOT NULL";
     $params = [$pharmacyId];
     
     // Aggiungi filtri
@@ -122,27 +116,25 @@ try {
     $params[] = $offset;
     
     // Esegui query
-    $products = db_fetch_all($sql, $params);
+    $promotions = db_fetch_all($sql, $params);
     
-
-    
-    // Gestisci immagini per ogni prodotto
-    foreach ($products as &$product) {
+    // Gestisci immagini per ogni promozione
+    foreach ($promotions as &$promotion) {
         // Se il prodotto farmacia ha un'immagine personalizzata, usa quella
-        if (!empty($product['image'])) {
-            $product['image'] = $product['image'];
+        if (!empty($promotion['image'])) {
+            $promotion['image'] = $promotion['image'];
         }
         // Altrimenti usa l'immagine del prodotto globale
-        elseif (!empty($product['global_image'])) {
-            $product['image'] = $product['global_image'];
+        elseif (!empty($promotion['global_image'])) {
+            $promotion['image'] = $promotion['global_image'];
         }
         // Altrimenti nessuna immagine
         else {
-            $product['image'] = null;
+            $promotion['image'] = null;
         }
         
         // Rimuovi il campo global_image per evitare confusione
-        unset($product['global_image']);
+        unset($promotion['global_image']);
     }
     
     // Calcola paginazione
@@ -150,7 +142,7 @@ try {
     
     echo json_encode([
         'success' => true,
-        'products' => $products,
+        'promotions' => $promotions,
         'total' => intval($total),
         'current_page' => $page,
         'total_pages' => $totalPages,
@@ -160,8 +152,7 @@ try {
             'category' => $category,
             'brand' => $brand,
             'promotion_status' => $promotion_status,
-            'discount_range' => $discount_range,
-            'show_only_promotions' => $show_only_promotions
+            'discount_range' => $discount_range
         ]
     ]);
     

@@ -63,10 +63,25 @@ try {
         }
     }
     
-    // Campi promozioni
-    $isOnSale = isset($_POST['is_on_sale']) ? 1 : 0;
-    $saleStartDate = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : null;
-    $saleEndDate = !empty($_POST['sale_end_date']) ? $_POST['sale_end_date'] : null;
+    // Campi promozioni - gestione differenziata per nuovi prodotti e modifiche
+    $isOnSale = null; // Default NULL per nuovi prodotti
+    $saleStartDate = null;
+    $saleEndDate = null;
+    
+    // Se è un aggiornamento, mantieni i valori esistenti se non specificati
+    if ($id > 0) {
+        $existingProduct = db_fetch_one("SELECT is_on_sale, sale_start_date, sale_end_date FROM jta_pharma_prods WHERE id = ? AND pharma_id = ?", [$id, $pharmacyId]);
+        if ($existingProduct) {
+            $isOnSale = isset($_POST['is_on_sale']) ? 1 : ($existingProduct['is_on_sale'] ?? null);
+            $saleStartDate = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : $existingProduct['sale_start_date'];
+            $saleEndDate = !empty($_POST['sale_end_date']) ? $_POST['sale_end_date'] : $existingProduct['sale_end_date'];
+        }
+    } else {
+        // Per nuovi prodotti, usa i valori dal form se specificati
+        $isOnSale = isset($_POST['is_on_sale']) ? 1 : null;
+        $saleStartDate = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : null;
+        $saleEndDate = !empty($_POST['sale_end_date']) ? $_POST['sale_end_date'] : null;
+    }
     
     // Validazione
     if (empty($name)) {
