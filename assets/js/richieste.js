@@ -184,7 +184,6 @@ class RichiesteManager {
                 <td>
                     <div>
                         <strong>${request.user_username || 'N/A'}</strong>
-                        ${request.user_email ? `<br><small class="text-muted"><i class="fas fa-envelope me-1"></i>${request.user_email}</small>` : ''}
                         ${request.user_phone ? `<br><small class="text-muted"><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user_phone)}</small>` : ''}
                     </div>
                 </td>
@@ -330,10 +329,6 @@ class RichiesteManager {
                             <td>${request.user.username || 'N/A'}</td>
                         </tr>
                         <tr>
-                            <td><strong>Email:</strong></td>
-                            <td><i class="fas fa-envelope me-1"></i>${request.user.email || 'N/A'}</td>
-                        </tr>
-                        <tr>
                             <td><strong>Telefono:</strong></td>
                             <td><i class="fas fa-phone me-1"></i>${this.formatPhoneNumber(request.user.phone_number) || 'N/A'}</td>
                         </tr>
@@ -346,6 +341,28 @@ class RichiesteManager {
                     <h6><i class="fas fa-comment me-2"></i>Messaggio</h6>
                     <div class="alert alert-info">
                         ${request.message}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-warning" onclick="richiesteManager.openUpdateStatus(${request.id})">
+                            <i class="fas fa-edit me-1"></i>
+                            Aggiorna Stato
+                        </button>
+                        ${request.user.phone_number ? `
+                            <button type="button" class="btn btn-success" onclick="richiesteManager.openWhatsAppMessage(${request.id}, '${request.user.phone_number}')">
+                                <i class="fab fa-whatsapp me-1"></i>
+                                Invia WhatsApp
+                            </button>
+                        ` : `
+                            <button type="button" class="btn btn-secondary" disabled>
+                                <i class="fab fa-whatsapp me-1"></i>
+                                Numero non disponibile
+                            </button>
+                        `}
                     </div>
                 </div>
             </div>

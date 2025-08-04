@@ -55,8 +55,7 @@ try {
             'user' => [
                 'id' => $request['user_id'],
                 'username' => $request['user_username'],
-                'email' => $request['user_email'],
-                'phone' => $request['user_phone']
+                'phone_number' => $request['user_phone']
             ],
             'pharmacy' => [
                 'id' => $request['pharma_id'],

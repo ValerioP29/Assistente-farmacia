@@ -68,7 +68,6 @@ try {
                    p.business_name as pharmacy_name,
                    p.nice_name as pharmacy_nice_name,
                    CONCAT(u.name, ' ', u.surname) as user_username,
-                   u.email as user_email,
                    u.phone_number as user_phone
             FROM jta_requests r
             LEFT JOIN jta_pharmas p ON r.pharma_id = p.id
@@ -90,7 +89,6 @@ try {
             'request_type_label' => getRequestTypeLabel($request['request_type']),
             'user_id' => $request['user_id'],
             'user_username' => $request['user_username'],
-            'user_email' => $request['user_email'],
             'user_phone' => $request['user_phone'],
             'pharma_id' => $request['pharma_id'],
             'pharmacy_name' => $request['pharmacy_name'],
