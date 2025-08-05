@@ -13,6 +13,41 @@ requireApiAuth(['admin', 'pharmacist']);
 
 header('Content-Type: application/json');
 
+/**
+ * Funzioni helper per le etichette
+ */
+function getRequestTypeLabel($type) {
+    $labels = [
+        'event' => 'Evento',
+        'service' => 'Servizio',
+        'promos' => 'Promozione',
+        'reservation' => 'Prenotazione'
+    ];
+    return $labels[$type] ?? $type;
+}
+
+function getStatusLabel($status) {
+    $labels = [
+        0 => 'In attesa',
+        1 => 'In lavorazione',
+        2 => 'Completata',
+        3 => 'Rifiutata',
+        4 => 'Annullata'
+    ];
+    return $labels[$status] ?? 'Sconosciuto';
+}
+
+function getStatusColor($status) {
+    $colors = [
+        0 => 'warning',
+        1 => 'info',
+        2 => 'success',
+        3 => 'danger',
+        4 => 'secondary'
+    ];
+    return $colors[$status] ?? 'secondary';
+}
+
 try {
     $requestId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
     
@@ -68,7 +103,7 @@ try {
             ],
             'message' => $request['message'],
             'metadata' => $metadata,
-            'status' => $request['status'],
+            'status' => (int)$request['status'],
             'status_label' => getStatusLabel($request['status']),
             'status_color' => getStatusColor($request['status']),
             'created_at' => $request['created_at'],
@@ -88,40 +123,4 @@ try {
         'error' => $e->getMessage()
     ]);
 }
-
-/**
- * Funzioni helper per le etichette
- */
-function getRequestTypeLabel($type) {
-    $labels = [
-        'event' => 'Evento',
-        'service' => 'Servizio',
-        'promos' => 'Promozione',
-        'reservation' => 'Prenotazione'
-    ];
-    return $labels[$type] ?? $type;
-}
-
-function getStatusLabel($status) {
-    $labels = [
-        0 => 'In attesa',
-        1 => 'In lavorazione',
-        2 => 'Completata',
-        3 => 'Rifiutata',
-        4 => 'Annullata'
-    ];
-    return $labels[$status] ?? 'Sconosciuto';
-}
-
-function getStatusColor($status) {
-    $colors = [
-        0 => 'warning',
-        1 => 'info',
-        2 => 'success',
-        3 => 'danger',
-        4 => 'secondary'
-    ];
-    return $colors[$status] ?? 'secondary';
-}
-
 ?> 

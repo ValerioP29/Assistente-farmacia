@@ -712,6 +712,48 @@ function insertUserPointsLog($userId, $pharmaId, $requestType) {
         
         $result = $db->insert('jta_user_points_log', $insertData);
         
+        if ($result !== false) {
+            // Aggiorna i punti dell'utente nella tabella jta_users
+            $updateResult = updateUserPoints($userId, $points);
+            return $updateResult;
+        }
+        
+        return false;
+        
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Aggiorna i punti dell'utente nella tabella jta_users
+ * @param int $userId ID dell'utente
+ * @param int $pointsToAdd Punti da aggiungere
+ * @return bool True se aggiornamento riuscito, False altrimenti
+ */
+function updateUserPoints($userId, $pointsToAdd) {
+    try {
+        $db = Database::getInstance();
+        
+        // Ottieni i punti attuali dell'utente
+        $currentUser = $db->fetchOne("SELECT points_current_month FROM jta_users WHERE id = ?", [$userId]);
+        
+        if (!$currentUser) {
+            // Utente non trovato
+            return false;
+        }
+        
+        // Calcola i nuovi punti
+        $currentPoints = (int)($currentUser['points_current_month'] ?? 0);
+        $newPoints = $currentPoints + $pointsToAdd;
+        
+        // Aggiorna i punti dell'utente
+        $updateData = [
+            'points_current_month' => $newPoints
+        ];
+        
+        $result = $db->update('jta_users', $updateData, 'id = ?', [$userId]);
+        
         return $result !== false;
         
     } catch (Exception $e) {
