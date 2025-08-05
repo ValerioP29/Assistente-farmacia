@@ -73,6 +73,46 @@ class RichiesteManager {
         document.getElementById('whatsappMessage').addEventListener('input', (e) => {
             document.getElementById('messageLength').textContent = e.target.value.length;
         });
+
+        // Event listener per pulsanti (delegazione eventi)
+        document.addEventListener('click', async (e) => {
+            // Pulsante aggiorna stato
+            if (e.target.closest('.update-status-btn')) {
+                const button = e.target.closest('.update-status-btn');
+                const requestId = button.getAttribute('data-request-id');
+                await this.openUpdateStatus(requestId);
+            }
+            
+            // Pulsante visualizza dettagli
+            if (e.target.closest('.view-details-btn')) {
+                const button = e.target.closest('.view-details-btn');
+                const requestId = button.getAttribute('data-request-id');
+                await this.viewDetails(requestId);
+            }
+            
+            // Pulsante WhatsApp
+            if (e.target.closest('.open-whatsapp-btn')) {
+                const button = e.target.closest('.open-whatsapp-btn');
+                const requestId = button.getAttribute('data-request-id');
+                const userPhone = button.getAttribute('data-user-phone');
+                this.openWhatsAppMessage(requestId, userPhone);
+            }
+            
+            // Pulsante elimina
+            if (e.target.closest('.open-delete-btn')) {
+                const button = e.target.closest('.open-delete-btn');
+                const requestId = button.getAttribute('data-request-id');
+                this.openDeleteRequest(requestId);
+            }
+            
+            // Link paginazione
+            if (e.target.closest('.pagination-link')) {
+                e.preventDefault();
+                const link = e.target.closest('.pagination-link');
+                const page = parseInt(link.getAttribute('data-page'));
+                this.goToPage(page);
+            }
+        });
     }
 
     applyFilters() {
@@ -200,24 +240,25 @@ class RichiesteManager {
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary" 
-                                onclick="richiesteManager.viewDetails(${request.id})" 
+                        <button type="button" class="btn btn-outline-primary view-details-btn" 
+                                data-request-id="${request.id}"
                                 title="Visualizza dettagli">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-warning" 
-                                onclick="richiesteManager.openUpdateStatus(${request.id})" 
+                        <button type="button" class="btn btn-outline-warning update-status-btn" 
+                                data-request-id="${request.id}"
                                 title="Aggiorna stato">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-success" 
-                                onclick="richiesteManager.openWhatsAppMessage(${request.id}, '${request.user_phone || ''}')" 
+                        <button type="button" class="btn btn-outline-success open-whatsapp-btn" 
+                                data-request-id="${request.id}"
+                                data-user-phone="${request.user_phone || ''}"
                                 title="Invia WhatsApp"
                                 ${!request.user_phone ? 'disabled' : ''}>
                             <i class="fab fa-whatsapp"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger" 
-                                onclick="richiesteManager.openDeleteRequest(${request.id})" 
+                        <button type="button" class="btn btn-outline-danger open-delete-btn" 
+                                data-request-id="${request.id}"
                                 title="Elimina richiesta">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -241,7 +282,7 @@ class RichiesteManager {
         if (pagination.page > 1) {
             paginationHtml += `
                 <li class="page-item">
-                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${pagination.page - 1})">
+                    <a class="page-link pagination-link" href="#" data-page="${pagination.page - 1}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
@@ -255,7 +296,7 @@ class RichiesteManager {
         for (let i = startPage; i <= endPage; i++) {
             paginationHtml += `
                 <li class="page-item ${i === pagination.page ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${i})">${i}</a>
+                    <a class="page-link pagination-link" href="#" data-page="${i}">${i}</a>
                 </li>
             `;
         }
@@ -264,7 +305,7 @@ class RichiesteManager {
         if (pagination.page < pagination.pages) {
             paginationHtml += `
                 <li class="page-item">
-                    <a class="page-link" href="#" onclick="richiesteManager.goToPage(${pagination.page + 1})">
+                    <a class="page-link pagination-link" href="#" data-page="${pagination.page + 1}">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -348,12 +389,12 @@ class RichiesteManager {
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-warning" onclick="richiesteManager.openUpdateStatus(${request.id})">
+                        <button type="button" class="btn btn-warning update-status-btn" data-request-id="${request.id}">
                             <i class="fas fa-edit me-1"></i>
                             Aggiorna Stato
                         </button>
                         ${request.user.phone_number ? `
-                            <button type="button" class="btn btn-success" onclick="richiesteManager.openWhatsAppMessage(${request.id}, '${request.user.phone_number}')">
+                            <button type="button" class="btn btn-success open-whatsapp-btn" data-request-id="${request.id}" data-user-phone="${request.user.phone_number}">
                                 <i class="fab fa-whatsapp me-1"></i>
                                 Invia WhatsApp
                             </button>
@@ -415,9 +456,32 @@ class RichiesteManager {
         `;
     }
 
-    openUpdateStatus(requestId) {
-        document.getElementById('updateRequestId').value = requestId;
-        new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+    async openUpdateStatus(requestId) {
+        try {
+            // Ottieni i dati della richiesta
+            const response = await fetch(`api/requests/get.php?id=${requestId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const request = data.data;
+                
+                // Imposta l'ID della richiesta
+                document.getElementById('updateRequestId').value = requestId;
+                
+                // Imposta lo stato corrente nella select
+                document.getElementById('newStatus').value = request.status;
+                
+                // Pulisci la nota
+                document.getElementById('statusNote').value = '';
+                
+                // Mostra la modale
+                new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+            } else {
+                this.showError('Errore nel caricamento della richiesta: ' + data.error);
+            }
+        } catch (error) {
+            this.showError('Errore di connessione: ' + error.message);
+        }
     }
 
     openDeleteRequest(requestId) {

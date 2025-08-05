@@ -665,4 +665,57 @@ function deleteGlobalProductWithCascade($globalProductId) {
         ];
     }
 }
+
+/**
+ * Inserisce punti nel log per una richiesta completata
+ * @param int $userId ID dell'utente
+ * @param int $pharmaId ID della farmacia
+ * @param string $requestType Tipologia di richiesta
+ * @return bool True se inserimento riuscito, False altrimenti
+ */
+function insertUserPointsLog($userId, $pharmaId, $requestType) {
+    try {
+        $db = Database::getInstance();
+        
+        // Carica configurazione punteggi
+        $configPath = __DIR__ . '/../config/points_config.php';
+        if (!file_exists($configPath)) {
+            // Fallback con configurazione hardcoded
+            $points = 10;
+            $source = 'Request Completed';
+        } else {
+            require_once $configPath;
+            
+            // Verifica che le funzioni siano definite
+            if (!function_exists('getRequestPoints') || !function_exists('getRequestSourceLabel')) {
+                // Fallback con configurazione hardcoded
+                $points = 10;
+                $source = 'Request Completed';
+            } else {
+                // Ottieni punteggio per la tipologia
+                $points = getRequestPoints($requestType);
+                
+                // Genera descrizione source
+                $source = getRequestSourceLabel($requestType);
+            }
+        }
+        
+        // Inserisci record nel log
+        $insertData = [
+            'user_id' => $userId,
+            'pharma_id' => $pharmaId,
+            'date' => date('Y-m-d'),
+            'points' => $points,
+            'source' => $source,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        
+        $result = $db->insert('jta_user_points_log', $insertData);
+        
+        return $result !== false;
+        
+    } catch (Exception $e) {
+        return false;
+    }
+}
 ?>
