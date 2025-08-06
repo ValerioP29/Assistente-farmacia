@@ -71,9 +71,9 @@ $current_page = $current_page ?? 'dashboard';
     </script>
     
     <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/sidebars.css">
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/navbar.css">
-    <link rel="stylesheet" href="assets/css/sidebars.css">
     <link rel="stylesheet" href="assets/css/notifications.css">
     
 
@@ -109,7 +109,7 @@ $current_page = $current_page ?? 'dashboard';
 
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-receipt d-none" viewBox="0 0 16 16">
             <symbol id="receipt" viewBox="0 0 16 16"> 
-                <path d="M1.92.506a.5.5 0 0 1 .434.14L3 1.293l.646-.647a.5.5 0 0 1 .708 0L5 1.293l.646-.647a.5.5 0 0 1 .708 0L7 1.293l.646-.647a.5.5 0 0 1 .708 0L9 1.293l.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .801.13l.5 1A.5.5 0 0 1 15 2v12a.5.5 0 0 1-.053.224l-.5 1a.5.5 0 0 1-.8.13L13 14.707l-.646.647a.5.5 0 0 1-.708 0L11 14.707l-.646.647a.5.5 0 0 1-.708 0L9 14.707l-.646.647a.5.5 0 0 1-.708 0L7 14.707l-.646.647a.5.5 0 0 1-.708 0L5 14.707l-.646.647a.5.5 0 0 1-.801-.13l-.5-1A.5.5 0 0 1 1 14V2a.5.5 0 0 1 .053-.224l.5-1a.5.5 0 0 1 .367-.27m.217 1.338L2 2.118v11.764l.137.274.51-.51a.5.5 0 0 1 .707 0l.646.647.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.509.509.137-.274V2.118l-.137-.274-.51.51a.5.5 0 0 1-.707 0L12 1.707l-.646.647a.5.5 0 0 1-.708 0L10 1.707l-.646.647a.5.5 0 0 1-.708 0L8 1.707l-.646.647a.5.5 0 0 1-.708 0L6 1.707l-.646.647a.5.5 0 0 1-.708 0L4 1.707l-.646.647a.5.5 0 0 1-.708 0z"/>
+                <path d="M1.92.506a.5.5 0 0 1 .434.14L3 1.293l.646-.647a.5.5 0 0 1 .708 0L5 1.293l.646-.647a.5.5 0 0 1 .708 0L7 1.293l.646-.647a.5.5 0 0 1 .708 0L9 1.293l.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .801.13l.5 1A.5.5 0 0 1 15 2v12a.5.5 0 0 1-.053.224l-.5 1a.5.5 0 0 1-.8.13L13 14.707l-.646.647a.5.5 0 0 1-.708 0L11 14.707l-.646.647a.5.5 0 0 1-.708 0L9 14.707l-.646.647a.5.5 0 0 1-.708 0L7 14.707l-.646.647a.5.5 0 0 1-.708 0L5 14.707l-.646.647a.5.5 0 0 1-.801-.13l-.5-1A.5.5 0 0 1 1 14V2a.5.5 0 0 1 .053-.224l.5-1a.5.5 0 0 1 .367-.27m.217 1.338L2 2.118v11.764l.137.274.51-.51a.5.5 0 0 1 .707 0l.646.647.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.509.509.137-.274V2.118l-.137-.274-.51.51a.5.5 0 0 1-.707 0L12 1.707l-.646.647a.5.5 0 0 1-.708 0L10 1.707l-.646.647a.5.5 0 0 1-.708 0L8 1.707l-.646.647a.5.5 0 0 1-.708 0L6 1.707l-.646.647a.5.5 0 0 1-.708 0L4 1.707l-.646.647a.5.5 0 0 1-.708 0z"/>
                 <path d="M3 4.5a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5m8-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5"/>
             </symbol>
         </svg>
@@ -169,11 +169,11 @@ $current_page = $current_page ?? 'dashboard';
 
     <!-- Alert per messaggi di sistema -->
     <?php if (isset($_SESSION['alert'])): ?>
-        <div class="alert alert-<?= $_SESSION['alert']['type'] ?> alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" role="alert" style="z-index: 9999; min-width: 300px; max-width: 500px;">
-            <div style="padding-right: 30px;">
+        <div class="alert alert-<?= $_SESSION['alert']['type'] ?> alert-dismissible fade show system-alert" role="alert">
+            <div class="alert-body">
                 <?= htmlspecialchars($_SESSION['alert']['message']) ?>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         <?php unset($_SESSION['alert']); ?>
     <?php endif; ?> 
@@ -181,12 +181,16 @@ $current_page = $current_page ?? 'dashboard';
         <!-- Navbar -->
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid">
-                <button class="offcanvas-toggler d-lg-none ms-auto" 
+                <!-- Pulsante hamburger per mobile -->
+                <button class="navbar-toggler d-lg-none" 
                         type="button"
                         data-bs-toggle="offcanvas"
                         data-bs-target="#sidebarOffcanvas"
-                        aria-controls="sidebarOffcanvas">
-                    <span class="navbar-toggler-icon"></span>
+                        aria-controls="sidebarOffcanvas"
+                        aria-expanded="false"
+                        aria-label="Toggle navigation"
+                        style="border: none; background: transparent; color: white;">
+                    <i class="fas fa-bars" style="color: white !important; font-size: 1.5rem;"></i>
                 </button>
                 
                 <div class="navbar-center mx-auto text-light text-center">
@@ -208,3 +212,108 @@ $current_page = $current_page ?? 'dashboard';
                 </div>
             </div>
         </nav>
+
+        <!-- Offcanvas per mobile -->
+        <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">Menu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div class="sidebar-mobile">
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        <?php if ($_SESSION['user_role'] === 'admin'): ?>
+                            <!-- Menu Admin -->
+                            <li>
+                                <a href="dashboard.php" class="nav-link <?= $current_page === 'dashboard' ? 'selected' : '' ?>">
+                                    <i class="fas fa-tachometer-alt me-2"></i>
+                                    Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a href="utenti.php" class="nav-link <?= $current_page === 'utenti' ? 'selected' : '' ?>">
+                                    <i class="fas fa-users me-2"></i>
+                                    Gestione Utenti
+                                </a>
+                            </li>
+                            <li>
+                                <a href="farmacie.php" class="nav-link <?= $current_page === 'farmacie' ? 'selected' : '' ?>">
+                                    <i class="fas fa-clinic-medical me-2"></i>
+                                    Gestione Farmacie
+                                </a>
+                            </li>
+                            <li>
+                                <a href="prodotti_globali.php" class="nav-link <?= $current_page === 'prodotti_globali' ? 'selected' : '' ?>">
+                                    <i class="fas fa-boxes me-2"></i>
+                                    Gestione Prodotti Globali
+                                </a>
+                            </li>
+                        <?php elseif ($_SESSION['user_role'] === 'pharmacist'): ?>
+                            <!-- Menu Pharmacist -->
+                            <li>
+                                <a href="dashboard.php" class="nav-link <?= $current_page === 'dashboard' ? 'selected' : '' ?>">
+                                    <i class="fas fa-tachometer-alt me-2"></i>
+                                    Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a href="richieste.php" class="nav-link <?= $current_page === 'richieste' ? 'selected' : '' ?>">
+                                    <i class="fas fa-calendar-check me-2"></i>
+                                    Richieste
+                                </a>
+                            </li>
+                            <li>
+                                <a href="prodotti.php" class="nav-link <?= $current_page === 'prodotti' ? 'selected' : '' ?>">
+                                    <i class="fas fa-boxes me-2"></i>
+                                    Gestione Prodotti
+                                </a>
+                            </li>
+                            <li>
+                                <a href="promozioni.php" class="nav-link <?= $current_page === 'promozioni' ? 'selected' : '' ?>">
+                                    <i class="fas fa-tags me-2"></i>
+                                    Gestione Promozioni
+                                </a>
+                            </li>
+                            <li>
+                                <a href="orari.php" class="nav-link <?= $current_page === 'orari' ? 'selected' : '' ?>">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Modifica Orari
+                                </a>
+                            </li>
+                            <li>
+                                <a href="whatsapp.php" class="nav-link <?= $current_page === 'whatsapp' ? 'selected' : '' ?>">
+                                    <i class="fab fa-whatsapp me-2"></i>
+                                    WhatsApp
+                                </a>
+                            </li>
+                            <li>
+                                <a href="profilo.php" class="nav-link <?= $current_page === 'profilo' ? 'selected' : '' ?>">
+                                    <i class="fas fa-user-cog me-2"></i>
+                                    Profilo
+                                </a>
+                            </li>
+                        <?php endif; ?>
+                        
+                        <li><hr class="border-light"></li>
+                        
+                        <?php if (isset($_SESSION['login_as']) && $_SESSION['login_as']): ?>
+                            <li>
+                                <a href="#" class="nav-link return-admin-link" onclick="returnToAdmin()">
+                                    <i class="fas fa-arrow-left me-2"></i> Torna Admin
+                                </a>
+                            </li>
+                            <li><hr class="border-light"></li>
+                        <?php endif; ?>
+                        
+                        <li>
+                            <a href="logout.php" class="nav-link exit logout-link">
+                                <i class="fas fa-sign-out-alt me-2"></i> Esci
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

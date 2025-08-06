@@ -14,14 +14,19 @@
   height: 32px;
   object-fit: contain;
 }
-.navbar .offcanvas-toggler {
+.navbar .navbar-toggler {
   border: none;
   background: transparent;
   color: var(--text-light);
+  padding: 0.25rem 0.5rem;
 }
-.navbar .offcanvas-toggler .navbar-toggler-icon {
-  filter: invert(1);
+
+.navbar .navbar-toggler:focus {
+  box-shadow: none;
+  outline: none;
 }
+
+
 .navbar .navbar-center {
   position: absolute;
   left: 50%;
@@ -60,3 +65,4 @@
  .navbar-center { display: none;
 }
 }
+

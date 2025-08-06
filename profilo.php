@@ -48,7 +48,7 @@ include 'includes/header.php';
         <?php include 'includes/sidebar.php'; ?>
 
         <!-- Main Content -->
-        <div id="main-content" class="content p-3 col-12 col-lg-9 flex-grow-1">
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <h1>Modifica profilo</h1>
 
             <form class="form" method="post" enctype="multipart/form-data" id="profileForm">
