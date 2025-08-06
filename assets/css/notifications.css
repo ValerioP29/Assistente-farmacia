@@ -143,6 +143,81 @@
     filter: brightness(0) invert(1) !important;
 }
 
+/* Notifiche in-app (create dal JavaScript) */
+.notification-toast {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 99999 !important;
+    background: #28a745 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    padding: 15px !important;
+    max-width: 350px !important;
+    animation: slideInRight 0.3s ease-out !important;
+}
+
+.notification-content {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+}
+
+.notification-icon {
+    font-size: 1.5rem !important;
+    flex-shrink: 0 !important;
+}
+
+.notification-text {
+    flex-grow: 1 !important;
+}
+
+.notification-text strong {
+    display: block !important;
+    margin-bottom: 5px !important;
+    font-size: 1.1rem !important;
+}
+
+.notification-details {
+    font-size: 0.9rem !important;
+    opacity: 0.9 !important;
+    line-height: 1.4 !important;
+}
+
+.notification-close {
+    background: none !important;
+    border: none !important;
+    color: white !important;
+    font-size: 1.5rem !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+.notification-close:hover {
+    opacity: 0.7 !important;
+}
+
+
+
+/* Animazione per le notifiche */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%) !important;
+        opacity: 0 !important;
+    }
+    to {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+    }
+}
+
 /* Responsive per toast */
 @media (max-width: 768px) {
     .toast-container {

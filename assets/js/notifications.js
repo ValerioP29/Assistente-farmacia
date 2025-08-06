@@ -45,19 +45,25 @@ class NotificationSystem {
     requestNotificationPermission() {
         if ('Notification' in window) {
             if (Notification.permission === 'default') {
-                // Richiedi permessi solo se l'utente interagisce
                 this.notificationPermission = false;
-                console.log('Permessi notifiche: Non richiesti ancora');
+                
+                // Richiedi permessi quando l'utente clicca o interagisce
+                const requestPermission = () => {
+                    Notification.requestPermission().then(permission => {
+                        this.notificationPermission = permission === 'granted';
+                    });
+                };
+                
+                // Richiedi permessi al primo click dell'utente
+                document.addEventListener('click', requestPermission, { once: true });
+                
             } else if (Notification.permission === 'denied') {
                 this.notificationPermission = false;
-                console.log('Permessi notifiche: Negati dall\'utente');
             } else if (Notification.permission === 'granted') {
                 this.notificationPermission = true;
-                console.log('Permessi notifiche: Concessi');
             }
         } else {
             this.notificationPermission = false;
-            console.log('Notifiche browser: Non supportate');
         }
     }
     
@@ -94,13 +100,8 @@ class NotificationSystem {
         this.lastSeenId = data.latest_id;
         this.saveLastSeenId(this.lastSeenId);
         
-        // Mostra notifica solo se la pagina non è attiva
-        if (!this.isActive) {
-            this.showDesktopNotification(data);
-        }
-        
-        // Aggiorna badge e contatore
-        this.updateBadge(data.new_count);
+        // Mostra sempre le notifiche desktop
+        this.showDesktopNotification(data);
         
         // Riproduci suono
         this.playNotificationSound();
@@ -112,25 +113,29 @@ class NotificationSystem {
     showDesktopNotification(data) {
         if (!this.notificationPermission) return;
         
-        const notification = new Notification('Nuova Richiesta Farmacia', {
-            body: `Hai ${data.new_count} nuova/e richiesta/e in attesa`,
-            icon: 'images/farmacia_icon.png',
-            badge: 'images/farmacia_icon.png',
-            tag: 'new-request',
-            requireInteraction: false,
-            silent: false
-        });
-        
-        notification.onclick = () => {
-            window.focus();
-            window.location.href = 'richieste.php';
-            notification.close();
-        };
-        
-        // Chiudi automaticamente dopo 5 secondi
-        setTimeout(() => {
-            notification.close();
-        }, 5000);
+        try {
+            const notification = new Notification('Nuova Richiesta Farmacia', {
+                body: `Hai ${data.new_count} nuova/e richiesta/e in attesa`,
+                icon: 'images/farmacia_icon.png',
+                badge: 'images/farmacia_icon.png',
+                tag: 'new-request',
+                requireInteraction: false,
+                silent: false
+            });
+            
+            notification.onclick = () => {
+                window.focus();
+                window.location.href = 'richieste.php';
+                notification.close();
+            };
+            
+            // Chiudi automaticamente dopo 5 secondi
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+        } catch (error) {
+            console.error('Errore creazione notifica desktop:', error);
+        }
     }
     
     showInAppNotification(newRequests) {
@@ -172,31 +177,13 @@ class NotificationSystem {
         }, 10000);
     }
     
-    updateBadge(count) {
-        // Cerca il link delle richieste nella navbar
-        const richiesteLink = document.querySelector('a[href="richieste.php"]');
-        if (richiesteLink) {
-            // Rimuovi badge esistente
-            let badge = richiesteLink.querySelector('.notification-badge');
-            if (badge) {
-                badge.remove();
-            }
-            
-            // Aggiungi nuovo badge se ci sono notifiche
-            if (count > 0) {
-                badge = document.createElement('span');
-                badge.className = 'notification-badge';
-                badge.textContent = count > 99 ? '99+' : count;
-                richiesteLink.appendChild(badge);
-            }
-        }
-    }
+
     
     playNotificationSound() {
         if (this.audio && this.soundEnabled) {
             this.audio.currentTime = 0;
-            this.audio.play().catch(error => {
-                console.log('Impossibile riprodurre audio:', error);
+            this.audio.play().catch(() => {
+                // Audio non riproducibile (browser policy, ecc.)
             });
         }
     }
@@ -204,14 +191,12 @@ class NotificationSystem {
     setSoundEnabled(enabled) {
         this.soundEnabled = enabled;
         localStorage.setItem('notificationSoundEnabled', enabled);
-        console.log('Suono notifiche:', enabled ? 'attivato' : 'disattivato');
     }
     
     // Metodo per reinizializzare l'audio (utile dopo aver ottenuto i permessi)
     initAudio() {
         this.audio = new Audio('assets/sounds/notification.mp3');
         this.audio.preload = 'auto';
-        console.log('Audio reinizializzato');
     }
     
     getLastSeenId() {
@@ -226,7 +211,6 @@ class NotificationSystem {
     updateLastSeenId(id) {
         this.lastSeenId = id;
         this.saveLastSeenId(id);
-        this.updateBadge(0); // Rimuovi badge
     }
     
     // Metodo per richiedere permessi notifiche
@@ -234,7 +218,6 @@ class NotificationSystem {
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission().then(permission => {
                 this.notificationPermission = permission === 'granted';
-                console.log('Permessi notifiche:', permission);
                 
                 if (permission === 'granted') {
                     // Test immediato della notifica
@@ -251,7 +234,15 @@ class NotificationSystem {
             alert('Le notifiche sono state negate. Per abilitarle, vai nelle impostazioni del browser.');
         } else if (Notification.permission === 'granted') {
             this.notificationPermission = true;
-            console.log('Permessi notifiche già concessi');
+            
+            // Test immediato se già concessi
+            this.showDesktopNotification({
+                new_count: 1,
+                new_requests: [{
+                    customer_name: 'Test',
+                    product_name: 'Test'
+                }]
+            });
         }
     }
     

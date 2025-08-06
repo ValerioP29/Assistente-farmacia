@@ -84,6 +84,8 @@ $nextOpening = getNextOpeningTime();
                 </div>
             </div>
 
+
+
             <!-- Statistiche Cards -->
             <div id="card_container" class="d-flex flex-wrap justify-content-center align-items-center gap-3 mb-4">
                 <?php if (isAdmin()): ?>
