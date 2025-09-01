@@ -337,6 +337,7 @@
     color: #007bff;
 }
 
+.modal-body .table-sm th,
 .modal-body .table-sm td {
     padding: 0.5rem 0.75rem;
     vertical-align: middle;
