@@ -338,6 +338,7 @@ class RichiesteManager {
 
     renderRequestDetails(request) {
         const content = document.getElementById('requestDetailsContent');
+        const productsTable = renderProductsTableFromMeta(request.metadata);
         
         content.innerHTML = `
             <div class="row">
@@ -381,11 +382,13 @@ class RichiesteManager {
                 <div class="col-12">
                     <h6><i class="fas fa-comment me-2"></i>Messaggio</h6>
                     <div class="alert alert-info">
-                        ${request.message}
+                        ${nl2br(request.message)}
                     </div>
                 </div>
             </div>
-            
+
+            ${productsTable}
+
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="d-flex justify-content-end gap-2">
@@ -769,6 +772,11 @@ class RichiesteManager {
         return cleanPhone;
     }
 
+}
+
+function nl2br(str) {
+  if (!str) return "";
+  return String(str).replace(/\n/g, '<br>');
 }
 
 // Inizializza il manager quando il DOM è caricato
