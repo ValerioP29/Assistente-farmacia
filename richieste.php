@@ -58,8 +58,6 @@ include 'includes/header.php';
                                         <option value="0">In attesa</option>
                                         <option value="1">In lavorazione</option>
                                         <option value="2">Completata</option>
-                                        <option value="3">Rifiutata</option>
-                                        <option value="4">Annullata</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
@@ -120,7 +118,7 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2">
+               <!-- <div class="col-md-2">
                     <div class="card text-center">
                         <div class="card-body">
                             <h5 class="card-title text-danger" id="rejectedCount">0</h5>
@@ -134,7 +132,7 @@ include 'includes/header.php';
                             <h5 class="card-title text-secondary" id="cancelledCount">0</h5>
                             <p class="card-text">Annullate</p>
                         </div>
-                    </div>
+                    </div> -->
                 </div>
                 <div class="col-md-2">
                     <div class="card text-center">
@@ -220,8 +218,6 @@ include 'includes/header.php';
                             <option value="0">In attesa</option>
                             <option value="1">In lavorazione</option>
                             <option value="2">Completata</option>
-                            <option value="3">Rifiutata</option>
-                            <option value="4">Annullata</option>
                         </select>
                     </div>
                     <div class="mb-3">
