@@ -808,8 +808,15 @@ function productPrescriptionCell(prod) {
   }
 
   if (pres.type === "nre") {
-    const nre = escapeHtml(pres.value ?? "");
-    return `<strong>${nre}</strong>`;
+    const v = pres.value || {};
+    const nre = escapeHtml(v.nre ?? "");
+    const cf  = escapeHtml(v.cf ?? "");
+
+    let html = "";
+    if (nre) html += `<div><strong>NRE:</strong> ${nre}</div>`;
+    if (cf)  html += `<div><strong>CF:</strong> ${cf}</div>`;
+
+    return html || `<span class="badge bg-secondary">Nessuna ricetta</span>`;
   }
 
   if (pres.type === "file") {
@@ -826,6 +833,7 @@ function productPrescriptionCell(prod) {
 
   return `<span class="badge bg-secondary">Nessuna ricetta</span>`;
 }
+
 
 function renderProductsTableFromMeta(meta) {
   const m = parseMetadataRequest(meta);
