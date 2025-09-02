@@ -132,8 +132,9 @@ include 'includes/header.php';
                             <h5 class="card-title text-secondary" id="cancelledCount">0</h5>
                             <p class="card-text">Annullate</p>
                         </div>
-                    </div> -->
+                    </div>
                 </div>
+                -->
                 <div class="col-md-2">
                     <div class="card text-center">
                         <div class="card-body">
