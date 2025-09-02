@@ -581,37 +581,39 @@ class RichiesteManager {
         }
 
         try {
-            // Formatta il numero per WhatsApp (aggiungi prefisso 39)
-            const whatsappPhone = '39' + phone.replace(/\s/g, '');
-            
+            const raw = phone.replace(/\D/g, '');
+            const local = raw.startsWith('39') ? raw.slice(2) : raw;
+            const whatsappPhone = '39' + local;
+
             const response = await fetch('https://waservice.jungleteam.it/send', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    phone: whatsappPhone,
-                    message: message
-                })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: whatsappPhone, message })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                this.showSuccess('Messaggio WhatsApp inviato con successo!');
-                bootstrap.Modal.getInstance(document.getElementById('whatsappModal')).hide();
-                document.getElementById('whatsappMessage').value = '';
-                document.getElementById('messageLength').textContent = '0';
-                
-                // Log dell'invio nei metadata della richiesta
-                this.logWhatsAppMessage(requestId, message, data.data);
+            this.showSuccess('Messaggio WhatsApp inviato con successo!');
+            bootstrap.Modal.getInstance(document.getElementById('whatsappModal')).hide();
+            document.getElementById('whatsappMessage').value = '';
+            document.getElementById('messageLength').textContent = '0';
+
+            this.logWhatsAppMessage(requestId, message, data.data);
+
+            const ok = await this.setRequestStatus(requestId, 1, 'Avanzamento automatico dopo invio WhatsApp');
+            if (ok) {
+                this.loadRequests();
+                this.updateStatistics();
+            }
             } else {
-                this.showError('Errore nell\'invio: ' + (data.message || 'Errore sconosciuto'));
+            this.showError('Errore nell\'invio: ' + (data.message || 'Errore sconosciuto'));
             }
         } catch (error) {
             this.showError('Errore di connessione: ' + error.message);
         }
-    }
+        }
+
 
     async logWhatsAppMessage(requestId, message, whatsappData) {
         try {
@@ -631,25 +633,29 @@ class RichiesteManager {
         }
     }
 
-    async updateStatistics() {
+
+        async updateStatistics() {
         try {
             const response = await fetch('api/requests/stats.php');
             const data = await response.json();
 
             if (data.success) {
-                const stats = data.data.status_stats;
-                
-                document.getElementById('pendingCount').textContent = stats.pending;
-                document.getElementById('processingCount').textContent = stats.processing;
-                document.getElementById('completedCount').textContent = stats.completed;
-                document.getElementById('rejectedCount').textContent = stats.rejected;
-                document.getElementById('cancelledCount').textContent = stats.cancelled;
-                document.getElementById('totalCount').textContent = stats.total;
+            const s = data.data.status_stats || {};
+
+            document.getElementById('pendingCount').textContent    = s.pending ?? 0;
+            document.getElementById('processingCount').textContent = s.processing ?? 0;
+            document.getElementById('completedCount').textContent  = s.completed ?? 0;
+
+            // calcolo totale solo sui 3 stati visibili
+            const total = (s.pending ?? 0) + (s.processing ?? 0) + (s.completed ?? 0);
+            document.getElementById('totalCount').textContent = total;
             }
         } catch (error) {
             console.error('Errore nel caricamento delle statistiche:', error);
         }
-    }
+        }
+
+
 
     showLoading() {
         const tbody = document.getElementById('requestsTableBody');
@@ -726,9 +732,7 @@ class RichiesteManager {
         const labels = {
             0: 'In attesa',
             1: 'In lavorazione',
-            2: 'Completata',
-            3: 'Rifiutata',
-            4: 'Annullata'
+            2: 'Completata'
         };
         return labels[status] || 'Sconosciuto';
     }
@@ -737,9 +741,7 @@ class RichiesteManager {
         const colors = {
             0: 'warning',
             1: 'info',
-            2: 'success',
-            3: 'danger',
-            4: 'secondary'
+            2: 'success'
         };
         return colors[status] || 'secondary';
     }
@@ -769,7 +771,33 @@ class RichiesteManager {
         return cleanPhone;
     }
 
+        async setRequestStatus(requestId, newStatus, note = '') {
+    try {
+        const res = await fetch('api/requests/update-status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            request_id: requestId,
+            status: String(newStatus),
+            note
+        })
+        });
+        const data = await res.json();
+        if (!data.success) {
+        this.showError("Impossibile aggiornare lo stato: " + (data.error || "errore sconosciuto"));
+        return false;
+        }
+        return true;
+    } catch (e) {
+        this.showError('Errore di connessione: ' + e.message);
+        return false;
+    }
+    }
+
+
 }
+
+
 
 // Inizializza il manager quando il DOM è caricato
 document.addEventListener('DOMContentLoaded', () => {
