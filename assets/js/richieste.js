@@ -892,6 +892,106 @@ function renderProductsTableFromMeta(meta) {
   `;
 }
 
+function nl2br(str) {
+  if (!str) return "";
+  return String(str).replace(/\n/g, '<br>');
+}
+
+// Helper per i metaData (stringa JSON o oggetto)
+function parseMetadataRequest(meta) {
+  if (!meta) return {};
+  if (typeof meta === "string") {
+    try { return JSON.parse(meta); } catch { return {}; }
+  }
+  return meta;
+}
+
+// URL completo
+function buildReservationUrlImg(path) {
+  if (!path) return null;
+  return "https://api.assistentefarmacia.it" + path;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function productPrescriptionCell(prod) {
+  const pres = prod?.prescription;
+
+  if (!pres) {
+    return `<span class="badge bg-secondary">Nessuna ricetta</span>`;
+  }
+
+  if (pres.type === "nre") {
+    const v = pres.value || {};
+    const nre = escapeHtml(v.nre ?? "");
+    const cf  = escapeHtml(v.cf ?? "");
+
+    let html = "";
+    if (nre) html += `<div><strong>NRE:</strong> ${nre}</div>`;
+    if (cf)  html += `<div><strong>CF:</strong> ${cf}</div>`;
+
+    return html || `<span class="badge bg-secondary">Nessuna ricetta</span>`;
+  }
+
+  if (pres.type === "file") {
+    const v = pres.value || {};
+    const url = buildReservationUrlImg(v.path);
+    const filename = escapeHtml(v.filename || "allegato");
+
+    if (!url) {
+      return `<span class="badge bg-warning text-dark">File mancante</span>`;
+    }
+
+    return `<a href="${url}" target="_blank" rel="noopener" title="${filename}">Apri file</a>`;
+  }
+
+  return `<span class="badge bg-secondary">Nessuna ricetta</span>`;
+}
+
+
+function renderProductsTableFromMeta(meta) {
+  const m = parseMetadataRequest(meta);
+  const products = Array.isArray(m.products) ? m.products : [];
+  if (!products.length) return "";
+
+  const rows = products.map((p) => {
+    const name = escapeHtml(p?.name ?? "—");
+    const pres = productPrescriptionCell(p);
+
+    return `
+      <tr>
+        <td class="col-name text-start">${name}</td>
+        <td class="col-prescription">${pres}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="row mt-3">
+      <div class="col-12">
+        <h6><i class="fas fa-pills me-2"></i>Ricette</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th class="col-name">Nome</th>
+                <th class="col-prescription">Ricetta</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // Inizializza il manager quando il DOM è caricato
 document.addEventListener('DOMContentLoaded', () => {
     window.richiesteManager = new RichiesteManager();
