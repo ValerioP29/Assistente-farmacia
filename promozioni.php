@@ -62,7 +62,7 @@ include 'includes/header.php';
                 <div class="col-md-2">
                     <select id="statusFilter" class="form-select">
                         <option value="">Tutti gli stati</option>
-                        <option value="active">Attive</option>
+                        <option value="active" selected>Attive</option>
                         <option value="inactive">Inattive</option>
                         <option value="expired">Scadute</option>
                     </select>
