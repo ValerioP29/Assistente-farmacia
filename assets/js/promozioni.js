@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupProductSearch();
     setupEventListeners();
     loadStatistics();
+    applyFilters();
 });
 
 // Setup event listeners
