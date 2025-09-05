@@ -38,7 +38,6 @@ $nextOpening = getNextOpeningTime();
 ?>
 
 
-
 <div class="container-fluid">
     <div class="row">
         <?php require_once 'includes/sidebar.php'; ?>
@@ -61,7 +60,7 @@ $nextOpening = getNextOpeningTime();
             <!-- Header Dashboard -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h1 class="h3 mb-0">
+                    <h1 class="h3 mb-0 d-flex gap-2 align-items-center">
                         <i class="fas fa-tachometer-alt"></i> 
                         <?php if (isAdmin()): ?>
                             Dashboard Amministrativa
@@ -69,14 +68,14 @@ $nextOpening = getNextOpeningTime();
                             Dashboard
                         <?php endif; ?>
                     </h1>
-                    <p class="text-muted mb-0">
+                    <p class="text-muted mb-0 text-center">
                         Benvenuto, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Utente') ?>!
                         <?php if (isAdmin()): ?>
                             <br><small>Panoramica completa di tutte le farmacie del sistema</small>
                         <?php endif; ?>
                     </p>
                 </div>
-                <div class="text-end">
+                <div class="text-center">
                     <small class="text-muted">
                         <i class="fas fa-clock"></i> 
                         Ultimo aggiornamento: <?= date('d/m/Y H:i') ?>
@@ -168,12 +167,12 @@ $nextOpening = getNextOpeningTime();
             <!-- Grafico Prenotazioni -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-line"></i> 
+                    <h5 class="card-title mb-0 text-center">
+                        <i class="fas fa-chart-line d-block m-2"></i> 
                         <?php if (isAdmin()): ?>
                             Prenotazioni Sistema (Ultimi 30 Giorni)
                         <?php else: ?>
-                            Prenotazioni Ultimi 30 Giorni
+                            Prenotazioni <br> Ultimi 30 Giorni
                         <?php endif; ?>
                     </h5>
                 </div>
@@ -184,11 +183,11 @@ $nextOpening = getNextOpeningTime();
 
             <!-- Informazioni Rapide - Solo per farmacisti -->
             <?php if (!isAdmin()): ?>
-            <div class="row mt-4">
-                <div class="col-md-6">
+            <div class="mt-4">
+                <div class=" mb-4">
                     <div class="card">
                         <div class="card-header">
-                            <h6 class="card-title mb-0">
+                            <h6 class="card-title mb-0 text-center p-1">
                                 <i class="fas fa-info-circle"></i> Informazioni Farmacia
                             </h6>
                         </div>
@@ -199,7 +198,7 @@ $nextOpening = getNextOpeningTime();
                                          class="pharmacy-logo" style="height: 80px; width: auto; max-width: 200px; object-fit: contain; border-radius: 8px;">
                                 </div>
                             <?php endif; ?>
-                            <ul class="list-unstyled mb-0">
+                            <ul>
                                 <li class="mb-2">
                                     <strong>Nome:</strong> <?= htmlspecialchars($pharmacy['nice_name'] ?? 'N/A') ?>
                                 </li>
@@ -234,10 +233,10 @@ $nextOpening = getNextOpeningTime();
                     </div>
                 </div>
                 
-                <div class="col-md-6">
+                <div>
                     <div class="card">
                         <div class="card-header">
-                            <h6 class="card-title mb-0">
+                            <h6 class="card-title text-center p-1">
                                 <i class="fas fa-clock"></i> Orari di Apertura
                             </h6>
                         </div>
@@ -247,9 +246,9 @@ $nextOpening = getNextOpeningTime();
                             $formattedHours = formatWorkingHours($hours);
                             ?>
                             <?php if ($formattedHours): ?>
-                                <ul class="list-unstyled mb-0">
+                                <ul>
                                     <?php foreach ($formattedHours as $day => $time): ?>
-                                        <li class="mb-1 d-flex justify-content-between">
+                                        <li class="mb-1 d-flex gap-2 align-items-center mb-2">
                                             <span><?= $day ?>:</span>
                                             <strong><?= $time ?></strong>
                                         </li>
@@ -266,6 +265,8 @@ $nextOpening = getNextOpeningTime();
         </main>
     </div>
 </div>
+
+<link rel="stylesheet" href="assets/css/dashboard.css">
 
 <!-- JavaScript per il grafico -->
 <script>

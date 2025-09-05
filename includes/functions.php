@@ -556,13 +556,13 @@ function formatWorkingHours($hours) {
     
     $formatted = [];
     $days = [
-        'lun' => 'Lunedì',
-        'mar' => 'Martedì', 
-        'mer' => 'Mercoledì',
-        'gio' => 'Giovedì',
-        'ven' => 'Venerdì',
-        'sab' => 'Sabato',
-        'dom' => 'Domenica'
+        'lun' => 'Lun',
+        'mar' => 'Mar', 
+        'mer' => 'Mer',
+        'gio' => 'Gio',
+        'ven' => 'Ven',
+        'sab' => 'Sab',
+        'dom' => 'Dom'
     ];
     
     foreach ($hours as $day => $times) {
