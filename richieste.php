@@ -11,139 +11,153 @@ $current_page = "richieste";
 include 'includes/header.php';
 ?>
 
-<div class="container-fluid">
-    <div class="row">
-        <?php include 'includes/sidebar.php'; ?>
-        
+            <div class="container-fluid">
+                <div class="row">
+                    <?php include 'includes/sidebar.php'; ?>
+                    
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">
-                    <i class="fas fa-clipboard-list"></i> Gestione Richieste
-                </h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshBtn">
-                            <i class="fas fa-sync-alt"></i> Aggiorna
-                        </button>
-                    </div>
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="notificationPermissionsBtn" title="Richiedi permessi notifiche">
-                            <i class="fas fa-bell"></i> Permessi Notifiche
-                        </button>
-                    </div>
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-sm btn-outline-warning" id="audioPermissionsBtn" title="Testa e configura audio">
-                            <i class="fas fa-volume-up"></i> Test Audio
-                        </button>
-                    </div>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-success" id="soundToggleBtn" title="Attiva/Disattiva suono notifiche">
-                            <i class="fas fa-volume-up" id="soundIcon"></i> 
-                            <span id="soundLabel">Suono On</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+          <div class="pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2 pb-2 text-center">
+                <i class="fas fa-clipboard-list"></i> Gestione Richieste
+            </h1>
 
-            <!-- Filtri -->
-            <div class="row mb-4">
+            <div class="row g-3 justify-content-center align-items-stretch mb-3">
+                <div class="col-6 col-md-auto d-grid text-no-wrap">
+                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-secondary w-100 h-100" id="refreshBtn">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Aggiorna</span>
+                    </span>
+                    </button>
+                </div>
+
+                <div class="col-6 col-md-auto d-grid text-no-wrap">
+                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-primary w-100 h-100" id="notificationPermissionsBtn" title="Richiedi permessi notifiche">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifiche</span>
+                    </span>
+                    </button>
+                </div>
+
+                <div class="col-6 col-md-auto d-grid text-no-wrap">
+                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-warning w-100 h-100 d-flex align-items-center" id="audioPermissionsBtn" title="Testa e configura audio">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-volume-up"></i>
+                        <span>Test Audio</span>
+                    </span>
+                    </button>
+                </div>
+
+                <div class="col-6 col-md-auto d-grid text-no-wrap">
+                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-success w-100 h-100" id="soundToggleBtn" title="Attiva/Disattiva suono notifiche">
+                    <span class="d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-volume-up" id="soundIcon"></i>
+                        <span id="soundLabel">Suono On</span>
+                    </span>
+                    </button>
+                </div>
+                </div>
+
+                <!-- Filtri -->
+                <div class="row mb-4 filter-bar">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <label for="statusFilter" class="form-label">Stato</label>
-                                    <select class="form-select" id="statusFilter">
-                                        <option value="">Tutti gli stati</option>
-                                        <option value="0">In attesa</option>
-                                        <option value="1">In lavorazione</option>
-                                        <option value="2">Completata</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="typeFilter" class="form-label">Tipo Richiesta</label>
-                                    <select class="form-select" id="typeFilter">
-                                        <option value="">Tutti i tipi</option>
-                                        <option value="event">Evento</option>
-                                        <option value="service">Servizio</option>
-                                        <option value="promos">Promozione</option>
-                                        <option value="reservation">Prenotazione</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="searchFilter" class="form-label">Ricerca</label>
-                                    <input type="text" class="form-control" id="searchFilter" placeholder="Cerca nel messaggio o farmacia...">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">&nbsp;</label>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-primary flex-fill" id="applyFilters">
-                                            <i class="fas fa-search"></i> Filtra
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" id="resetFilters" title="Reset filtri">
-                                            <i class="fas fa-times"></i>
-                                            <span class="badge bg-secondary ms-1" id="filterCount" style="display: none;">0</span>
-                                        </button>
-                                    </div>
-                                </div>
+                    <div class="card-body">
+                        <div class="row gap-2 align-items-end">
+                        <div class="col-md-3">
+                            <label for="statusFilter" class="form-label">Stato</label>
+                            <select class="form-select" id="statusFilter">
+                            <option value="">Tutti gli stati</option>
+                            <option value="0">In attesa</option>
+                            <option value="1">In lavorazione</option>
+                            <option value="2">Completata</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="typeFilter" class="form-label">Tipo Richiesta</label>
+                            <select class="form-select" id="typeFilter">
+                            <option value="">Tutti i tipi</option>
+                            <option value="event">Evento</option>
+                            <option value="service">Servizio</option>
+                            <option value="promos">Promozione</option>
+                            <option value="reservation">Prenotazione</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="searchFilter" class="form-label">Ricerca</label>
+                            <input type="text" class="form-control" id="searchFilter" placeholder="Cerca nel messaggio o farmacia...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary flex-fill" id="applyFilters">
+                                <i class="fas fa-search"></i> Filtra
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center" id="resetFilters" title="Reset filtri">
+                                <i class="fas fa-times"></i>
+                                <span class="badge bg-secondary ms-1" id="filterCount" style="display:none;">0</span>
+                            </button>
                             </div>
                         </div>
+                        </div><!-- /.row -->
+                    </div>
                     </div>
                 </div>
-            </div>
+                </div>
 
-            <!-- Statistiche -->
-            <div class="row mb-4">
-                <div class="col-md-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title text-warning" id="pendingCount">0</h5>
-                            <p class="card-text">In Attesa</p>
-                        </div>
+                <!-- Statistiche -->
+                <div class="row mb-4 stats-row">
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning" id="pendingCount">0</h5>
+                        <p class="card-text">In Attesa</p>
+                    </div>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title text-info" id="processingCount">0</h5>
-                            <p class="card-text">In Lavorazione</p>
-                        </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-info" id="processingCount">0</h5>
+                        <p class="card-text">In Lavorazione</p>
+                    </div>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title text-success" id="completedCount">0</h5>
-                            <p class="card-text">Completate</p>
-                        </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-success" id="completedCount">0</h5>
+                        <p class="card-text">Completate</p>
+                    </div>
                     </div>
                 </div>
-               <!-- <div class="col-md-2">
+                <!-- <div class="col-md-2">
                     <div class="card text-center">
                         <div class="card-body">
                             <h5 class="card-title text-danger" id="rejectedCount">0</h5>
                             <p class="card-text">Rifiutate</p>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-2">
+                    </div>
+                    <div class="col-md-2">
                     <div class="card text-center">
                         <div class="card-body">
                             <h5 class="card-title text-secondary" id="cancelledCount">0</h5>
                             <p class="card-text">Annullate</p>
                         </div>
                     </div>
-                </div>
+                    </div>
                 -->
-                <div class="col-md-2">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary" id="totalCount">0</h5>
-                            <p class="card-text">Totale</p>
-                        </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card text-center h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary" id="totalCount">0</h5>
+                        <p class="card-text">Totale</p>
+                    </div>
                     </div>
                 </div>
-            </div>
+                </div>
 
             <!-- Tabella Richieste -->
             <div class="card">
@@ -314,7 +328,7 @@ include 'includes/header.php';
 
 <?php include 'includes/footer.php'; ?>
 
-<link rel="stylesheet" href="assets/css/richieste.css">
+<link rel="stylesheet" href="./assets/css/richieste.css">
 <script src="assets/js/richieste.js"></script>
 
 <script>
