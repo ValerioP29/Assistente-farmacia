@@ -390,3 +390,11 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 } 
+
+
+@media (max-width: 417px) {
+.promo-header, .btn-toolbar {
+justify-content: center !important;
+gap: 15px !important;
+}
+}
