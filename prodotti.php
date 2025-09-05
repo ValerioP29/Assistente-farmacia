@@ -26,7 +26,7 @@ include 'includes/header.php';
         <?php include 'includes/sidebar.php'; ?>
         
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <div class="d-flex justify-content-center flex-column flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">
                     <i class="fas fa-boxes me-2"></i>
                     Gestione Prodotti
@@ -57,7 +57,7 @@ include 'includes/header.php';
             <!-- Filtri e Ricerca -->
             <div class="row mb-3 filters-section">
                 <div class="col-md-3">
-                    <input type="text" id="searchInput" class="form-control" placeholder="Cerca prodotti...">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Cerca prodotti (nome, SKU, ecc..)">
                 </div>
                 <div class="col-md-2">
                     <select id="categoryFilter" class="form-select">
