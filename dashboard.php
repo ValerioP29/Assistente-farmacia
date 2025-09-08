@@ -58,7 +58,7 @@ $nextOpening = getNextOpeningTime();
             <?php endif; ?>
 
             <!-- Header Dashboard -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between flex-column align-items-center mb-4">
                 <div>
                     <h1 class="h3 mb-0 d-flex gap-2 align-items-center">
                         <i class="fas fa-tachometer-alt"></i> 
