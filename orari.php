@@ -37,7 +37,7 @@ $working_hours = getPharmacyHours($pharmacy['id']);
 // Imposta il titolo della pagina e la pagina corrente per il menu
 $page_title = "Modifica Orari";
 $current_page = 'orari';
-$additional_css = ['assets/css/sidebars.css', 'assets/css/navbar.css', 'assets/css/dashboard.css'];
+$additional_css = ['assets/css/sidebars.css', 'assets/css/navbar.css', 'assets/css/dashboard.css', 'assets/css/orari.css'];
 $additional_js = ['assets/js/sidebars.js', 'assets/js/navbar.js', 'assets/js/time.js', 'assets/js/orari.js'];
 
 // Include l'header
@@ -52,15 +52,15 @@ include 'includes/header.php';
 
         <!-- Main Content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <h1>Modifica orari di apertura</h1>
+            <h1 class= "text-center">Modifica orari di apertura</h1>
             <p class="text-muted">Qui puoi modificare gli orari di apertura della tua farmacia.</p>
 
             <form id="orariForm" method="post">
                 <!-- CSRF Token -->
                 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 
-                <div class="card">
-                    <div class="card-body">
+                <div>
+                    <div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
                                 <thead class="table-light">
@@ -182,6 +182,7 @@ include 'includes/header.php';
                 </div>
             </div>
         </div>
+      </main>
     </div>
 </div>
 
