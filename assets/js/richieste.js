@@ -217,9 +217,9 @@ class RichiesteManager {
 
         tbody.innerHTML = requests.map(request => `
             <tr>
-                <td><strong>#${request.id}</strong></td>
+                <td class="justify-content-start"><strong>#${request.id}</strong></td>
                 <td>
-                    <span class="badge bg-primary">${request.request_type_label}</span>
+                    <span class="badge bg-primary text-center">${request.request_type_label}</span>
                 </td>
                 <td>
                     <div>
@@ -228,7 +228,7 @@ class RichiesteManager {
                     </div>
                 </td>
                 <td>
-                    <div class="text-truncate" style="max-width: 200px;" title="${request.message}">
+                    <div title="${request.message}" >
                         ${request.message}
                     </div>
                 </td>

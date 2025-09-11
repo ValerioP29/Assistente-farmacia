@@ -151,35 +151,6 @@
     height: 2rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .timeline {
-        padding-left: 20px;
-    }
-    
-    .timeline-marker {
-        left: -15px;
-        width: 10px;
-        height: 10px;
-    }
-    
-    .timeline-content {
-        padding: 10px;
-    }
-    
-    .card.text-center .card-title {
-        font-size: 1.5rem;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .btn-group-sm .btn {
-        padding: 0.2rem 0.4rem;
-        font-size: 0.8rem;
-    }
-}
 
 /* Animazioni */
 .fade-in {
@@ -353,3 +324,89 @@
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
 } 
+
+/* Responsive */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline-marker {
+        left: -15px;
+        width: 10px;
+        height: 10px;
+    }
+    
+    .timeline-content {
+        padding: 10px;
+    }
+    
+    .card.text-center .card-title {
+        font-size: 1.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+    }
+    .btn-action {
+        min-height: 60px !important;
+    }
+}
+
+@media (max-width: 900px) {
+  table thead { 
+    display: none; 
+    }
+  table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd; 
+    border-radius: .5rem; 
+    }
+  table td {
+    display: flex; 
+    justify-content: center;
+    padding: .5rem;
+    }
+  table td::before { 
+    content: attr(data-label); 
+    font-weight: bold; 
+    }
+}
+
+@media (min-width:768px) and (max-width:1286px) {
+
+  /* Cards statistiche tutte alla stessa altezza */
+  .stats-row > [class*="col"] { display:flex; }
+  .stats-row .card { display:flex; flex-direction:column; width:100%; }
+  .stats-row .card-body { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+
+  /* Barra filtri: controlli allineati e bottoni non quadrati */
+  .filter-bar .form-control,
+  .filter-bar .form-select { height:42px; }
+
+  .filter-bar .btn {
+    height:42px;
+    line-height:42px;
+    padding:0 16px;
+    border-radius:.5rem;
+    aspect-ratio:auto;
+    white-space:nowrap;
+  }
+  .filter-bar .btn i { line-height:1; }
+
+  /* Se avevi “cardificato” la tabella per mobile, disattivalo qui */
+  .table.cardified thead { display:table-header-group !important; }
+  .table.cardified tbody tr { display:table-row !important; }
+  .table.cardified td { display:table-cell !important; }
+  .table-responsive { overflow-x:visible; }
+}
+
+/* Ritocchi generali che non rompono sopra 1286 */
+.filter-bar .badge { transform: translateY(-2px); }
+
