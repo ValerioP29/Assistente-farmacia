@@ -154,7 +154,7 @@ function renderProducts(products) {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        
+
         // Formatta prezzi
         const price = parseFloat(product.price).toFixed(2);
         
@@ -166,9 +166,12 @@ function renderProducts(products) {
                         <i class="fas fa-image text-muted"></i>
                     </div>`
                 }
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border-radius: 4px;">
+                       <i class="fas fa-image text-muted"></i>
+                    </div>
             </td>
             <td><strong>${escapeHtml(product.sku || '-')}</strong></td>
-            <td>
+            <td data-sku="${escapeHtml(product.sku || '-')}" data-stato="${product.is_active ? 'Attivo' : 'Inattivo'}">
                 <div class="fw-bold">${escapeHtml(product.name)}</div>
                 ${product.description ? `<small class="text-muted">${escapeHtml(product.description.substring(0, 50))}${product.description.length > 50 ? '...' : ''}</small>` : ''}
             </td>

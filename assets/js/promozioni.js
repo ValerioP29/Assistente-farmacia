@@ -154,11 +154,11 @@ function createPromotionCard(promotion) {
                         <div class="product-name">${promotion.name}</div>
                         <div class="product-category">
                             <i class="fas fa-layer-group me-1"></i>
-                            ${promotion.category || 'N/A'}
+                            ${promotion.category || 'generico'}
                         </div>
                         <div class="product-brand">
                             <i class="fas fa-building me-1"></i>
-                            ${promotion.brand || 'N/A'}
+                            ${promotion.brand || 'generico'}
                         </div>
                     </div>
                     

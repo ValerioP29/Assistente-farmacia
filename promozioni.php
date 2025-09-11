@@ -26,7 +26,7 @@ include 'includes/header.php';
         <?php include 'includes/sidebar.php'; ?>
         
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <div class="promo-header d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">
                     <i class="fas fa-tags me-2"></i>
                     Gestione Promozioni
@@ -56,10 +56,10 @@ include 'includes/header.php';
 
             <!-- Filtri e Ricerca -->
             <div class="row mb-4 filters-section">
-                <div class="col-md-3">
+                <div class="col-md-3 mb-3">
                     <input type="text" id="searchInput" class="form-control" placeholder="Cerca promozioni...">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 mb-3">
                     <select id="statusFilter" class="form-select">
                         <option value="">Tutti gli stati</option>
                         <option value="active" selected>Attive</option>
@@ -67,12 +67,12 @@ include 'includes/header.php';
                         <option value="expired">Scadute</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 mb-3">
                     <select id="categoryFilter" class="form-select">
                         <option value="">Tutte le categorie</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 mb-3">
                     <select id="discountFilter" class="form-select">
                         <option value="">Tutti gli sconti</option>
                         <option value="0-10">0-10%</option>
@@ -90,7 +90,7 @@ include 'includes/header.php';
 
             <!-- Statistiche Promozioni -->
             <div class="row mb-4">
-                <div class="col-md-3">
+                <div class="col-md-3 mb-2">
                     <div class="card bg-primary text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
@@ -105,7 +105,7 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 mb-2">
                     <div class="card bg-secondary text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
@@ -120,7 +120,7 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 mb-2">
                     <div class="card bg-danger text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
@@ -135,7 +135,7 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 mb-2">
                     <div class="card bg-info text-white">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">

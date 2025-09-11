@@ -152,7 +152,7 @@ include 'includes/header.php';
                                             <i class="fas fa-upload me-2"></i>Carica Logo
                                         </button>
                                         <?php if (!empty($pharmacy['logo'])): ?>
-                                            <button type="button" class="btn btn-danger mt-2 ms-2" id="removeLogoBtn">
+                                            <button type="button" class="btn btn-danger mt-2" id="removeLogoBtn">
                                                 <i class="fas fa-trash me-2"></i>Rimuovi Logo
                                             </button>
                                         <?php endif; ?>

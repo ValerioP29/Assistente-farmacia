@@ -25,6 +25,7 @@ $current_page = 'whatsapp';
 $additional_css = ['assets/css/sidebars.css', 'assets/css/navbar.css', 'assets/css/dashboard.css'];
 $additional_js = ['assets/js/core/pharma_wa.js'];
 
+
 // Include l'header
 include 'includes/header.php';
 ?>
@@ -48,6 +49,7 @@ include 'includes/header.php';
                 <div class="wa-action"></div>
             </div>
         </div>
+      </main>
     </div>
 </div>
 
