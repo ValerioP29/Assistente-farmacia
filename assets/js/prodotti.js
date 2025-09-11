@@ -161,14 +161,11 @@ function renderProducts(products) {
         row.innerHTML = `
             <td>
                 ${product.image ? 
-                    `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;" onerror="this.src='assets/images/default-product-thumb.png'">` : 
-                    `<div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border-radius: 4px;">
+                    `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="img-thumbnail" width="50" height="50" style="width: 50px; height: 50px; object-fit: cover; overflow:hidden; font-size:1px;" onerror="this.src='assets/images/default-product-thumb.png'">`
+                    : `<div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border-radius: 4px;">
                         <i class="fas fa-image text-muted"></i>
                     </div>`
                 }
-                    <div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border-radius: 4px;">
-                       <i class="fas fa-image text-muted"></i>
-                    </div>
             </td>
             <td><strong>${escapeHtml(product.sku || '-')}</strong></td>
             <td data-sku="${escapeHtml(product.sku || '-')}" data-stato="${product.is_active ? 'Attivo' : 'Inattivo'}">
@@ -523,8 +520,8 @@ function renderGlobalProductResults(products) {
                 <div class="d-flex align-items-center">
                     <div class="me-3">
                         ${product.image ? 
-                            `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="img-thumbnail" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='assets/images/default-product-thumb.png'">` : 
-                            `<div class="bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 4px;">
+                            `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="img-thumbnail" width="40" height="40" style="width: 40px; height: 40px; object-fit: cover; overflow:hidden; font-size:1px;" onerror="this.src='assets/images/default-product-thumb.png'">` 
+                            : `<div class="bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 4px;">
                                 <i class="fas fa-image text-muted"></i>
                             </div>`
                         }
