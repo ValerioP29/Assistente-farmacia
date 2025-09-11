@@ -559,11 +559,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateAudioButton(enabled) {
         const audioBtn = document.getElementById('audioPermissionsBtn');
         if (enabled) {
-            audioBtn.className = 'btn btn-sm btn-outline-success';
+            audioBtn.classList.add('btn-outline-success');
+            audioBtn.classList.remove('btn-outline-warning');
             audioBtn.innerHTML = '<i class="fas fa-check"></i> Audio OK';
             audioBtn.title = 'Permessi audio abilitati';
         } else {
-            audioBtn.className = 'btn btn-sm btn-outline-warning';
+            audioBtn.classList.add('btn-outline-warning');
+            audioBtn.classList.remove('btn-outline-success');
             audioBtn.innerHTML = '<i class="fas fa-microphone"></i> Permessi Audio';
             audioBtn.title = 'Clicca per abilitare permessi audio';
         }
@@ -580,11 +582,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (soundEnabled) {
             soundIcon.className = 'fas fa-volume-up';
             soundLabel.textContent = 'Suono On';
-            soundBtn.className = 'btn btn-sm btn-outline-success';
+            soundBtn.classList.add('btn-outline-success');
+            soundBtn.classList.remove('btn-outline-secondary');
         } else {
             soundIcon.className = 'fas fa-volume-mute';
             soundLabel.textContent = 'Suono Off';
-            soundBtn.className = 'btn btn-sm btn-outline-secondary';
+            soundBtn.classList.add('btn-outline-secondary');
+            soundBtn.classList.remove('btn-outline-success');
         }
     }
     
