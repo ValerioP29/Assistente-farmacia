@@ -41,7 +41,7 @@ include 'includes/header.php';
                 </div>
 
                 <div class="col-6 col-md-auto d-grid text-no-wrap">
-                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-warning w-100 h-100 d-flex align-items-center" id="audioPermissionsBtn" title="Testa e configura audio">
+                    <button type="button" class="btn btn-action btn-sm p-2 btn-outline-warning w-100 h-100 d-flex align-items-center justify-content-center" id="audioPermissionsBtn" title="Testa e configura audio">
                     <span class="d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-volume-up"></i>
                         <span>Test Audio</span>
