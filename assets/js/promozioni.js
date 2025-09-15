@@ -97,8 +97,15 @@ function displayPromotions(promotions) {
 // Creazione scheda promozione
 function createPromotionCard(promotion) {
     const now = new Date();
-    const startDate = new Date(promotion.sale_start_date);
-    const endDate = new Date(promotion.sale_end_date);
+    const _s = promotion.sale_start_date ? String(promotion.sale_start_date).trim() : '';
+    const startDate = _s ? new Date((_s.includes('T') ? _s : _s.replace(' ', 'T')).slice(0,19)) : null;
+
+    const _e = promotion.sale_end_date ? String(promotion.sale_end_date).trim() : '';
+    const _eIso = _e ? (_e.includes('T') ? _e : _e.replace(' ', 'T')) : '';
+    const endDate = _eIso
+  ? new Date((_eIso.length === 10 ? (_eIso + 'T23:59:59') : _eIso).slice(0,19))
+  : null;
+
     
     // Calcolo stato promozione
     let status = 'inactive';
@@ -487,8 +494,8 @@ function validateDates() {
     const startDate = new Date(document.getElementById('saleStartDate').value);
     const endDate = new Date(document.getElementById('saleEndDate').value);
     
-    if (startDate && endDate && startDate >= endDate) {
-        document.getElementById('saleEndDate').setCustomValidity('La data di fine deve essere successiva alla data di inizio');
+    if (startDate && endDate && startDate > endDate) {
+        document.getElementById('saleEndDate').setCustomValidity('La data di fine deve essere successiva o uguale alla data di inizio');
     } else {
         document.getElementById('saleEndDate').setCustomValidity('');
     }
