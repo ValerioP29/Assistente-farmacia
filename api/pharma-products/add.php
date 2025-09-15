@@ -282,12 +282,25 @@ try {
         'sku' => $sku,
         'description' => $description,
         'price' => $price,
-        'sale_price' => $salePrice,
         'is_active' => $isActive,
-        'is_on_sale' => $isOnSale,
-        'sale_start_date' => $saleStartDate,
-        'sale_end_date' => $saleEndDate
     ];
+
+    if (isset($_POST['sale_price']) && $_POST['sale_price'] !== '') {
+    $data['sale_price'] = str_replace(',', '.', $_POST['sale_price']);
+    }
+
+    if (isset($_POST['sale_start_date']) && $_POST['sale_start_date'] !== '') {
+        $data['sale_start_date'] = $_POST['sale_start_date'];
+    }
+
+    if (isset($_POST['sale_end_date']) && $_POST['sale_end_date'] !== '') {
+        $data['sale_end_date'] = $_POST['sale_end_date'];
+    }
+
+    if (isset($_POST['is_on_sale'])) {
+        $data['is_on_sale'] = $_POST['is_on_sale'] ? 1 : 0;
+    }
+
     
     // Aggiungi immagine se caricata
     if ($imagePath) {
