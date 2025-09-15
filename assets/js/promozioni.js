@@ -602,6 +602,8 @@ function editPromotion(id) {
                 const originalPrice = parseFloat(promotion.price);
                 const salePrice = parseFloat(promotion.sale_price);
                 let discountType = 'amount'; // Default
+                const feat = document.getElementById('isFeatured');
+                if (feat) feat.checked = (promotion.is_featured == 1);
                 
                 if (!isNaN(originalPrice) && !isNaN(salePrice) && originalPrice > 0) {
                     const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
@@ -631,6 +633,10 @@ function editPromotion(id) {
                 document.getElementById('saleEndDate').value   = (promotion.sale_end_date   || '').slice(0, 10);
 
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
+
+                const featEl = document.getElementById('isFeatured');
+                if (featEl) featEl.checked = (promotion.is_featured == 1);
+
                 
                 // Imposta il testo di ricerca con i dati del prodotto
                 const productText = `${promotion.name} - ${promotion.brand || ''} (${promotion.category || ''})`.trim();
@@ -752,6 +758,10 @@ function handlePromotionSubmit(e) {
       formData.set('sale_price', calculated.toFixed(2));
     }
   }
+
+    // forza i valori delle checkbox
+    formData.set('is_on_sale', document.getElementById('isOnSale')?.checked ? '1' : '0');
+    formData.set('is_featured', document.getElementById('isFeatured')?.checked ? '1' : '0');
 
    const url = promotionId ? 
         `api/pharma-products/update.php` : 
