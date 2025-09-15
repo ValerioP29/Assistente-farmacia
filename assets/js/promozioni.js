@@ -617,11 +617,12 @@ function editPromotion(id) {
                 }
                 
                 // Gestione date
-                const startDate = formatDateForInput(promotion.sale_start_date);
-                const endDate = formatDateForInput(promotion.sale_end_date);
+                //const startDate = formatDateForInput(promotion.sale_start_date);
+                //const endDate = formatDateForInput(promotion.sale_end_date);
                 
-                document.getElementById('saleStartDate').value = startDate;
-                document.getElementById('saleEndDate').value = endDate;
+                document.getElementById('saleStartDate').value = (promotion.sale_start_date || '').slice(0, 10);
+                document.getElementById('saleEndDate').value   = (promotion.sale_end_date   || '').slice(0, 10);
+
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
                 
                 // Imposta il testo di ricerca con i dati del prodotto
@@ -710,56 +711,60 @@ function formatDateForInput(dateString) {
     }
 }
 
+function readDateInput(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const v = (el.value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+}
+
+
 // Gestione submit form
 function handlePromotionSubmit(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const promotionId = formData.get('id');
-    const productId = formData.get('product_id');
-    const discountType = formData.get('discount_type');
-    const salePriceInput = document.getElementById('salePrice');
-    const currentPriceElement = document.getElementById('currentPrice');
-    
-    // Validazione prodotto selezionato
-    if (!promotionId && !productId) {
-        showError('Seleziona un prodotto prima di salvare la promozione');
-        return;
+  e.preventDefault();
+
+  const formData = new FormData(e.target); 
+  const promotionId = formData.get('id');
+  const discountType = formData.get('discount_type');
+
+  const sd = readDateInput('saleStartDate');
+  const ed = readDateInput('saleEndDate');
+
+  const sdDT = sd ? `${sd} 00:00:00` : '';
+  const edDT = ed ? `${ed} 23:59:59` : '';
+
+  if (sdDT) formData.set('sale_start_date', sdDT); else formData.delete('sale_start_date');
+  if (edDT) formData.set('sale_end_date', edDT);   else formData.delete('sale_end_date');
+
+  if (discountType === 'percentage') {
+    const currentPriceEl = document.getElementById('currentPrice');
+    const currentPrice = currentPriceEl ? parseFloat(currentPriceEl.textContent.replace('€','').trim()) : NaN;
+    const perc = parseFloat(document.getElementById('salePrice').value);
+    if (!isNaN(currentPrice) && !isNaN(perc) && perc >= 0 && perc <= 100) {
+      const calculated = currentPrice * (1 - perc / 100);
+      formData.set('sale_price', calculated.toFixed(2));
     }
-    
-    // Calcola il prezzo scontato finale se è percentuale
-    if (discountType === 'percentage' && currentPriceElement.textContent) {
-        const currentPrice = parseFloat(currentPriceElement.textContent.replace('€', '').trim());
-        const percentageValue = parseFloat(salePriceInput.value);
-        
-        if (!isNaN(currentPrice) && !isNaN(percentageValue) && percentageValue >= 0 && percentageValue <= 100) {
-            const calculatedPrice = currentPrice * (1 - percentageValue / 100);
-            formData.set('sale_price', calculatedPrice.toFixed(2));
-        }
-    }
-    
-    const url = promotionId ? 
+  }
+
+   const url = promotionId ? 
         `api/pharma-products/update.php` : 
         `api/pharma-products/create-promotion.php`;
-    
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
+
+  fetch(url, { method: 'POST', body: formData })
+    .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            showSuccess(promotionId ? 'Promozione aggiornata con successo!' : 'Promozione creata con successo!');
-            bootstrap.Modal.getInstance(document.getElementById('promotionModal')).hide();
-            loadPromotions(currentPage);
-            loadStatistics();
-        } else {
-            showError('Errore: ' + data.message);
-        }
+      if (data.success) {
+        showSuccess(promotionId ? 'Promozione aggiornata con successo!' : 'Promozione creata con successo!');
+        bootstrap.Modal.getInstance(document.getElementById('promotionModal')).hide();
+        loadPromotions(currentPage);
+        loadStatistics();
+      } else {
+        showError('Errore: ' + data.message);
+      }
     })
-    .catch(error => {
-        console.error('Errore:', error);
-        showError('Errore di connessione');
+    .catch(err => {
+      console.error('Errore:', err);
+      showError('Errore di connessione');
     });
 }
 
