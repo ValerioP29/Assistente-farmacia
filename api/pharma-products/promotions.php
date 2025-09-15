@@ -111,8 +111,13 @@ try {
     $total = db_fetch_one($countSql, $params)['total'];
     
     // Aggiungi ordinamento e paginazione
-    $sql .= " ORDER BY pp.name ASC LIMIT ? OFFSET ?";
-    $params[] = $limit;
+    $sql .= " ORDER BY 
+            pp.is_featured DESC,
+            pp.is_on_sale DESC,
+            (pp.sale_end_date IS NULL) ASC,
+            pp.sale_end_date DESC,
+            pp.name ASC
+          LIMIT ? OFFSET ?";    $params[] = $limit;
     $params[] = $offset;
     
     // Esegui query
