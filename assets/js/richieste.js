@@ -12,6 +12,8 @@ class RichiesteManager {
 
     init() {
         this.bindEvents();
+        document.getElementById('statusFilter').value = 'open';
+        this.applyFilters();
         this.loadRequests();
         this.updateStatistics();
         this.updateResetButtonState();
@@ -116,15 +118,25 @@ class RichiesteManager {
     }
 
     applyFilters() {
-        this.currentFilters = {
-            status: document.getElementById('statusFilter').value,
-            request_type: document.getElementById('typeFilter').value,
-            search: document.getElementById('searchFilter').value
-        };
-        this.currentPage = 1;
-        this.loadRequests();
-        this.updateResetButtonState();
+    const rawStatus = document.getElementById('statusFilter').value;
+
+    const filters = {
+        request_type: document.getElementById('typeFilter').value,
+        search: document.getElementById('searchFilter').value
+    };
+
+    if (rawStatus === 'open') {
+        filters.status_in = '0,1'; 
+    } else if (rawStatus !== '') {
+        filters.status = Number(rawStatus);
     }
+
+    this.currentFilters = filters;
+    this.currentPage = 1;
+    this.loadRequests();
+    this.updateResetButtonState();
+}
+
 
     resetFilters() {
         // Reset dei valori dei filtri
@@ -152,7 +164,7 @@ class RichiesteManager {
         
         // Conta i filtri attivi
         let activeFiltersCount = 0;
-        if (this.currentFilters.status) activeFiltersCount++;
+        if (this.currentFilters.status || this.currentFilters.status_in) activeFiltersCount++;
         if (this.currentFilters.request_type) activeFiltersCount++;
         if (this.currentFilters.search) activeFiltersCount++;
         
@@ -648,7 +660,6 @@ class RichiesteManager {
             document.getElementById('pendingCount').textContent    = s.pending ?? 0;
             document.getElementById('processingCount').textContent = s.processing ?? 0;
             document.getElementById('completedCount').textContent  = s.completed ?? 0;
-
             // calcolo totale solo sui 3 stati visibili
             const total = (s.pending ?? 0) + (s.processing ?? 0) + (s.completed ?? 0);
             document.getElementById('totalCount').textContent = total;

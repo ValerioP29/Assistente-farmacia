@@ -269,6 +269,13 @@ include 'includes/header.php';
                                 Promozione Attiva
                             </label>
                         </div>
+                        <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isFeatured" name="is_featured" value="1">
+                            <label class="form-check-label" for="isFeatured">
+                            Metti in evidenza
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -97,8 +97,15 @@ function displayPromotions(promotions) {
 // Creazione scheda promozione
 function createPromotionCard(promotion) {
     const now = new Date();
-    const startDate = new Date(promotion.sale_start_date);
-    const endDate = new Date(promotion.sale_end_date);
+    const _s = promotion.sale_start_date ? String(promotion.sale_start_date).trim() : '';
+    const startDate = _s ? new Date((_s.includes('T') ? _s : _s.replace(' ', 'T')).slice(0,19)) : null;
+
+    const _e = promotion.sale_end_date ? String(promotion.sale_end_date).trim() : '';
+    const _eIso = _e ? (_e.includes('T') ? _e : _e.replace(' ', 'T')) : '';
+    const endDate = _eIso
+  ? new Date((_eIso.length === 10 ? (_eIso + 'T23:59:59') : _eIso).slice(0,19))
+  : null;
+
     
     // Calcolo stato promozione
     let status = 'inactive';
@@ -487,8 +494,8 @@ function validateDates() {
     const startDate = new Date(document.getElementById('saleStartDate').value);
     const endDate = new Date(document.getElementById('saleEndDate').value);
     
-    if (startDate && endDate && startDate >= endDate) {
-        document.getElementById('saleEndDate').setCustomValidity('La data di fine deve essere successiva alla data di inizio');
+    if (startDate && endDate && startDate > endDate) {
+        document.getElementById('saleEndDate').setCustomValidity('La data di fine deve essere successiva o uguale alla data di inizio');
     } else {
         document.getElementById('saleEndDate').setCustomValidity('');
     }
@@ -595,6 +602,8 @@ function editPromotion(id) {
                 const originalPrice = parseFloat(promotion.price);
                 const salePrice = parseFloat(promotion.sale_price);
                 let discountType = 'amount'; // Default
+                const feat = document.getElementById('isFeatured');
+                if (feat) feat.checked = (promotion.is_featured == 1);
                 
                 if (!isNaN(originalPrice) && !isNaN(salePrice) && originalPrice > 0) {
                     const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
@@ -617,12 +626,17 @@ function editPromotion(id) {
                 }
                 
                 // Gestione date
-                const startDate = formatDateForInput(promotion.sale_start_date);
-                const endDate = formatDateForInput(promotion.sale_end_date);
+                //const startDate = formatDateForInput(promotion.sale_start_date);
+                //const endDate = formatDateForInput(promotion.sale_end_date);
                 
-                document.getElementById('saleStartDate').value = startDate;
-                document.getElementById('saleEndDate').value = endDate;
+                document.getElementById('saleStartDate').value = (promotion.sale_start_date || '').slice(0, 10);
+                document.getElementById('saleEndDate').value   = (promotion.sale_end_date   || '').slice(0, 10);
+
                 document.getElementById('isOnSale').checked = promotion.is_on_sale == 1;
+
+                const featEl = document.getElementById('isFeatured');
+                if (featEl) featEl.checked = (promotion.is_featured == 1);
+
                 
                 // Imposta il testo di ricerca con i dati del prodotto
                 const productText = `${promotion.name} - ${promotion.brand || ''} (${promotion.category || ''})`.trim();
@@ -710,56 +724,64 @@ function formatDateForInput(dateString) {
     }
 }
 
+function readDateInput(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  const v = (el.value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+}
+
+
 // Gestione submit form
 function handlePromotionSubmit(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const promotionId = formData.get('id');
-    const productId = formData.get('product_id');
-    const discountType = formData.get('discount_type');
-    const salePriceInput = document.getElementById('salePrice');
-    const currentPriceElement = document.getElementById('currentPrice');
-    
-    // Validazione prodotto selezionato
-    if (!promotionId && !productId) {
-        showError('Seleziona un prodotto prima di salvare la promozione');
-        return;
+  e.preventDefault();
+
+  const formData = new FormData(e.target); 
+  const promotionId = formData.get('id');
+  const discountType = formData.get('discount_type');
+
+  const sd = readDateInput('saleStartDate');
+  const ed = readDateInput('saleEndDate');
+
+  const sdDT = sd ? `${sd} 00:00:00` : '';
+  const edDT = ed ? `${ed} 23:59:59` : '';
+
+  if (sdDT) formData.set('sale_start_date', sdDT); else formData.delete('sale_start_date');
+  if (edDT) formData.set('sale_end_date', edDT);   else formData.delete('sale_end_date');
+
+  if (discountType === 'percentage') {
+    const currentPriceEl = document.getElementById('currentPrice');
+    const currentPrice = currentPriceEl ? parseFloat(currentPriceEl.textContent.replace('€','').trim()) : NaN;
+    const perc = parseFloat(document.getElementById('salePrice').value);
+    if (!isNaN(currentPrice) && !isNaN(perc) && perc >= 0 && perc <= 100) {
+      const calculated = currentPrice * (1 - perc / 100);
+      formData.set('sale_price', calculated.toFixed(2));
     }
-    
-    // Calcola il prezzo scontato finale se è percentuale
-    if (discountType === 'percentage' && currentPriceElement.textContent) {
-        const currentPrice = parseFloat(currentPriceElement.textContent.replace('€', '').trim());
-        const percentageValue = parseFloat(salePriceInput.value);
-        
-        if (!isNaN(currentPrice) && !isNaN(percentageValue) && percentageValue >= 0 && percentageValue <= 100) {
-            const calculatedPrice = currentPrice * (1 - percentageValue / 100);
-            formData.set('sale_price', calculatedPrice.toFixed(2));
-        }
-    }
-    
-    const url = promotionId ? 
+  }
+
+    // forza i valori delle checkbox
+    formData.set('is_on_sale', document.getElementById('isOnSale')?.checked ? '1' : '0');
+    formData.set('is_featured', document.getElementById('isFeatured')?.checked ? '1' : '0');
+
+   const url = promotionId ? 
         `api/pharma-products/update.php` : 
         `api/pharma-products/create-promotion.php`;
-    
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
+
+  fetch(url, { method: 'POST', body: formData })
+    .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            showSuccess(promotionId ? 'Promozione aggiornata con successo!' : 'Promozione creata con successo!');
-            bootstrap.Modal.getInstance(document.getElementById('promotionModal')).hide();
-            loadPromotions(currentPage);
-            loadStatistics();
-        } else {
-            showError('Errore: ' + data.message);
-        }
+      if (data.success) {
+        showSuccess(promotionId ? 'Promozione aggiornata con successo!' : 'Promozione creata con successo!');
+        bootstrap.Modal.getInstance(document.getElementById('promotionModal')).hide();
+        loadPromotions(currentPage);
+        loadStatistics();
+      } else {
+        showError('Errore: ' + data.message);
+      }
     })
-    .catch(error => {
-        console.error('Errore:', error);
-        showError('Errore di connessione');
+    .catch(err => {
+      console.error('Errore:', err);
+      showError('Errore di connessione');
     });
 }
 

@@ -42,6 +42,12 @@ try {
     $sale_start_date = $input['sale_start_date'] ?? null;
     $sale_end_date = $input['sale_end_date'] ?? null;
     $is_on_sale = $input['is_on_sale'] ?? null;
+    $is_featured = $input['is_featured'] ?? null;
+
+    if ($is_featured !== null) {
+        $updateFields[] = "is_featured = ?";
+        $params[] = in_array($is_featured, ['1', 1, true, 'true'], true) ? 1 : 0;
+    }
     
     if (!$id) {
         echo json_encode(['success' => false, 'message' => 'ID promozione richiesto']);
@@ -80,6 +86,10 @@ try {
         $params[] = $is_on_sale;
     }
     
+    if ($is_featured !== null) {
+        $updateFields[] = "is_featured = ?";
+        $params[] = in_array($is_featured, ['1', 1, true, 'true'], true) ? 1 : 0;
+    }
 
     
     if (empty($updateFields)) {
@@ -103,7 +113,8 @@ try {
                 'sale_price' => $sale_price !== null,
                 'sale_start_date' => $sale_start_date !== null,
                 'sale_end_date' => $sale_end_date !== null,
-                'is_on_sale' => $is_on_sale !== null
+                'is_on_sale' => $is_on_sale !== null,
+                'is_featured' => $is_featured !== null, 
             ]))
         ];
         
