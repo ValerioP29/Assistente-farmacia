@@ -166,6 +166,9 @@ function renderProducts(products) {
                         <i class="fas fa-image text-muted"></i>
                     </div>`
                 }
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border-radius: 4px;">
+                       <i class="fas fa-image text-muted"></i>
+                    </div>
             </td>
             <td><strong>${escapeHtml(product.sku || '-')}</strong></td>
             <td data-sku="${escapeHtml(product.sku || '-')}" data-stato="${product.is_active ? 'Attivo' : 'Inattivo'}">
