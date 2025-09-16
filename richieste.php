@@ -69,6 +69,7 @@ include 'includes/header.php';
                             <label for="statusFilter" class="form-label">Stato</label>
                             <select class="form-select" id="statusFilter">
                             <option value="">Tutti gli stati</option>
+                            <option value="open" selected>Da gestire</option>
                             <option value="0">In attesa</option>
                             <option value="1">In lavorazione</option>
                             <option value="2">Completata</option>
