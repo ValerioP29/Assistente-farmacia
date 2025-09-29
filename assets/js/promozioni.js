@@ -438,7 +438,7 @@ function handleDiscountTypeChange() {
     if (discountType === 'percentage') {
         priceLabel.innerHTML = '<i class="fas fa-percentage"></i>';
         salePriceInput.placeholder = 'Es: 20 per 20% di sconto';
-        salePriceInput.step = '1';
+        salePriceInput.step = '0.01';
         salePriceInput.min = '0';
         salePriceInput.max = '100';
     } else {
@@ -598,29 +598,14 @@ function editPromotion(id) {
                 document.getElementById('promotionId').value = promotion.id;
                 document.getElementById('productSelect').value = promotion.product_id || '';
                 
-                // Calcola il tipo di sconto basato sul prezzo originale e scontato
-                const originalPrice = parseFloat(promotion.price);
-                const salePrice = parseFloat(promotion.sale_price);
-                let discountType = 'amount'; // Default
-                const feat = document.getElementById('isFeatured');
-                if (feat) feat.checked = (promotion.is_featured == 1);
-                
-                if (!isNaN(originalPrice) && !isNaN(salePrice) && originalPrice > 0) {
-                    const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
-                    // Se lo sconto è una percentuale "pulita" (es. 20%, 25%, 30%), usa percentuale
-                    if (Math.abs(discountPercentage - Math.round(discountPercentage)) < 0.1) {
-                        discountType = 'percentage';
-                    }
-                }
+                let discountType = promotion.discount_type || 'amount';
                 
                 // Imposta il tipo di sconto e aggiorna l'icona
                 document.getElementById('discountType').value = discountType;
                 handleDiscountTypeChange();
                 
-                // Imposta il prezzo scontato
-                if (discountType === 'percentage' && !isNaN(originalPrice) && !isNaN(salePrice)) {
-                    const discountPercentage = ((originalPrice - salePrice) / originalPrice) * 100;
-                    document.getElementById('salePrice').value = Math.round(discountPercentage);
+                if (discountType === 'percentage') {
+                    document.getElementById('salePrice').value = promotion.percentage_discount ?? '';
                 } else {
                     document.getElementById('salePrice').value = promotion.sale_price || '';
                 }
@@ -752,16 +737,21 @@ function handlePromotionSubmit(e) {
   if (discountType === 'percentage') {
     const currentPriceEl = document.getElementById('currentPrice');
     const currentPrice = currentPriceEl ? parseFloat(currentPriceEl.textContent.replace('€','').trim()) : NaN;
-    const perc = parseFloat(document.getElementById('salePrice').value);
+    let perc = parseFloat(document.getElementById('salePrice').value);
+
     if (!isNaN(currentPrice) && !isNaN(perc) && perc >= 0 && perc <= 100) {
-      const calculated = currentPrice * (1 - perc / 100);
+      perc = parseFloat(perc.toFixed(2));
+      const calculated = parseFloat((currentPrice * (1 - perc / 100)).toFixed(2));
+
       formData.set('sale_price', calculated.toFixed(2));
+      formData.set('percentage_discount', perc);
     }
+  } else {
+    formData.set('percentage_discount', '');
   }
 
-    // forza i valori delle checkbox
-    formData.set('is_on_sale', document.getElementById('isOnSale')?.checked ? '1' : '0');
-    formData.set('is_featured', document.getElementById('isFeatured')?.checked ? '1' : '0');
+  formData.set('is_on_sale', document.getElementById('isOnSale')?.checked ? '1' : '0');
+  formData.set('is_featured', document.getElementById('isFeatured')?.checked ? '1' : '0');
 
    const url = promotionId ? 
         `api/pharma-products/update.php` : 
