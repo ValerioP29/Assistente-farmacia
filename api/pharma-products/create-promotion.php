@@ -66,8 +66,9 @@ try {
         exit;
     }
     
-    if ($sale_price >= $product['price']) {
-        echo json_encode(['success' => false, 'message' => 'Il prezzo scontato deve essere inferiore al prezzo originale']);
+    // Verifica che il prezzo scontato sia inferiore al prezzo originale
+    if ($sale_price > $product['price']) {
+        echo json_encode(['success' => false, 'message' => 'Il prezzo scontato deve essere inferiore o uguale al prezzo originale']);
         exit;
     }
     
