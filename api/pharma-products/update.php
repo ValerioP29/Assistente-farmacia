@@ -39,28 +39,33 @@ try {
     
     $id = $input['id'] ?? null;
     $sale_price = $input['sale_price'] ?? null;
+    $discount_type = $input['discount_type'] ?? 'amount';
+    $percentage_discount = isset($input['percentage_discount']) ? floatval($input['percentage_discount']) : null;
     $sale_start_date = $input['sale_start_date'] ?? null;
     $sale_end_date = $input['sale_end_date'] ?? null;
     $is_on_sale = $input['is_on_sale'] ?? null;
     $is_featured = $input['is_featured'] ?? null;
-
-    if ($is_featured !== null) {
-        $updateFields[] = "is_featured = ?";
-        $params[] = in_array($is_featured, ['1', 1, true, 'true'], true) ? 1 : 0;
-    }
     
     if (!$id) {
         echo json_encode(['success' => false, 'message' => 'ID promozione richiesto']);
         exit;
     }
     
-    // Verifica che la promozione appartenga alla farmacia
-    $stmt = $pdo->prepare("SELECT id FROM jta_pharma_prods WHERE id = ? AND pharma_id = ?");
+    $stmt = $pdo->prepare("SELECT id, price, sale_price AS existing_sale_price FROM jta_pharma_prods WHERE id = ? AND pharma_id = ?");
     $stmt->execute([$id, $pharma_id]);
-    if (!$stmt->fetch()) {
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$product) {
         echo json_encode(['success' => false, 'message' => 'Promozione non trovata']);
         exit;
     }
+
+    if ($discount_type === 'percentage' && $percentage_discount !== null && $percentage_discount >= 0 && $percentage_discount <= 100) {
+        $sale_price = round($product['price'] * (1 - $percentage_discount / 100), 2);
+    } else {
+        $percentage_discount = null; 
+    }
+
+
     
     // Costruzione query di aggiornamento
     $updateFields = [];
@@ -70,22 +75,24 @@ try {
         $updateFields[] = "sale_price = ?";
         $params[] = $sale_price;
     }
+    if ($discount_type !== null) {
+         $updateFields[] = "discount_type = ?";
+         $params[] = $discount_type;
+    }
+        $updateFields[] = "percentage_discount = ?"; $params[] = $percentage_discount;
     
     if ($sale_start_date !== null) {
         $updateFields[] = "sale_start_date = ?";
         $params[] = $sale_start_date;
     }
-    
     if ($sale_end_date !== null) {
         $updateFields[] = "sale_end_date = ?";
         $params[] = $sale_end_date;
     }
-    
     if ($is_on_sale !== null) {
         $updateFields[] = "is_on_sale = ?";
         $params[] = $is_on_sale;
     }
-    
     if ($is_featured !== null) {
         $updateFields[] = "is_featured = ?";
         $params[] = in_array($is_featured, ['1', 1, true, 'true'], true) ? 1 : 0;
@@ -101,7 +108,7 @@ try {
     $params[] = $id;
     $params[] = $pharma_id;
     
-    $sql = "UPDATE jta_pharma_prods SET " . implode(', ', $updateFields) . " WHERE id = ? AND pharma_id = ?";
+    $sql = "UPDATE jta_pharma_prods SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE id = ? AND pharma_id = ?";
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute($params);
     
@@ -111,6 +118,8 @@ try {
             'promotion_id' => $id,
             'updated_fields' => array_keys(array_filter([
                 'sale_price' => $sale_price !== null,
+                'discount_type' => $discount_type !== null,
+                'percentage_discount' => $percentage_discount !== null,
                 'sale_start_date' => $sale_start_date !== null,
                 'sale_end_date' => $sale_end_date !== null,
                 'is_on_sale' => $is_on_sale !== null,
