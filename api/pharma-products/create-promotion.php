@@ -37,8 +37,9 @@ try {
     $percentage_discount = isset($_POST['percentage_discount']) ? floatval($_POST['percentage_discount']) : null;
     $sale_start_date = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : null;
     $sale_end_date = !empty($_POST['sale_end_date']) ? $_POST['sale_end_date'] : null;
-    $is_on_sale = isset($_POST['is_on_sale']) ? 1 : 0;
-    $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+    $is_on_sale = (!empty($_POST['is_on_sale']) && $_POST['is_on_sale'] == '1') ? 1 : 0;
+    $is_featured = (!empty($_POST['is_featured']) && $_POST['is_featured'] == '1') ? 1 : 0;
+
     
     // Validazione
     if ($product_id <= 0) {

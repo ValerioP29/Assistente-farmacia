@@ -522,3 +522,7 @@ gap: 15px !important;
   .promotion-dates .date-item { display: flex; }
 }
 
+.is-readonly {
+  background-color: #f3f3f3;
+  cursor: not-allowed;
+}

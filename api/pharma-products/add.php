@@ -216,7 +216,7 @@ try {
             'description' => $description,
             'price' => $price,
             'sale_price' => $salePrice,
-            'is_active' => 0, // Stato inattivo (da approvare)
+            'is_active' => $isActive, 
             'is_on_sale' => $isOnSale,
             'sale_start_date' => $saleStartDate,
             'sale_end_date' => $saleEndDate

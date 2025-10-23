@@ -259,7 +259,13 @@ function setupProductSearch() {
     const searchInput = document.getElementById('productSearch');
     const resultsContainer = document.getElementById('productSearchResults');
     const hiddenInput = document.getElementById('productSelect');
-    
+    searchInput.addEventListener('focus', function (e) {
+        if (searchInput.readOnly) {
+            e.preventDefault();
+            this.blur();
+            return;
+        }
+    });
     let searchTimeout;
     let selectedIndex = -1;
     let searchResults = [];
@@ -369,8 +375,14 @@ function setupProductSearch() {
     }
     
     // Funzione per selezionare prodotto
-    window.selectProduct = function(product) {
-        // Crea testo formattato per il campo di ricerca
+    window.selectProduct = function (product) {
+        const searchInput = document.getElementById('productSearch');
+        const hiddenInput = document.getElementById('productSelect');
+        const resultsContainer = document.getElementById('productSearchResults');
+
+        const isEditMode = hiddenInput.dataset.lockProduct === '1';
+        if (isEditMode) return;
+
         const displayText = `${product.name} - ${product.brand || ''} (${product.category || ''})`.trim();
         searchInput.value = displayText;
         hiddenInput.value = product.id;
@@ -576,6 +588,12 @@ function showAddPromotionModal() {
     document.getElementById('productSearch').value = '';
     document.getElementById('productSelect').value = '';
     document.getElementById('productInfo').style.display = 'none';
+    const searchInput = document.getElementById('productSearch');
+    const hiddenInput = document.getElementById('productSelect');
+    searchInput.readOnly = false;
+    searchInput.classList.remove('is-readonly');
+    searchInput.removeAttribute('tabindex');
+    hiddenInput.dataset.lockProduct = '0';
     
     // Imposta di default la select a "Importo Fisso" e inizializza l'icona
     document.getElementById('discountType').value = 'amount';
@@ -626,6 +644,13 @@ function editPromotion(id) {
                 // Imposta il testo di ricerca con i dati del prodotto
                 const productText = `${promotion.name} - ${promotion.brand || ''} (${promotion.category || ''})`.trim();
                 document.getElementById('productSearch').value = productText;
+                const searchInput = document.getElementById('productSearch');
+                const hiddenInput = document.getElementById('productSelect');
+                searchInput.readOnly = true;
+                searchInput.classList.add('is-readonly');
+                searchInput.setAttribute('tabindex', '-1');
+                hiddenInput.dataset.lockProduct = '1';
+
                 
                 // Mostra le informazioni del prodotto
                 showProductInfoInEdit(promotion);

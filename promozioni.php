@@ -189,8 +189,8 @@ include 'includes/header.php';
                             <input type="hidden" id="productSelect" name="product_id" required>
                             <div id="productSearchResults" class="position-absolute w-100 bg-white border rounded shadow-sm" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none;"></div>
                         </div>
-                        <div class="form-text">Digita per cercare un prodotto della tua farmacia da mettere in promozione</div>
-                    </div>
+                        <!-- <div class="form-text">Digita per cercare un prodotto della tua farmacia da mettere in promozione</div>-->                    
+                        </div>
 
                     <!-- Informazioni Prodotto -->
                     <div id="productInfo" class="mb-3" style="display: none;">
@@ -269,7 +269,7 @@ include 'includes/header.php';
                                 Promozione Attiva
                             </label>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3"></div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="isFeatured" name="is_featured" value="1">
                             <label class="form-check-label" for="isFeatured">
