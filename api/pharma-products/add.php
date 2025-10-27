@@ -93,7 +93,7 @@ try {
         exit;
     }
     
-    if ($price <= 0) {
+    if ($price < 0) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
