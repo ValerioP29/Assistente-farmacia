@@ -32,7 +32,7 @@ try {
     
     // Leggi dati dal form
     $product_id = intval($_POST['product_id'] ?? 0);
-    $sale_price = !empty($_POST['sale_price']) ? floatval($_POST['sale_price']) : null;
+    $sale_price = isset($_POST['sale_price']) ? floatval($_POST['sale_price']) : null;
     $discount_type = $_POST['discount_type'] ?? 'amount';
     $percentage_discount = isset($_POST['percentage_discount']) ? floatval($_POST['percentage_discount']) : null;
     $sale_start_date = !empty($_POST['sale_start_date']) ? $_POST['sale_start_date'] : null;
@@ -62,7 +62,7 @@ try {
         $percentage_discount = null; 
     }
 
-    if (!$sale_price || $sale_price <= 0) {
+    if ( $sale_price === NULL || $sale_price < 0) {
         echo json_encode(['success' => false, 'message' => 'Prezzo scontato obbligatorio e deve essere maggiore di zero']);
         exit;
     }
