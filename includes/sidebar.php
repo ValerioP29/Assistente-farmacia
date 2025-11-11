@@ -19,6 +19,12 @@ $menu_items = [
     'orari' => ['icon' => 'fas fa-clock', 'label' => 'Modifica Orari', 'url' => 'orari.php', 'roles' => ['pharmacist']],
     'whatsapp' => ['icon' => 'fab fa-whatsapp', 'label' => 'WhatsApp', 'url' => 'whatsapp.php', 'roles' => ['pharmacist']],
     'profilo' => ['icon' => 'fas fa-user-cog', 'label' => 'Profilo', 'url' => 'profilo.php', 'roles' => ['pharmacist']],
+    'adesione_terapie' => [
+        'icon' => 'fas fa-hand-holding-medical',
+        'label' => 'Adesione Terapie',
+        'url' => 'adesione-terapie.php',
+        'roles' => ['pharmacist']
+    ],
 ];
 
 // Filtra menu items in base al ruolo
