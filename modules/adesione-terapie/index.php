@@ -3,9 +3,9 @@
  * Modulo Adesione Terapie - Entry Point
  */
 
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/functions.php';
-require_once __DIR__ . '/../../includes/auth_middleware.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/auth_middleware.php';
 
 requirePharmacistOrAdmin();
 
@@ -20,17 +20,17 @@ $current_page = 'adesione_terapie';
 $body_class = 'adesione-terapie-page';
 
 $additional_css = $additional_css ?? [];
-$additional_css[] = 'modules/adesione-terapie/assets/css/module.css';
+$additional_css[] = 'adesione-terapie/assets/css/module.css';
 
 $additional_js = $additional_js ?? [];
-$additional_js[] = 'modules/adesione-terapie/assets/js/module.js';
+$additional_js[] = 'adesione-terapie/assets/js/module.js';
 
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="container-fluid adesione-terapie-module" data-pharmacy="<?= htmlspecialchars($pharmacy['id']) ?>">
     <div class="row">
-        <?php require_once __DIR__ . '/../../includes/sidebar.php'; ?>
+        <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
             <div class="page-header mb-4">
@@ -238,7 +238,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <!-- Modale Nuova Terapia -->
 <div class="modal fade" id="therapyModal" tabindex="-1" aria-labelledby="therapyModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <form id="therapyForm">
                 <div class="modal-header">
@@ -656,4 +656,4 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

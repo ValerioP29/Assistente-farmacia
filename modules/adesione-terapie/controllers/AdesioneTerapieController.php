@@ -26,15 +26,14 @@ class AdesioneTerapieController
     public function __construct(int $pharmacyId)
     {
         $this->pharmacyId = $pharmacyId;
-
-        $this->patientsTable = AdesioneTableResolver::resolve('patients');
-        $this->therapiesTable = AdesioneTableResolver::resolve('therapies');
-        $this->assistantsTable = AdesioneTableResolver::resolve('assistants');
-        $this->consentsTable = AdesioneTableResolver::resolve('consensi');
-        $this->questionnairesTable = AdesioneTableResolver::resolve('questionari');
-        $this->checksTable = AdesioneTableResolver::resolve('check_periodici');
-        $this->remindersTable = AdesioneTableResolver::resolve('promemoria');
-        $this->reportsTable = AdesioneTableResolver::resolve('report');
+        $this->patientsTable        = 'jta_patients';
+        $this->therapiesTable       = 'jta_therapies';
+        $this->assistantsTable      = 'jta_assistants';
+        $this->consentsTable        = 'jta_therapy_consents';
+        $this->questionnairesTable  = 'jta_therapy_questionnaire';
+        $this->checksTable          = 'jta_therapy_checks';
+        $this->remindersTable       = 'jta_therapy_reminders';
+        $this->reportsTable         = 'jta_therapy_reports';
 
         $this->bootstrapColumns();
     }
@@ -1116,7 +1115,7 @@ class AdesioneTerapieController
     private function buildReportUrl(string $token, bool $protected): string
     {
         $base = APP_URL ?: rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/';
-        $relative = 'modules/adesione-terapie/report.php?token=' . urlencode($token);
+        $relative = 'adesione-terapie/report.php?token=' . urlencode($token);
         if ($protected) {
             $relative .= '&secure=1';
         }
