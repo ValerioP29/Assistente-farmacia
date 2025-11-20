@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/models/TableResolver.php';
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -14,13 +14,13 @@ if (!$token) {
 }
 
 try {
-    $reportsTable = AdesioneTableResolver::resolve('reports');
+    $reportsTable = AdesioneTableResolver::resolve('report');
     $reportCols = [
-        'token' => 'share_token',
-        'content' => 'content',
-        'valid_until' => 'valid_until',
-        'pin_code' => 'pin_code',
-        'created_at' => 'created_at',
+        'token' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['share_token', 'token', 'public_token']),
+        'content' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['content', 'data', 'payload']),
+        'valid_until' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['valid_until', 'expires_at', 'scadenza']),
+        'pin_code' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['pin_code', 'pin']),
+        'created_at' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['created_at']),
     ];
 
     $report = db_fetch_one(
