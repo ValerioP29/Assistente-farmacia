@@ -250,20 +250,23 @@ $generatedAt = $content['generated_at'] ?? date('Y-m-d H:i:s');
 
             <section class="consent-box">
                 <div class="section-title mb-2">Consenso informato</div>
-                <?php if (!empty($therapy['consent']['signature_type'])): ?>
-                    <p class="mb-1"><strong>Tipo di firma:</strong> <?= htmlspecialchars($therapy['consent']['signature_type']) ?></p>
+                <?php if (!empty($therapy['consent']['signer_name'])): ?>
+                    <p class="mb-1"><strong>Firmatario:</strong> <?= htmlspecialchars($therapy['consent']['signer_name']) ?></p>
+                <?php endif; ?>
+                <?php if (!empty($therapy['consent']['signer_relation'])): ?>
+                    <p class="mb-1"><strong>Relazione:</strong> <?= htmlspecialchars($therapy['consent']['signer_relation']) ?></p>
                 <?php endif; ?>
                 <?php if (!empty($therapy['consent']['signed_at'])): ?>
                     <p class="mb-1"><strong>Firmato il:</strong> <?= date('d/m/Y H:i', strtotime($therapy['consent']['signed_at'])) ?></p>
+                <?php endif; ?>
+                <?php if (!empty($therapy['consent']['consent_text'])): ?>
+                    <p class="mb-1"><strong>Testo del consenso:</strong> <?= nl2br(htmlspecialchars($therapy['consent']['consent_text'])) ?></p>
                 <?php endif; ?>
                 <?php if (!empty($therapy['consent']['signature_image'])): ?>
                     <div class="mt-3">
                         <p class="small text-muted mb-2">Firma grafica</p>
                         <img src="<?= htmlspecialchars($therapy['consent']['signature_image']) ?>" alt="Firma" style="max-width: 320px; border:1px solid rgba(13,110,253,0.2); border-radius:12px;">
                     </div>
-                <?php endif; ?>
-                <?php if (!empty($therapy['consent']['signature_text'])): ?>
-                    <p class="mb-0"><strong>Firma digitale:</strong> <?= htmlspecialchars($therapy['consent']['signature_text']) ?></p>
                 <?php endif; ?>
             </section>
         </div>
