@@ -359,10 +359,13 @@ require_once __DIR__ . '/../includes/header.php';
                                                     <label class="form-label">Nome</label>
                                                     <input type="text" class="form-control" data-field="name">
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Relazione</label>
-                                                    <input type="text" class="form-control" data-field="relationship">
-                                                </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Ruolo</label>
+                                                <select class="form-select" data-field="role">
+                                                    <option value="caregiver">Caregiver</option>
+                                                    <option value="familiare">Familiare</option>
+                                                </select>
+                                            </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label">Telefono</label>
                                                     <input type="tel" class="form-control" data-field="phone">

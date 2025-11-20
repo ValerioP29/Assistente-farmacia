@@ -28,7 +28,7 @@ class AdesioneTerapieController
         $this->pharmacyId = $pharmacyId;
         $this->patientsTable        = 'jta_patients';
         $this->therapiesTable       = 'jta_therapies';
-        $this->assistantsTable      = 'jta_assistants';
+        $this->assistantsTable      = 'jta_therapy_assistant';
         $this->consentsTable        = 'jta_therapy_consents';
         $this->questionnairesTable  = 'jta_therapy_questionnaire';
         $this->checksTable          = 'jta_therapy_checks';
@@ -57,6 +57,7 @@ class AdesioneTerapieController
             'id' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['id', 'therapy_id', 'id_therapy']),
             'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['pharmacy_id', 'pharma_id', 'farmacia_id']),
             'patient' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['patient_id', 'id_patient', 'paziente_id']),
+            'title' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['therapy_title', 'title', 'nome', 'name']),
             'description' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['description', 'descrizione', 'details', 'note']),
             'status' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['status', 'stato']),
             'start_date' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['start_date', 'data_inizio', 'inizio']),
@@ -75,6 +76,7 @@ class AdesioneTerapieController
             'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['pharmacy_id', 'pharma_id', 'farmacia_id']),
             'name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['name', 'nome']),
             'relationship' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['relationship', 'relazione', 'parentela']),
+            'role' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['role']),
             'phone' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['phone', 'telefono']),
             'email' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['email', 'mail']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['created_at']),
@@ -269,6 +271,9 @@ class AdesioneTerapieController
         }
         if ($this->therapyCols['patient']) {
             $therapyData[$this->therapyCols['patient']] = $patientId;
+        }
+        if ($this->therapyCols['title']) {
+            $therapyData[$this->therapyCols['title']] = $this->clean($payload['therapy_title'] ?? $payload['description'] ?? '');
         }
         if ($this->therapyCols['description']) {
             $therapyData[$this->therapyCols['description']] = $this->clean($payload['description'] ?? '');
@@ -780,8 +785,14 @@ class AdesioneTerapieController
             if ($this->assistantCols['name']) {
                 $data[$this->assistantCols['name']] = $this->clean($caregiver['name'] ?? '');
             }
-            if ($this->assistantCols['relationship']) {
-                $data[$this->assistantCols['relationship']] = $this->clean($caregiver['relationship'] ?? '');
+            $role = $this->clean($caregiver['role'] ?? $caregiver['relationship'] ?? '');
+            if (!in_array($role, ['caregiver', 'familiare'], true)) {
+                $role = $role !== '' ? $role : 'caregiver';
+            }
+            if ($this->assistantCols['role']) {
+                $data[$this->assistantCols['role']] = $role;
+            } elseif ($this->assistantCols['relationship']) {
+                $data[$this->assistantCols['relationship']] = $role;
             }
             if ($this->assistantCols['phone']) {
                 $data[$this->assistantCols['phone']] = $this->clean($caregiver['phone'] ?? '');
@@ -1004,6 +1015,7 @@ class AdesioneTerapieController
             'patient_name' => $patientName,
             'patient_phone' => $therapy['patient_phone'] ?? '',
             'patient_email' => $therapy['patient_email'] ?? '',
+            'title' => $this->therapyCols['title'] ? ($therapy[$this->therapyCols['title']] ?? '') : '',
             'description' => $this->therapyCols['description'] ? ($therapy[$this->therapyCols['description']] ?? '') : '',
             'status' => $this->therapyCols['status'] ? ($therapy[$this->therapyCols['status']] ?? 'active') : 'active',
             'start_date' => $this->therapyCols['start_date'] ? ($therapy[$this->therapyCols['start_date']] ?? null) : null,
@@ -1067,6 +1079,7 @@ class AdesioneTerapieController
             'id' => (int)($caregiver[$this->assistantCols['id']] ?? 0),
             'name' => $this->assistantCols['name'] ? ($caregiver[$this->assistantCols['name']] ?? '') : '',
             'relationship' => $this->assistantCols['relationship'] ? ($caregiver[$this->assistantCols['relationship']] ?? '') : '',
+            'role' => $this->assistantCols['role'] ? ($caregiver[$this->assistantCols['role']] ?? '') : '',
             'phone' => $this->assistantCols['phone'] ? ($caregiver[$this->assistantCols['phone']] ?? '') : '',
             'email' => $this->assistantCols['email'] ? ($caregiver[$this->assistantCols['email']] ?? '') : '',
         ];

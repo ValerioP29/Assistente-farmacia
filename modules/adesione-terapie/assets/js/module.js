@@ -19,6 +19,7 @@
         signaturePad: null,
         signaturePadDirty: false,
         signaturePadInitialized: false,
+        therapySubmitting: false,
     };
 
     const dom = {
@@ -468,7 +469,7 @@
         }
         if (dom.inlinePatientToggle && dom.inlinePatientForm) {
             dom.inlinePatientToggle.addEventListener('click', () => {
-                dom.inlinePatientForm.classList.toggle('show');
+                toggleInlinePatientForm(true);
             });
         }
         if (dom.therapyPatientSelect) {
@@ -476,6 +477,9 @@
                 const patientIdField = document.getElementById('therapyPatientId');
                 if (patientIdField) {
                     patientIdField.value = dom.therapyPatientSelect.value;
+                }
+                if (dom.inlinePatientForm) {
+                    toggleInlinePatientForm(false);
                 }
             });
         }
@@ -532,8 +536,12 @@
         if (dom.therapyForm) {
             dom.therapyForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.therapySubmitting) return;
+                state.therapySubmitting = true;
+                dom.submitTherapyButton?.setAttribute('disabled', 'disabled');
                 prepareCaregiversPayload();
                 prepareQuestionnairePayload();
+                captureSignatureImage();
 
                 const formData = new FormData(dom.therapyForm);
                 formData.append('action', 'save_therapy');
@@ -542,7 +550,10 @@
                     showAlert('Terapia salvata con successo', 'success');
                     upsertTherapy(response.therapy);
                     renderAll();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.therapySubmitting = false;
+                    dom.submitTherapyButton?.removeAttribute('disabled');
+                });
             });
         }
 
@@ -607,7 +618,7 @@
         dom.signatureImageInput.value = '';
         dom.questionnairePayloadInput.value = '';
         dom.caregiversPayloadInput.value = '';
-        dom.inlinePatientForm.classList.remove('show');
+        toggleInlinePatientForm(false);
         clearCaregivers();
         addCaregiverRow();
         initializeSignaturePad();
@@ -640,6 +651,10 @@
                 clone.remove();
             });
         });
+        const roleField = clone.querySelector('[data-field="role"]');
+        if (roleField && !roleField.value) {
+            roleField.value = 'caregiver';
+        }
         dom.caregiversContainer.appendChild(clone);
     }
 
@@ -654,10 +669,10 @@
         dom.caregiversContainer.querySelectorAll('.caregiver-row:not(.template)').forEach(row => {
             const caregiver = {
                 name: row.querySelector('[data-field="name"]').value,
-                relationship: row.querySelector('[data-field="relationship"]').value,
+                role: row.querySelector('[data-field="role"]').value,
                 phone: row.querySelector('[data-field="phone"]').value,
             };
-            if (caregiver.name || caregiver.relationship || caregiver.phone) {
+            if (caregiver.name || caregiver.role || caregiver.phone) {
                 caregivers.push(caregiver);
             }
         });
@@ -699,6 +714,16 @@
     function validateCurrentStep() {
         const stepElement = Array.from(dom.wizardSteps).find(step => parseInt(step.dataset.step, 10) === state.currentTherapyStep);
         if (!stepElement) return true;
+
+        if (state.currentTherapyStep === 1) {
+            const hasExistingPatient = dom.therapyPatientSelect && dom.therapyPatientSelect.value;
+            const inlineFirstName = dom.therapyForm.querySelector('[name="inline_first_name"]').value.trim();
+            const inlineLastName = dom.therapyForm.querySelector('[name="inline_last_name"]').value.trim();
+            if (!hasExistingPatient && !inlineFirstName && !inlineLastName) {
+                showAlert('Seleziona un paziente esistente o compila i dati del nuovo paziente.', 'warning');
+                return false;
+            }
+        }
 
         const formElements = dom.therapyForm.querySelectorAll(`.wizard-step[data-step="${state.currentTherapyStep}"] input[required], .wizard-step[data-step="${state.currentTherapyStep}"] textarea[required], .wizard-step[data-step="${state.currentTherapyStep}"] select[required]`);
         for (const element of formElements) {
@@ -779,7 +804,7 @@
             </div>
             <div class="summary-section">
                 <h6>Caregiver</h6>
-                ${caregivers.length ? caregivers.map(c => `<p>${sanitizeHtml(c.name)} (${sanitizeHtml(c.relationship)}) - ${sanitizeHtml(c.phone || '')}</p>`).join('') : '<p class="text-muted">Nessun caregiver</p>'}
+                ${caregivers.length ? caregivers.map(c => `<p>${sanitizeHtml(c.name)} (${sanitizeHtml(c.role || c.relationship || 'caregiver')}) - ${sanitizeHtml(c.phone || '')}</p>`).join('') : '<p class="text-muted">Nessun caregiver</p>'}
             </div>
             <div class="summary-section">
                 <h6>Questionario</h6>
@@ -816,7 +841,7 @@
             context.beginPath();
             context.moveTo(lastX, lastY);
             context.lineTo(pos.x, pos.y);
-            context.strokeStyle = '#0d6efd';
+            context.strokeStyle = '#000000';
             context.lineWidth = 2;
             context.lineCap = 'round';
             context.stroke();
@@ -851,9 +876,28 @@
 
         function resizeCanvas() {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * ratio;
-            canvas.height = canvas.offsetHeight * ratio;
+            const displayWidth = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 600;
+            const displayHeight = canvas.offsetHeight || canvas.parentElement?.offsetHeight || 200;
+            const existing = canvas.toDataURL();
+
+            canvas.width = displayWidth * ratio;
+            canvas.height = displayHeight * ratio;
+            context.setTransform(1, 0, 0, 1, 0, 0);
             context.scale(ratio, ratio);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, displayWidth, displayHeight);
+            context.strokeStyle = '#000000';
+            context.lineWidth = 2;
+            context.lineCap = 'round';
+
+            if (existing && existing !== 'data:,') {
+                const img = new Image();
+                img.onload = () => {
+                    context.drawImage(img, 0, 0, displayWidth, displayHeight);
+                };
+                img.src = existing;
+            }
         }
     }
 
@@ -882,15 +926,19 @@
             showAlert('Disegna la firma prima di salvarla', 'warning');
             return;
         }
-        const dataUrl = dom.signatureCanvas.toDataURL('image/png');
-        dom.signatureImageInput.value = dataUrl;
-        showAlert('Firma salvata', 'success');
+        captureSignatureImage(true);
+        if (dom.signatureImageInput.value) {
+            showAlert('Firma salvata', 'success');
+        }
     }
 
     function clearSignature() {
         if (!dom.signatureCanvas) return;
         const context = dom.signatureCanvas.getContext('2d');
+        context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, dom.signatureCanvas.width, dom.signatureCanvas.height);
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, dom.signatureCanvas.width, dom.signatureCanvas.height);
         state.signaturePadDirty = false;
         dom.signatureImageInput.value = '';
     }
@@ -904,6 +952,43 @@
             dom.signatureCanvasWrapper.classList.remove('d-none');
             dom.digitalSignatureWrapper.classList.add('d-none');
         }
+    }
+
+    function toggleInlinePatientForm(show) {
+        if (!dom.inlinePatientForm) return;
+        if (show) {
+            dom.inlinePatientForm.classList.add('show');
+            dom.inlinePatientForm.style.display = 'block';
+            if (dom.therapyPatientSelect) {
+                dom.therapyPatientSelect.value = '';
+                dom.therapyPatientSelect.setAttribute('disabled', 'disabled');
+            }
+            const patientIdField = document.getElementById('therapyPatientId');
+            if (patientIdField) {
+                patientIdField.value = '';
+            }
+            dom.inlinePatientForm.querySelectorAll('input, textarea').forEach(field => field.value = '');
+            dom.inlinePatientToggle?.setAttribute('aria-expanded', 'true');
+        } else {
+            dom.inlinePatientForm.classList.remove('show');
+            dom.inlinePatientForm.style.display = '';
+            dom.therapyPatientSelect?.removeAttribute('disabled');
+            dom.inlinePatientToggle?.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    function captureSignatureImage(force = false) {
+        if (!dom.signatureCanvas || !dom.signatureImageInput) return;
+        const mode = dom.signatureTypeSelect ? dom.signatureTypeSelect.value : 'graphical';
+        if (mode === 'digital') {
+            dom.signatureImageInput.value = '';
+            return;
+        }
+        if (!state.signaturePadDirty && !force) {
+            return;
+        }
+        const dataUrl = dom.signatureCanvas.toDataURL('image/png');
+        dom.signatureImageInput.value = dataUrl;
     }
 
     function openCheckModal(therapyId = null) {
