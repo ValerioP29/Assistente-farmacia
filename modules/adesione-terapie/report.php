@@ -14,13 +14,13 @@ if (!$token) {
 }
 
 try {
-    $reportsTable = AdesioneTableResolver::resolve('report');
+    $reportsTable = AdesioneTableResolver::resolve('reports');
     $reportCols = [
-        'token' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['share_token', 'token', 'public_token']),
-        'content' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['content', 'data', 'payload']),
-        'valid_until' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['valid_until', 'expires_at', 'scadenza']),
-        'pin_code' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['pin_code', 'pin']),
-        'created_at' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['created_at']),
+        'token' => 'share_token',
+        'content' => 'content',
+        'valid_until' => 'valid_until',
+        'pin_code' => 'pin_code',
+        'created_at' => 'created_at',
     ];
 
     $report = db_fetch_one(
