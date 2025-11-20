@@ -548,6 +548,7 @@
                 prepareCaregiversPayload();
                 prepareQuestionnairePayload();
                 captureSignatureImage();
+                appendConsentFields();
 
                 const formData = new FormData(dom.therapyForm);
                 formData.append('action', 'save_therapy');
@@ -637,6 +638,46 @@
                 patientIdField.value = String(state.selectedPatientId);
             }
         }
+    }
+
+    function appendConsentFields() {
+        if (!dom.therapyForm) return;
+        const signerInput = dom.therapyForm.querySelector('[name="digital_signature"]');
+        const consentNotesInput = dom.therapyForm.querySelector('[name="consent_notes"]');
+        const ipMeta = document.querySelector('meta[name="client-ip"]');
+
+        const signerName = (signerInput?.value.trim()) || getSelectedPatientName() || 'Paziente';
+        const consentText = (consentNotesInput?.value.trim()) || 'Consenso informato registrato';
+        const signatureImage = dom.signatureImageInput?.value || '';
+        const signedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const ipAddress = (ipMeta?.content || window.CLIENT_IP || '').toString();
+
+        setHiddenField('signer_name', signerName);
+        setHiddenField('signer_relation', 'patient');
+        setHiddenField('consent_text', consentText);
+        setHiddenField('signature_image', signatureImage);
+        setHiddenField('signed_at', signedAt);
+        setHiddenField('ip_address', ipAddress);
+    }
+
+    function setHiddenField(name, value) {
+        if (!dom.therapyForm) return;
+        let input = dom.therapyForm.querySelector(`[name="${name}"]`);
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            dom.therapyForm.appendChild(input);
+        }
+        input.value = value;
+    }
+
+    function getSelectedPatientName() {
+        if (!state.selectedPatientId) return '';
+        const patient = state.patients.find(item => item.id === state.selectedPatientId);
+        if (!patient) return '';
+        if (patient.full_name) return patient.full_name;
+        return `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
     }
 
     function upsertTherapy(therapy) {

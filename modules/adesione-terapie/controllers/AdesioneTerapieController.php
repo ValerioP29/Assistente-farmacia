@@ -94,15 +94,13 @@ class AdesioneTerapieController
         $this->consentCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['id', 'consent_id', 'id_consent']),
             'therapy' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['therapy_id', 'id_therapy']),
-            'patient' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['patient_id', 'id_patient']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['pharmacy_id', 'pharma_id', 'farmacia_id']),
-            'signature_type' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signature_type', 'tipo_firma']),
+            'signer_name' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signer_name']),
+            'signer_relation' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signer_relation']),
+            'consent_text' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['consent_text']),
             'signature_image' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signature_image', 'firma_grafica']),
-            'signature_text' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signature_text', 'firma_digitale', 'firma_testo']),
-            'notes' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['notes', 'note']),
             'ip' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['ip_address', 'ip']),
-            'signed_at' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signed_at', 'firmato_il', 'created_at']),
-            'updated_at' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['updated_at'])
+            'signed_at' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['signed_at']),
+            'created_at' => AdesioneTableResolver::firstAvailableColumn($this->consentsTable, ['created_at'])
         ];
 
         $this->questionnaireCols = [
@@ -879,37 +877,29 @@ class AdesioneTerapieController
         );
 
         $data = [];
-        if ($this->consentCols['therapy']) {
-            $data[$this->consentCols['therapy']] = $therapyId;
+        $data[$this->consentCols['therapy']] = $therapyId;
+
+        if ($this->consentCols['signer_name']) {
+            $data[$this->consentCols['signer_name']] = $this->clean($payload['signer_name'] ?? '');
         }
-        if ($this->consentCols['patient']) {
-            $data[$this->consentCols['patient']] = $patientId;
+        if ($this->consentCols['signer_relation']) {
+            $data[$this->consentCols['signer_relation']] = $this->clean($payload['signer_relation'] ?? 'patient');
         }
-        if ($this->consentCols['pharmacy']) {
-            $data[$this->consentCols['pharmacy']] = $this->pharmacyId;
+        if ($this->consentCols['consent_text']) {
+            $text = $payload['consent_text'] ?? '';
+            $data[$this->consentCols['consent_text']] = $this->clean($text !== '' ? $text : 'Consenso informato registrato');
         }
-        if ($this->consentCols['signature_type']) {
-            $data[$this->consentCols['signature_type']] = $this->clean($payload['signature_type'] ?? 'graphical');
-        }
-        if ($this->consentCols['notes'] && isset($payload['consent_notes'])) {
-            $data[$this->consentCols['notes']] = $this->clean($payload['consent_notes']);
+        if ($this->consentCols['signature_image'] && !empty($payload['signature_image'])) {
+            $data[$this->consentCols['signature_image']] = $payload['signature_image'];
         }
         if ($this->consentCols['ip']) {
-            $data[$this->consentCols['ip']] = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        }
-
-        $signatureImage = $payload['signature_image'] ?? '';
-        if ($this->consentCols['signature_image'] && $signatureImage) {
-            $data[$this->consentCols['signature_image']] = $signatureImage;
-        }
-        if ($this->consentCols['signature_text'] && !empty($payload['digital_signature'])) {
-            $data[$this->consentCols['signature_text']] = $this->clean($payload['digital_signature']);
-        }
-        if ($this->consentCols['updated_at']) {
-            $data[$this->consentCols['updated_at']] = $this->now();
+            $data[$this->consentCols['ip']] = $this->clean($payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
         }
         if ($this->consentCols['signed_at']) {
-            $data[$this->consentCols['signed_at']] = $this->now();
+            $data[$this->consentCols['signed_at']] = $payload['signed_at'] ?? $this->now();
+        }
+        if ($this->consentCols['created_at'] && !$existing) {
+            $data[$this->consentCols['created_at']] = $this->now();
         }
 
         if ($existing) {
@@ -1108,10 +1098,10 @@ class AdesioneTerapieController
     private function formatConsent(array $consent): array
     {
         return [
-            'signature_type' => $this->consentCols['signature_type'] ? ($consent[$this->consentCols['signature_type']] ?? '') : '',
+            'signer_name' => $this->consentCols['signer_name'] ? ($consent[$this->consentCols['signer_name']] ?? '') : '',
+            'signer_relation' => $this->consentCols['signer_relation'] ? ($consent[$this->consentCols['signer_relation']] ?? '') : '',
+            'consent_text' => $this->consentCols['consent_text'] ? ($consent[$this->consentCols['consent_text']] ?? '') : '',
             'signature_image' => $this->consentCols['signature_image'] ? ($consent[$this->consentCols['signature_image']] ?? '') : '',
-            'signature_text' => $this->consentCols['signature_text'] ? ($consent[$this->consentCols['signature_text']] ?? '') : '',
-            'notes' => $this->consentCols['notes'] ? ($consent[$this->consentCols['notes']] ?? '') : '',
             'ip_address' => $this->consentCols['ip'] ? ($consent[$this->consentCols['ip']] ?? '') : '',
             'signed_at' => $this->consentCols['signed_at'] ? ($consent[$this->consentCols['signed_at']] ?? '') : '',
         ];
