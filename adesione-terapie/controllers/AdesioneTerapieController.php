@@ -246,68 +246,82 @@ class AdesioneTerapieController
     }
 
     /* ---------------------------------------------------
-     * QUESTIONARIO (JSON)
+     * QUESTIONARIO (domande/risposte)
      * --------------------------------------------------- */
     private function getQuestionnaire(int $therapyId): array
     {
         $sql = "
-            SELECT * 
+            SELECT question, answer
             FROM {$this->questionnaireTable}
             WHERE therapy_id = ?
-            ORDER BY id DESC
-            LIMIT 1
+            ORDER BY id ASC
         ";
 
-        $row = db_fetch_one($sql, [$therapyId]);
-        if (!$row) {
+        $rows = db_fetch_all($sql, [$therapyId]);
+        if (!$rows) {
             return [];
         }
 
-        $ans = json_decode($row['answers'], true);
-        return is_array($ans) ? $ans : [];
+        $structured = [];
+
+        foreach ($rows as $row) {
+            $questionRaw = (string)($row['question'] ?? '');
+            $answer = $this->clean($row['answer'] ?? '');
+
+            if ($questionRaw === '' || $answer === '') {
+                continue;
+            }
+
+            $step = '1';
+            $questionKey = $questionRaw;
+
+            if (str_contains($questionRaw, ':')) {
+                [$stepPart, $questionKey] = explode(':', $questionRaw, 2);
+                $stepNumber = (int)$stepPart;
+                $step = $stepNumber > 0 ? (string)$stepNumber : '1';
+                $questionKey = $questionKey !== '' ? $questionKey : $questionRaw;
+            }
+
+            $structured[$step][$questionKey] = $answer;
+        }
+
+        return $structured;
     }
 
     private function storeQuestionnaire(int $therapyId, array $answers): void
     {
-        // niente risposte = ignoriamo
-        if (!$this->hasAnswerContent($answers)) {
+        if (!$this->hasQuestionnaireAnswers($answers)) {
             return;
         }
 
-        array_walk_recursive($answers, function (&$v) {
-            if (is_string($v)) {
-                $v = trim($v);
+        db_query("DELETE FROM {$this->questionnaireTable} WHERE therapy_id = ?", [$therapyId]);
+
+        $now = $this->now();
+
+        foreach ($answers as $step => $stepAnswers) {
+            if (!is_array($stepAnswers)) {
+                continue;
             }
-        });
 
-        $sql = "SELECT id FROM {$this->questionnaireTable} WHERE therapy_id = ? ORDER BY id DESC LIMIT 1";
-        $existing = db_fetch_one($sql, [$therapyId]);
+            $stepNumber = is_numeric($step) ? (int)$step : 1;
+            $stepPrefix = $stepNumber > 0 ? (string)$stepNumber : '1';
 
-        $data = [
-            'therapy_id' => $therapyId,
-            'answers' => json_encode($answers, JSON_UNESCAPED_UNICODE),
-            'created_at' => date('Y-m-d H:i:s')
-        ];
+            foreach ($stepAnswers as $questionKey => $answer) {
+                $cleanAnswer = trim((string)$answer);
+                if ($cleanAnswer === '') {
+                    continue;
+                }
 
-        if ($existing) {
-            db()->update($this->questionnaireTable, $data, "id = ?", [$existing['id']]);
-        } else {
-            db()->insert($this->questionnaireTable, $data);
+                $questionLabel = $stepPrefix . ':' . (string)$questionKey;
+
+                db()->insert($this->questionnaireTable, [
+                    'therapy_id' => $therapyId,
+                    'question' => $questionLabel,
+                    'answer' => $cleanAnswer,
+                    'created_at' => $now,
+                ]);
+            }
         }
-    }
-
-    private function hasAnswerContent(array $answers): bool
-    {
-        $found = false;
-        array_walk_recursive($answers, function ($v) use (&$found) {
-            if ($found) {
-                return;
-            }
-            if (is_string($v) && trim($v) !== '') {
-                $found = true;
-            }
-        });
-        return $found;
     }
 
     /* ---------------------------------------------------
@@ -365,33 +379,35 @@ class AdesioneTerapieController
      * --------------------------------------------------- */
     private function listChecks(?int $therapyId = null): array
     {
-        $sql = "SELECT * FROM `{$this->checksTable}`";
-        $params = [];
-        $conditions = [];
+        $sql = "
+            SELECT c.*
+            FROM {$this->checksTable} c
+            JOIN {$this->therapiesTable} t ON t.id = c.therapy_id
+            WHERE t.pharma_id = ?
+        ";
 
-        // Filtra per farmacia (se esiste la colonna)
-        if ($this->checkCols['pharmacy']) {
-            $conditions[] = "`{$this->checkCols['pharmacy']}` = ?";
-            $params[] = $this->pharmacyId;
-        }
+        $params = [$this->pharmacyId];
 
-        // Filtra per terapia
-        if ($therapyId !== null && $this->checkCols['therapy']) {
-            $conditions[] = "`{$this->checkCols['therapy']}` = ?";
+        if ($therapyId !== null) {
+            $sql .= " AND c.therapy_id = ?";
             $params[] = $therapyId;
         }
 
-        if ($conditions) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        }
-
-        // Ordine corretto (db ha check_date)
-        if ($this->checkCols['scheduled_at']) {
-            $sql .= " ORDER BY `{$this->checkCols['scheduled_at']}` DESC";
-        }
+        $sql .= " ORDER BY c.check_date DESC";
 
         $rows = db_fetch_all($sql, $params);
         return array_map([$this, 'formatCheck'], $rows);
+    }
+
+
+    private function formatCheck(array $row): array
+    {
+        return [
+            'id' => (int)$row['id'],
+            'therapy_id' => (int)$row['therapy_id'],
+            'scheduled_at' => $row['check_date'],
+            'notes' => $row['notes'],
+        ];
     }
 
 
@@ -404,8 +420,8 @@ class AdesioneTerapieController
 
         $id = isset($payload['check_id']) && $payload['check_id'] !== '' ? (int)$payload['check_id'] : null;
 
-        $date = trim($payload['scheduled_at'] ?? '');
-        if ($date === '') {
+        $date = $this->normalizeDateTime($payload['scheduled_at'] ?? '');
+        if (!$date) {
             throw new RuntimeException("Data del check non valida.");
         }
 
@@ -413,12 +429,12 @@ class AdesioneTerapieController
             'therapy_id' => $therapyId,
             'check_date' => $date,
             'notes' => trim($payload['notes'] ?? ''),
-            'created_at' => date('Y-m-d H:i:s')
         ];
 
         if ($id) {
             db()->update($this->checksTable, $data, "id = ?", [$id]);
         } else {
+            $data['created_at'] = $this->now();
             $id = (int)db()->insert($this->checksTable, $data);
         }
 
@@ -427,7 +443,15 @@ class AdesioneTerapieController
 
     private function findCheck(int $id): array
     {
-        $row = db_fetch_one("SELECT * FROM {$this->checksTable} WHERE id = ?", [$id]);
+        $sql = "
+            SELECT c.*
+            FROM {$this->checksTable} c
+            JOIN {$this->therapiesTable} t ON t.id = c.therapy_id
+            WHERE c.id = ? AND t.pharma_id = ?
+            LIMIT 1
+        ";
+
+        $row = db_fetch_one($sql, [$id, $this->pharmacyId]);
         if (!$row) {
             throw new RuntimeException("Check non trovato.");
         }
@@ -442,16 +466,25 @@ class AdesioneTerapieController
     /* ---------------------------------------------------
      * PROMEMORIA (jta_therapy_reminders)
      * --------------------------------------------------- */
-    private function listReminders(int $therapyId): array
+    private function listReminders(?int $therapyId = null): array
     {
         $sql = "
-            SELECT *
-            FROM {$this->remindersTable}
-            WHERE therapy_id = ?
-            ORDER BY scheduled_at ASC
+            SELECT r.*
+            FROM {$this->remindersTable} r
+            JOIN {$this->therapiesTable} t ON t.id = r.therapy_id
+            WHERE t.pharma_id = ?
         ";
 
-        $rows = db_fetch_all($sql, [$therapyId]);
+        $params = [$this->pharmacyId];
+
+        if ($therapyId !== null) {
+            $sql .= " AND r.therapy_id = ?";
+            $params[] = $therapyId;
+        }
+
+        $sql .= " ORDER BY r.scheduled_at ASC";
+
+        $rows = db_fetch_all($sql, $params);
 
         foreach ($rows as &$r) {
             $r = [
