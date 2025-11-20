@@ -216,7 +216,7 @@
         therapies.forEach(therapy => {
             const card = document.createElement('div');
             card.className = 'therapy-card';
-            const caregivers = (therapy.caregivers || []).map(c => `<span class="badge bg-light text-dark me-1">${sanitizeHtml(c.name || 'Caregiver')}</span>`).join(' ');
+            const caregivers = (therapy.caregivers || []).map(c => `<span class="badge bg-light text-dark me-1">${sanitizeHtml(caregiverFullName(c))}</span>`).join(' ');
             const lastCheck = therapy.last_check ? formatDateTime(therapy.last_check.scheduled_at) : 'Nessun controllo';
             const upcomingReminder = therapy.upcoming_reminder ? formatDateTime(therapy.upcoming_reminder.scheduled_at) : 'Nessun promemoria';
 
@@ -400,6 +400,12 @@
         const div = document.createElement('div');
         div.textContent = input || '';
         return div.innerHTML;
+    }
+
+    function caregiverFullName(caregiver) {
+        const parts = [caregiver.first_name, caregiver.last_name].filter(Boolean);
+        const fullName = parts.join(' ').trim();
+        return fullName || 'Caregiver';
     }
 
     function toggleLoading(isLoading) {
@@ -668,11 +674,13 @@
         const caregivers = [];
         dom.caregiversContainer.querySelectorAll('.caregiver-row:not(.template)').forEach(row => {
             const caregiver = {
-                name: row.querySelector('[data-field="name"]').value,
-                role: row.querySelector('[data-field="role"]').value,
-                phone: row.querySelector('[data-field="phone"]').value,
+                first_name: row.querySelector('[data-field="name"]').value.trim(),
+                last_name: row.querySelector('[data-field="last_name"]')?.value.trim() || '',
+                type: row.querySelector('[data-field="role"]').value,
+                phone: row.querySelector('[data-field="phone"]').value.trim(),
+                email: row.querySelector('[data-field="email"]')?.value.trim() || '',
             };
-            if (caregiver.name || caregiver.role || caregiver.phone) {
+            if (caregiver.first_name || caregiver.last_name || caregiver.phone) {
                 caregivers.push(caregiver);
             }
         });
@@ -804,7 +812,7 @@
             </div>
             <div class="summary-section">
                 <h6>Caregiver</h6>
-                ${caregivers.length ? caregivers.map(c => `<p>${sanitizeHtml(c.name)} (${sanitizeHtml(c.role || c.relationship || 'caregiver')}) - ${sanitizeHtml(c.phone || '')}</p>`).join('') : '<p class="text-muted">Nessun caregiver</p>'}
+                ${caregivers.length ? caregivers.map(c => `<p>${sanitizeHtml(caregiverFullName(c))} (${sanitizeHtml(c.type || 'caregiver')}) - ${sanitizeHtml(c.phone || '')}</p>`).join('') : '<p class="text-muted">Nessun caregiver</p>'}
             </div>
             <div class="summary-section">
                 <h6>Questionario</h6>

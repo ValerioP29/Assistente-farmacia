@@ -8,6 +8,7 @@ class AdesioneTerapieController
     private string $patientsTable;
     private string $therapiesTable;
     private string $assistantsTable;
+    private string $assistantPivotTable;
     private string $consentsTable;
     private string $questionnairesTable;
     private string $checksTable;
@@ -17,6 +18,7 @@ class AdesioneTerapieController
     private array $patientCols = [];
     private array $therapyCols = [];
     private array $assistantCols = [];
+    private array $assistantPivotCols = [];
     private array $consentCols = [];
     private array $questionnaireCols = [];
     private array $checkCols = [];
@@ -28,7 +30,8 @@ class AdesioneTerapieController
         $this->pharmacyId = $pharmacyId;
         $this->patientsTable        = 'jta_patients';
         $this->therapiesTable       = 'jta_therapies';
-        $this->assistantsTable      = 'jta_therapy_assistant';
+        $this->assistantsTable      = 'jta_assistants';
+        $this->assistantPivotTable  = 'jta_therapy_assistant';
         $this->consentsTable        = 'jta_therapy_consents';
         $this->questionnairesTable  = 'jta_therapy_questionnaire';
         $this->checksTable          = 'jta_therapy_checks';
@@ -70,16 +73,22 @@ class AdesioneTerapieController
         ];
 
         $this->assistantCols = [
-            'id' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['id', 'assistant_id', 'id_assistant']),
-            'therapy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['therapy_id', 'id_therapy']),
-            'patient' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['patient_id', 'id_patient']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['pharmacy_id', 'pharma_id', 'farmacia_id']),
-            'name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['name', 'nome']),
-            'relationship' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['relationship', 'relazione', 'parentela']),
-            'role' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['role']),
-            'phone' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['phone', 'telefono']),
-            'email' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['email', 'mail']),
+            'id' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['id']),
+            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['pharma_id']),
+            'first_name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['first_name']),
+            'last_name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['last_name']),
+            'type' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['type']),
+            'phone' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['phone']),
+            'email' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['email']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['created_at']),
+        ];
+
+        $this->assistantPivotCols = [
+            'id' => AdesioneTableResolver::firstAvailableColumn($this->assistantPivotTable, ['id']),
+            'therapy' => AdesioneTableResolver::firstAvailableColumn($this->assistantPivotTable, ['therapy_id']),
+            'assistant' => AdesioneTableResolver::firstAvailableColumn($this->assistantPivotTable, ['assistant_id']),
+            'role' => AdesioneTableResolver::firstAvailableColumn($this->assistantPivotTable, ['role']),
+            'created_at' => AdesioneTableResolver::firstAvailableColumn($this->assistantPivotTable, ['created_at']),
         ];
 
         $this->consentCols = [
@@ -745,15 +754,18 @@ class AdesioneTerapieController
 
     private function listCaregivers(int $therapyId): array
     {
-        if (!$this->assistantCols['therapy']) {
+        if (!$this->assistantPivotCols['therapy'] || !$this->assistantPivotCols['assistant']) {
             return [];
         }
 
-        $sql = "SELECT * FROM `{$this->assistantsTable}` WHERE `{$this->assistantCols['therapy']}` = ?";
+        $sql = "SELECT a.*, ta.`{$this->assistantPivotCols['role']}` AS pivot_role FROM `{$this->assistantPivotTable}` ta JOIN `{$this->assistantsTable}` a ON ta.`{$this->assistantPivotCols['assistant']}` = a.`{$this->assistantCols['id']}` WHERE ta.`{$this->assistantPivotCols['therapy']}` = ?";
         $params = [$therapyId];
         if ($this->assistantCols['pharmacy']) {
-            $sql .= " AND `{$this->assistantCols['pharmacy']}` = ?";
+            $sql .= " AND a.`{$this->assistantCols['pharmacy']}` = ?";
             $params[] = $this->pharmacyId;
+        }
+        if ($this->assistantCols['created_at']) {
+            $sql .= " ORDER BY a.`{$this->assistantCols['created_at']}` DESC";
         }
 
         $rows = db_fetch_all($sql, $params);
@@ -762,37 +774,32 @@ class AdesioneTerapieController
 
     private function syncCaregivers(int $therapyId, int $patientId, array $caregivers): void
     {
-        if (!$this->assistantCols['therapy']) {
+        if (!$this->assistantPivotCols['therapy'] || !$this->assistantPivotCols['assistant']) {
             return;
         }
 
         db_query(
-            "DELETE FROM `{$this->assistantsTable}` WHERE `{$this->assistantCols['therapy']}` = ?",
+            "DELETE FROM `{$this->assistantPivotTable}` WHERE `{$this->assistantPivotCols['therapy']}` = ?",
             [$therapyId]
         );
 
         foreach ($caregivers as $caregiver) {
             $data = [];
-            if ($this->assistantCols['therapy']) {
-                $data[$this->assistantCols['therapy']] = $therapyId;
-            }
-            if ($this->assistantCols['patient']) {
-                $data[$this->assistantCols['patient']] = $patientId;
-            }
             if ($this->assistantCols['pharmacy']) {
                 $data[$this->assistantCols['pharmacy']] = $this->pharmacyId;
             }
-            if ($this->assistantCols['name']) {
-                $data[$this->assistantCols['name']] = $this->clean($caregiver['name'] ?? '');
+            if ($this->assistantCols['first_name']) {
+                $data[$this->assistantCols['first_name']] = $this->clean($caregiver['first_name'] ?? '');
             }
-            $role = $this->clean($caregiver['role'] ?? $caregiver['relationship'] ?? '');
-            if (!in_array($role, ['caregiver', 'familiare'], true)) {
-                $role = $role !== '' ? $role : 'caregiver';
+            if ($this->assistantCols['last_name']) {
+                $data[$this->assistantCols['last_name']] = $this->clean($caregiver['last_name'] ?? '');
             }
-            if ($this->assistantCols['role']) {
-                $data[$this->assistantCols['role']] = $role;
-            } elseif ($this->assistantCols['relationship']) {
-                $data[$this->assistantCols['relationship']] = $role;
+            $type = $this->clean($caregiver['type'] ?? 'familiare');
+            if (!in_array($type, ['caregiver', 'familiare'], true)) {
+                $type = 'familiare';
+            }
+            if ($this->assistantCols['type']) {
+                $data[$this->assistantCols['type']] = $type;
             }
             if ($this->assistantCols['phone']) {
                 $data[$this->assistantCols['phone']] = $this->clean($caregiver['phone'] ?? '');
@@ -806,6 +813,18 @@ class AdesioneTerapieController
 
             if (!empty(array_filter($data))) {
                 db()->insert($this->assistantsTable, AdesioneTableResolver::filterData($this->assistantsTable, $data));
+                $assistantId = (int)db()->lastInsertId();
+
+                $pivotData = [
+                    $this->assistantPivotCols['therapy'] => $therapyId,
+                    $this->assistantPivotCols['assistant'] => $assistantId,
+                    $this->assistantPivotCols['role'] => $type,
+                ];
+                if ($this->assistantPivotCols['created_at']) {
+                    $pivotData[$this->assistantPivotCols['created_at']] = $this->now();
+                }
+
+                db()->insert($this->assistantPivotTable, AdesioneTableResolver::filterData($this->assistantPivotTable, $pivotData));
             }
         }
     }
@@ -1075,11 +1094,12 @@ class AdesioneTerapieController
 
     private function formatCaregiver(array $caregiver): array
     {
+        $type = $caregiver[$this->assistantCols['type']] ?? $caregiver['pivot_role'] ?? 'familiare';
         return [
             'id' => (int)($caregiver[$this->assistantCols['id']] ?? 0),
-            'name' => $this->assistantCols['name'] ? ($caregiver[$this->assistantCols['name']] ?? '') : '',
-            'relationship' => $this->assistantCols['relationship'] ? ($caregiver[$this->assistantCols['relationship']] ?? '') : '',
-            'role' => $this->assistantCols['role'] ? ($caregiver[$this->assistantCols['role']] ?? '') : '',
+            'first_name' => $this->assistantCols['first_name'] ? ($caregiver[$this->assistantCols['first_name']] ?? '') : '',
+            'last_name' => $this->assistantCols['last_name'] ? ($caregiver[$this->assistantCols['last_name']] ?? '') : '',
+            'type' => $this->assistantCols['type'] ? $type : '',
             'phone' => $this->assistantCols['phone'] ? ($caregiver[$this->assistantCols['phone']] ?? '') : '',
             'email' => $this->assistantCols['email'] ? ($caregiver[$this->assistantCols['email']] ?? '') : '',
         ];
