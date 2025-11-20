@@ -555,16 +555,24 @@ class AdesioneTerapieController
     /* ---------------------------------------------------
      * REPORT (JSON)
      * --------------------------------------------------- */
-    private function listReports(int $therapyId): array
+    private function listReports(?int $therapyId = null): array
     {
         $sql = "
             SELECT *
             FROM {$this->reportsTable}
-            WHERE therapy_id = ?
-            ORDER BY created_at DESC
+            WHERE pharma_id = ?
         ";
 
-        $rows = db_fetch_all($sql, [$therapyId]);
+        $params = [$this->pharmacyId];
+
+        if ($therapyId !== null) {
+            $sql .= " AND therapy_id = ?";
+            $params[] = $therapyId;
+        }
+
+        $sql .= " ORDER BY created_at DESC";
+
+        $rows = db_fetch_all($sql, $params);
 
         foreach ($rows as &$r) {
             $r['content'] = json_decode($r['content'], true) ?: [];
