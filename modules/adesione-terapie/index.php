@@ -329,9 +329,13 @@ require_once __DIR__ . '/../includes/header.php';
                         <!-- Step 2: Dettagli Terapia -->
                         <section class="wizard-step" data-step="2">
                             <div class="row g-3">
-                                <div class="col-md-8">
+                                <div class="col-md-6">
+                                    <label class="form-label">Titolo terapia</label>
+                                    <input type="text" class="form-control" name="therapy_title" required placeholder="Es. Terapia ipertensione">
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label">Descrizione terapia</label>
-                                    <textarea class="form-control" name="description" rows="3" required placeholder="Es. Piano farmacologico, obiettivi, farmaci coinvolti..."></textarea>
+                                    <textarea class="form-control" name="therapy_description" rows="3" required placeholder="Es. Piano farmacologico, obiettivi, farmaci coinvolti..."></textarea>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Stato</label>

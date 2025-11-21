@@ -61,7 +61,7 @@ class AdesioneTerapieController
             'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['pharmacy_id', 'pharma_id', 'farmacia_id']),
             'patient' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['patient_id', 'id_patient', 'paziente_id']),
             'title' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['therapy_title', 'title', 'nome', 'name']),
-            'description' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['description', 'descrizione', 'details', 'note']),
+            'description' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['therapy_description', 'description', 'descrizione', 'details', 'note']),
             'status' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['status', 'stato']),
             'start_date' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['start_date', 'data_inizio', 'inizio']),
             'end_date' => AdesioneTableResolver::firstAvailableColumn($this->therapiesTable, ['end_date', 'data_fine', 'fine']),
@@ -280,10 +280,15 @@ class AdesioneTerapieController
             $therapyData[$this->therapyCols['patient']] = $patientId;
         }
         if ($this->therapyCols['title']) {
-            $therapyData[$this->therapyCols['title']] = $this->clean($payload['therapy_title'] ?? $payload['description'] ?? '');
+            $therapyTitle = $payload['therapy_title'] ?? $payload['title'] ?? '';
+            if ($therapyTitle === '' && !empty($payload['description'])) {
+                $therapyTitle = $payload['description'];
+            }
+            $therapyData[$this->therapyCols['title']] = $this->clean($therapyTitle);
         }
         if ($this->therapyCols['description']) {
-            $therapyData[$this->therapyCols['description']] = $this->clean($payload['description'] ?? '');
+            $therapyDescription = $payload['therapy_description'] ?? $payload['description'] ?? '';
+            $therapyData[$this->therapyCols['description']] = $this->clean($therapyDescription);
         }
         if ($this->therapyCols['status']) {
             $therapyData[$this->therapyCols['status']] = $this->clean($payload['status'] ?? 'active');
@@ -890,7 +895,10 @@ class AdesioneTerapieController
             $data[$this->consentCols['consent_text']] = $this->clean($text !== '' ? $text : 'Consenso informato registrato');
         }
         if ($this->consentCols['signature_image'] && !empty($payload['signature_image'])) {
-            $data[$this->consentCols['signature_image']] = $payload['signature_image'];
+            $signatureBinary = $this->normalizeSignatureImage($payload['signature_image']);
+            if ($signatureBinary !== null) {
+                $data[$this->consentCols['signature_image']] = $signatureBinary;
+            }
         }
         if ($this->consentCols['ip']) {
             $data[$this->consentCols['ip']] = $this->clean($payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
@@ -1101,7 +1109,7 @@ class AdesioneTerapieController
             'signer_name' => $this->consentCols['signer_name'] ? ($consent[$this->consentCols['signer_name']] ?? '') : '',
             'signer_relation' => $this->consentCols['signer_relation'] ? ($consent[$this->consentCols['signer_relation']] ?? '') : '',
             'consent_text' => $this->consentCols['consent_text'] ? ($consent[$this->consentCols['consent_text']] ?? '') : '',
-            'signature_image' => $this->consentCols['signature_image'] ? ($consent[$this->consentCols['signature_image']] ?? '') : '',
+            'signature_image' => $this->consentCols['signature_image'] ? $this->buildSignatureDataUrl($consent[$this->consentCols['signature_image']] ?? '') : '',
             'ip_address' => $this->consentCols['ip'] ? ($consent[$this->consentCols['ip']] ?? '') : '',
             'signed_at' => $this->consentCols['signed_at'] ? ($consent[$this->consentCols['signed_at']] ?? '') : '',
         ];
@@ -1137,15 +1145,78 @@ class AdesioneTerapieController
 
     private function buildReportUrl(string $token, bool $protected): string
     {
-        $base = APP_URL ?: rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/';
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? '';
         $relative = 'adesione-terapie/report.php?token=' . urlencode($token);
         if ($protected) {
             $relative .= '&secure=1';
         }
+
+        // Ambiente locale: usa host corrente per non rompere lo sviluppo
+        if ($host) {
+            return rtrim($scheme . '://' . $host, '/') . '/' . ltrim($relative, '/');
+        }
+
+        // Ambiente online previsto: scommentare per forzare il dominio di produzione
+        // $remoteBase = 'https://panel.assistentefarmacia.it/';
+        // return rtrim($remoteBase, '/') . '/' . ltrim($relative, '/');
+
+        $base = APP_URL ?: rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/';
         if (str_contains($base, 'http')) {
             return rtrim($base, '/') . '/' . $relative;
         }
         return '/' . ltrim($relative, '/');
+    }
+
+    private function normalizeSignatureImage(?string $raw): ?string
+    {
+        if (!$raw) {
+            return null;
+        }
+
+        $clean = trim($raw);
+        if (str_contains($clean, ',')) {
+            [$maybeMeta, $maybeData] = explode(',', $clean, 2);
+            if (str_starts_with($maybeMeta, 'data:image')) {
+                $clean = $maybeData;
+            }
+        }
+
+        $binary = base64_decode($clean, true);
+        if ($binary === false || $binary === '') {
+            throw new RuntimeException('Formato della firma non valido.');
+        }
+
+        $info = @getimagesizefromstring($binary);
+        if ($info === false) {
+            throw new RuntimeException('La firma non è un\'immagine valida.');
+        }
+
+        return $binary;
+    }
+
+    private function buildSignatureDataUrl(?string $stored): string
+    {
+        if (!$stored) {
+            return '';
+        }
+
+        if (str_starts_with($stored, 'data:image')) {
+            return $stored;
+        }
+
+        $binary = base64_decode($stored, true);
+        if ($binary === false || $binary === '') {
+            $binary = $stored;
+        }
+
+        $info = @getimagesizefromstring($binary);
+        if ($info === false) {
+            return '';
+        }
+
+        $mime = $info['mime'] ?? 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode($binary);
     }
 
     private function clean(?string $value): string

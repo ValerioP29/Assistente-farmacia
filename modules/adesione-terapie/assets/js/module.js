@@ -223,7 +223,8 @@
             card.innerHTML = `
                 <div class="therapy-card-header">
                     <div>
-                        <h5>${sanitizeHtml(therapy.description || 'Terapia senza descrizione')}</h5>
+                        <h5>${sanitizeHtml(therapy.title || therapy.description || 'Terapia senza titolo')}</h5>
+                        <p class="text-muted mb-1 small">${sanitizeHtml(therapy.description || '')}</p>
                         <span class="badge status-${sanitizeHtml(therapy.status || 'active')}">${statusLabel(therapy.status)}</span>
                     </div>
                     <div class="therapy-dates">
@@ -335,7 +336,10 @@
             dom.therapyPatientSelect.value = state.selectedPatientId || '';
         }
 
-        const therapyOptions = state.therapies.map(therapy => `<option value="${therapy.id}">${sanitizeHtml((therapy.patient_name ? therapy.patient_name + ' - ' : '') + (therapy.description || 'Terapia'))}</option>`).join('');
+        const therapyOptions = state.therapies.map(therapy => {
+            const label = (therapy.patient_name ? therapy.patient_name + ' - ' : '') + (therapy.title || therapy.description || 'Terapia');
+            return `<option value="${therapy.id}">${sanitizeHtml(label)}</option>`;
+        }).join('');
         if (dom.checkTherapySelect) {
             dom.checkTherapySelect.innerHTML = '<option value="">-- Seleziona terapia --</option>' + therapyOptions;
         }
@@ -793,6 +797,12 @@
             step.classList.toggle('completed', stepNumber < state.currentTherapyStep);
         });
 
+        dom.therapyWizardSteps.forEach(indicator => {
+            const stepNumber = parseInt(indicator.dataset.step, 10);
+            indicator.classList.toggle('active', stepNumber === state.currentTherapyStep);
+            indicator.classList.toggle('completed', stepNumber < state.currentTherapyStep);
+        });
+
         dom.wizardSteps.forEach(step => {
             const stepNumber = parseInt(step.dataset.step, 10);
             const content = document.querySelector(`.wizard-step[data-step="${stepNumber}"]`);
@@ -822,7 +832,8 @@
 
         const patientId = dom.therapyPatientSelect.value || state.selectedPatientId;
         const patient = state.patients.find(p => String(p.id) === String(patientId));
-        const description = dom.therapyForm.querySelector('[name="description"]').value;
+        const title = dom.therapyForm.querySelector('[name="therapy_title"]').value;
+        const description = dom.therapyForm.querySelector('[name="therapy_description"]').value;
         const startDate = dom.therapyForm.querySelector('[name="start_date"]').value;
         const endDate = dom.therapyForm.querySelector('[name="end_date"]').value;
         const status = dom.therapyForm.querySelector('[name="status"]').value;
@@ -847,6 +858,7 @@
             </div>
             <div class="summary-section">
                 <h6>Dettagli terapia</h6>
+                <p><strong>Titolo:</strong> ${sanitizeHtml(title || 'Terapia')}</p>
                 <p>${sanitizeHtml(description)}</p>
                 <p><strong>Inizio:</strong> ${formatDate(startDate)} | <strong>Fine:</strong> ${formatDate(endDate)}</p>
                 <p><strong>Stato:</strong> ${statusLabel(status)}</p>
