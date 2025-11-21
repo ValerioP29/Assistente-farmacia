@@ -105,13 +105,19 @@
     function loadData() {
         toggleLoading(true);
         fetchJSON(`${routesBase}?action=init`).then(response => {
-            state.patients = response.data.patients || [];
-            state.therapies = response.data.therapies || [];
-            state.checks = response.data.checks || [];
-            state.reminders = response.data.reminders || [];
-            state.reports = response.data.reports || [];
-            state.timeline = response.data.timeline || [];
-            state.stats = response.data.stats || {};
+            if (!response || typeof response.data === 'undefined') {
+                throw new Error('Dati iniziali non disponibili. Riprova più tardi.');
+            }
+
+            const data = response.data || {};
+
+            state.patients = data.patients || [];
+            state.therapies = data.therapies || [];
+            state.checks = data.checks || [];
+            state.reminders = data.reminders || [];
+            state.reports = data.reports || [];
+            state.timeline = data.timeline || [];
+            state.stats = data.stats || {};
 
             if (!state.selectedPatientId && state.patients.length > 0) {
                 state.selectedPatientId = state.patients[0].id;
