@@ -559,6 +559,10 @@ require_once __DIR__ . '/../includes/header.php';
                             <select class="form-select" name="therapy_id" id="reminderTherapySelect" required></select>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label">Titolo</label>
+                            <input type="text" class="form-control" name="title" placeholder="Es. Promemoria assunzione" required>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Tipologia</label>
                             <select class="form-select" name="type">
                                 <option value="one-shot">Singolo</option>
@@ -585,7 +589,6 @@ require_once __DIR__ . '/../includes/header.php';
                                 <option value="email">Email</option>
                                 <option value="sms">SMS</option>
                                 <option value="push">Notifica interna</option>
-                                <option value="whatsapp">WhatsApp</option>
                             </select>
                         </div>
                     </div>
