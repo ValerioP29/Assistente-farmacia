@@ -1,10 +1,11 @@
 (function () {
-    const routesBase = 'adesione-terapie/routes.php';
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const moduleRoot = document.querySelector('.adesione-terapie-module');
-    if (!moduleRoot) {
-        return;
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+        const routesBase = 'adesione-terapie/routes.php';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const moduleRoot = document.querySelector('.adesione-terapie-module');
+        if (!moduleRoot) {
+            return;
+        }
 
     const state = {
         patients: [],
@@ -76,6 +77,8 @@
         questionnairePayloadInput: document.getElementById('questionnairePayloadInput'),
         signatureImageInput: document.getElementById('signatureImageInput'),
     };
+
+    let eventsBound = false;
 
     function fetchJSON(url, options = {}) {
         const config = Object.assign({
@@ -444,6 +447,8 @@
     }
 
     function setupEventListeners() {
+        if (eventsBound) return;
+        eventsBound = true;
         if (dom.newPatientButton) {
             dom.newPatientButton.addEventListener('click', () => {
                 resetForm(dom.patientForm);
@@ -1077,6 +1082,7 @@
         openModal(dom.reportModal);
     }
 
-    loadData();
-    setupEventListeners();
+        loadData();
+        setupEventListeners();
+    });
 })();

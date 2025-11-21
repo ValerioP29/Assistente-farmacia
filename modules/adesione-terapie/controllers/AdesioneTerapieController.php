@@ -106,9 +106,8 @@ class AdesioneTerapieController
         $this->questionnaireCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['id', 'questionnaire_id']),
             'therapy' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['therapy_id', 'id_therapy']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['pharmacy_id', 'pharma_id']),
-            'answers' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['answers', 'risposte', 'data', 'payload', 'metadata']),
-            'step' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['step', 'fase', 'type']),
+            'question' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['question']),
+            'answer' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['answer']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['created_at']),
             'updated_at' => AdesioneTableResolver::firstAvailableColumn($this->questionnairesTable, ['updated_at'])
         ];
@@ -116,23 +115,17 @@ class AdesioneTerapieController
         $this->checkCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['id', 'check_id', 'id_check']),
             'therapy' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['therapy_id', 'id_therapy']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['pharmacy_id', 'pharma_id']),
-            'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['scheduled_at', 'data_controllo', 'data_visita']),
-            'assessment' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['assessment', 'valutazione', 'esito']),
-            'notes' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['notes', 'note', 'osservazioni']),
-            'actions' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['actions', 'azioni', 'raccomandazioni']),
-            'created_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['created_at']),
-            'updated_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['updated_at'])
+            'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['check_date', 'scheduled_at', 'data_controllo', 'data_visita']),
+            'notes' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['notes']),
+            'created_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['created_at'])
         ];
 
         $this->reminderCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['id', 'reminder_id', 'id_reminder']),
             'therapy' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['therapy_id', 'id_therapy']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['pharmacy_id', 'pharma_id']),
-            'type' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['type', 'tipologia']),
+            'title' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['title', 'titolo']),
             'message' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['message', 'messaggio', 'testo']),
             'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['scheduled_at', 'data_promemoria']),
-            'recurrence' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['recurrence_rule', 'recurrence', 'ripetizione']),
             'channel' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['channel', 'canale']),
             'status' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['status', 'stato']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($this->remindersTable, ['created_at']),
@@ -346,26 +339,28 @@ class AdesioneTerapieController
         }
 
         $data = [];
-        if ($this->checkCols['pharmacy']) {
-            $data[$this->checkCols['pharmacy']] = $this->pharmacyId;
-        }
         if ($this->checkCols['therapy']) {
             $data[$this->checkCols['therapy']] = $therapyId;
         }
-        if ($this->checkCols['scheduled_at'] && !empty($payload['scheduled_at'])) {
-            $data[$this->checkCols['scheduled_at']] = $payload['scheduled_at'];
+        $scheduledAt = $payload['scheduled_at'] ?? $payload['check_date'] ?? '';
+        if ($this->checkCols['scheduled_at'] && $scheduledAt !== '') {
+            $data[$this->checkCols['scheduled_at']] = str_replace('T', ' ', $scheduledAt);
         }
-        if ($this->checkCols['assessment']) {
-            $data[$this->checkCols['assessment']] = $this->clean($payload['assessment'] ?? '');
+
+        if ($this->checkCols['scheduled_at'] && empty($data[$this->checkCols['scheduled_at']])) {
+            throw new RuntimeException('Imposta data e ora del check.');
+        }
+
+        $notesPayload = [
+            'assessment' => $this->clean($payload['assessment'] ?? ''),
+            'notes' => $this->clean($payload['notes'] ?? ''),
+            'actions' => $this->clean($payload['actions'] ?? ''),
+        ];
+        if (empty(array_filter($notesPayload))) {
+            throw new RuntimeException('Compila almeno la valutazione del check.');
         }
         if ($this->checkCols['notes']) {
-            $data[$this->checkCols['notes']] = $this->clean($payload['notes'] ?? '');
-        }
-        if ($this->checkCols['actions']) {
-            $data[$this->checkCols['actions']] = $this->clean($payload['actions'] ?? '');
-        }
-        if ($this->checkCols['updated_at']) {
-            $data[$this->checkCols['updated_at']] = $this->now();
+            $data[$this->checkCols['notes']] = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
         }
 
         $filtered = AdesioneTableResolver::filterData($this->checksTable, $data);
@@ -392,29 +387,52 @@ class AdesioneTerapieController
         }
 
         $data = [];
-        if ($this->reminderCols['pharmacy']) {
-            $data[$this->reminderCols['pharmacy']] = $this->pharmacyId;
-        }
         if ($this->reminderCols['therapy']) {
             $data[$this->reminderCols['therapy']] = $therapyId;
         }
-        if ($this->reminderCols['type']) {
-            $data[$this->reminderCols['type']] = $this->clean($payload['type'] ?? 'one-shot');
+        if ($this->reminderCols['title']) {
+            $title = $this->clean($payload['title'] ?? '');
+            if ($title === '' && !empty($payload['message'])) {
+                $title = mb_substr($this->clean($payload['message']), 0, 120);
+            }
+            $data[$this->reminderCols['title']] = $title !== '' ? $title : 'Promemoria terapia';
         }
-        if ($this->reminderCols['message']) {
-            $data[$this->reminderCols['message']] = $this->clean($payload['message'] ?? '');
-        }
+
         if ($this->reminderCols['scheduled_at'] && !empty($payload['scheduled_at'])) {
-            $data[$this->reminderCols['scheduled_at']] = $payload['scheduled_at'];
+            $data[$this->reminderCols['scheduled_at']] = str_replace('T', ' ', $payload['scheduled_at']);
         }
-        if ($this->reminderCols['recurrence'] && isset($payload['recurrence_rule'])) {
-            $data[$this->reminderCols['recurrence']] = $this->clean($payload['recurrence_rule']);
+
+        if ($this->reminderCols['scheduled_at'] && empty($data[$this->reminderCols['scheduled_at']])) {
+            throw new RuntimeException('Imposta data e ora del promemoria.');
         }
+
+        $allowedChannels = ['sms', 'email', 'push'];
+        $channel = strtolower($payload['channel'] ?? 'email');
+        if (!in_array($channel, $allowedChannels, true)) {
+            $channel = 'email';
+        }
+
+        $messageText = $this->clean($payload['message'] ?? '');
+        if ($messageText === '') {
+            throw new RuntimeException('Inserisci il messaggio del promemoria.');
+        }
+
+        $messagePayload = [
+            'text' => $messageText,
+            'type' => $this->clean($payload['type'] ?? 'one-shot'),
+            'recurrence' => $this->clean($payload['recurrence_rule'] ?? ''),
+        ];
+
+        if ($this->reminderCols['message']) {
+            $data[$this->reminderCols['message']] = json_encode($messagePayload, JSON_UNESCAPED_UNICODE);
+        }
+
         if ($this->reminderCols['channel']) {
-            $data[$this->reminderCols['channel']] = $this->clean($payload['channel'] ?? 'email');
+            $data[$this->reminderCols['channel']] = $channel;
         }
         if ($this->reminderCols['status']) {
-            $data[$this->reminderCols['status']] = $this->clean($payload['status'] ?? 'scheduled');
+            $status = $this->clean($payload['status'] ?? 'scheduled');
+            $data[$this->reminderCols['status']] = $status ?: 'scheduled';
         }
         if ($this->reminderCols['updated_at']) {
             $data[$this->reminderCols['updated_at']] = $this->now();
@@ -829,39 +847,38 @@ class AdesioneTerapieController
 
     private function storeQuestionnaire(int $therapyId, array $answers): void
     {
-        if (!$this->questionnaireCols['therapy'] || !$this->questionnaireCols['answers']) {
+        if (!$this->questionnaireCols['therapy'] || !$this->questionnaireCols['question'] || !$this->questionnaireCols['answer']) {
             return;
         }
 
-        $existing = db_fetch_one(
-            "SELECT `{$this->questionnaireCols['id']}` FROM `{$this->questionnairesTable}` WHERE `{$this->questionnaireCols['therapy']}` = ? ORDER BY `{$this->questionnaireCols['id']}` DESC LIMIT 1",
-            [$therapyId]
-        );
+        db()->delete($this->questionnairesTable, "{$this->questionnaireCols['therapy']} = ?", [$therapyId]);
 
-        $data = [];
-        if ($this->questionnaireCols['therapy']) {
-            $data[$this->questionnaireCols['therapy']] = $therapyId;
-        }
-        if ($this->questionnaireCols['pharmacy']) {
-            $data[$this->questionnaireCols['pharmacy']] = $this->pharmacyId;
-        }
-        if ($this->questionnaireCols['answers']) {
-            $data[$this->questionnaireCols['answers']] = json_encode($answers, JSON_UNESCAPED_UNICODE);
-        }
-        if ($this->questionnaireCols['step']) {
-            $data[$this->questionnaireCols['step']] = 'initial';
-        }
-        if ($this->questionnaireCols['updated_at']) {
-            $data[$this->questionnaireCols['updated_at']] = $this->now();
-        }
-
-        if ($existing) {
-            db()->update($this->questionnairesTable, AdesioneTableResolver::filterData($this->questionnairesTable, $data), "{$this->questionnaireCols['id']} = ?", [$existing[$this->questionnaireCols['id']] ?? $existing['id'] ?? $existing]);
-        } else {
-            if ($this->questionnaireCols['created_at'] && !isset($data[$this->questionnaireCols['created_at']])) {
-                $data[$this->questionnaireCols['created_at']] = $this->now();
+        foreach ($answers as $step => $stepAnswers) {
+            if (!is_array($stepAnswers)) {
+                continue;
             }
-            db()->insert($this->questionnairesTable, AdesioneTableResolver::filterData($this->questionnairesTable, $data));
+            foreach ($stepAnswers as $questionKey => $answer) {
+                $cleanAnswer = $this->clean($answer ?? '');
+                if ($cleanAnswer === '') {
+                    continue;
+                }
+
+                $questionValue = $step . '|' . $this->clean((string)$questionKey);
+                $row = [
+                    $this->questionnaireCols['therapy'] => $therapyId,
+                    $this->questionnaireCols['question'] => $questionValue,
+                    $this->questionnaireCols['answer'] => $cleanAnswer,
+                ];
+
+                if ($this->questionnaireCols['created_at']) {
+                    $row[$this->questionnaireCols['created_at']] = $this->now();
+                }
+                if ($this->questionnaireCols['updated_at']) {
+                    $row[$this->questionnaireCols['updated_at']] = $this->now();
+                }
+
+                db()->insert($this->questionnairesTable, AdesioneTableResolver::filterData($this->questionnairesTable, $row));
+            }
         }
     }
 
@@ -917,18 +934,33 @@ class AdesioneTerapieController
         if (!$this->questionnaireCols['therapy']) {
             return [];
         }
-        $row = db_fetch_one(
-            "SELECT * FROM `{$this->questionnairesTable}` WHERE `{$this->questionnaireCols['therapy']}` = ? ORDER BY `{$this->questionnaireCols['id']}` DESC LIMIT 1",
+        $rows = db_fetch_all(
+            "SELECT * FROM `{$this->questionnairesTable}` WHERE `{$this->questionnaireCols['therapy']}` = ? ORDER BY `{$this->questionnaireCols['id']}` ASC",
             [$therapyId]
         );
-        if (!$row) {
+
+        if (!$rows) {
             return [];
         }
-        if ($this->questionnaireCols['answers'] && !empty($row[$this->questionnaireCols['answers']])) {
-            $decoded = json_decode($row[$this->questionnaireCols['answers']], true);
-            return is_array($decoded) ? $decoded : [];
+
+        $result = [];
+        foreach ($rows as $row) {
+            $questionRaw = $row[$this->questionnaireCols['question']] ?? '';
+            $answerValue = $row[$this->questionnaireCols['answer']] ?? '';
+            $step = '1';
+            $questionKey = $questionRaw;
+
+            if (str_contains($questionRaw, '|')) {
+                [$step, $questionKey] = explode('|', $questionRaw, 2);
+            }
+
+            if (!isset($result[$step])) {
+                $result[$step] = [];
+            }
+            $result[$step][$questionKey] = $answerValue;
         }
-        return [];
+
+        return $result;
     }
 
     private function getConsent(int $therapyId): array
@@ -1040,25 +1072,46 @@ class AdesioneTerapieController
 
     private function formatCheck(array $check): array
     {
+        $assessment = '';
+        $notesText = '';
+        $actions = '';
+        $rawNotes = $this->checkCols['notes'] ? ($check[$this->checkCols['notes']] ?? '') : '';
+        $decoded = json_decode($rawNotes, true);
+        if (is_array($decoded)) {
+            $assessment = $decoded['assessment'] ?? '';
+            $notesText = $decoded['notes'] ?? '';
+            $actions = $decoded['actions'] ?? '';
+        } elseif ($rawNotes !== '') {
+            $assessment = $rawNotes;
+            $notesText = $rawNotes;
+        }
+
         return [
             'id' => (int)($check[$this->checkCols['id']] ?? 0),
             'therapy_id' => $this->checkCols['therapy'] ? (int)($check[$this->checkCols['therapy']] ?? 0) : 0,
             'scheduled_at' => $this->checkCols['scheduled_at'] ? ($check[$this->checkCols['scheduled_at']] ?? null) : null,
-            'assessment' => $this->checkCols['assessment'] ? ($check[$this->checkCols['assessment']] ?? '') : '',
-            'notes' => $this->checkCols['notes'] ? ($check[$this->checkCols['notes']] ?? '') : '',
-            'actions' => $this->checkCols['actions'] ? ($check[$this->checkCols['actions']] ?? '') : '',
+            'assessment' => $assessment,
+            'notes' => $notesText,
+            'actions' => $actions,
         ];
     }
 
     private function formatReminder(array $reminder): array
     {
+        $messageRaw = $this->reminderCols['message'] ? ($reminder[$this->reminderCols['message']] ?? '') : '';
+        $decoded = json_decode($messageRaw, true);
+        $messageText = $decoded['text'] ?? ($messageRaw ?? '');
+        $type = $decoded['type'] ?? 'one-shot';
+        $recurrence = $decoded['recurrence'] ?? '';
+
         return [
             'id' => (int)($reminder[$this->reminderCols['id']] ?? 0),
             'therapy_id' => $this->reminderCols['therapy'] ? (int)($reminder[$this->reminderCols['therapy']] ?? 0) : 0,
-            'type' => $this->reminderCols['type'] ? ($reminder[$this->reminderCols['type']] ?? 'one-shot') : 'one-shot',
-            'message' => $this->reminderCols['message'] ? ($reminder[$this->reminderCols['message']] ?? '') : '',
+            'title' => $this->reminderCols['title'] ? ($reminder[$this->reminderCols['title']] ?? 'Promemoria terapia') : 'Promemoria terapia',
+            'type' => $type,
+            'message' => $messageText,
             'scheduled_at' => $this->reminderCols['scheduled_at'] ? ($reminder[$this->reminderCols['scheduled_at']] ?? null) : null,
-            'recurrence_rule' => $this->reminderCols['recurrence'] ? ($reminder[$this->reminderCols['recurrence']] ?? '') : '',
+            'recurrence_rule' => $recurrence,
             'channel' => $this->reminderCols['channel'] ? ($reminder[$this->reminderCols['channel']] ?? '') : '',
             'status' => $this->reminderCols['status'] ? ($reminder[$this->reminderCols['status']] ?? '') : '',
         ];
@@ -1088,13 +1141,19 @@ class AdesioneTerapieController
     private function formatCaregiver(array $caregiver): array
     {
         $type = $caregiver[$this->assistantCols['type']] ?? $caregiver['pivot_role'] ?? 'familiare';
+        $firstName = $this->assistantCols['first_name'] ? ($caregiver[$this->assistantCols['first_name']] ?? '') : '';
+        $lastName = $this->assistantCols['last_name'] ? ($caregiver[$this->assistantCols['last_name']] ?? '') : '';
+        $fullName = trim($firstName . ' ' . $lastName);
+
         return [
             'id' => (int)($caregiver[$this->assistantCols['id']] ?? 0),
-            'first_name' => $this->assistantCols['first_name'] ? ($caregiver[$this->assistantCols['first_name']] ?? '') : '',
-            'last_name' => $this->assistantCols['last_name'] ? ($caregiver[$this->assistantCols['last_name']] ?? '') : '',
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'name' => $fullName !== '' ? $fullName : ($firstName !== '' ? $firstName : $lastName),
             'type' => $this->assistantCols['type'] ? $type : '',
             'phone' => $this->assistantCols['phone'] ? ($caregiver[$this->assistantCols['phone']] ?? '') : '',
             'email' => $this->assistantCols['email'] ? ($caregiver[$this->assistantCols['email']] ?? '') : '',
+            'relationship' => $type,
         ];
     }
 
@@ -1125,7 +1184,7 @@ class AdesioneTerapieController
         foreach ($reminders as $reminder) {
             $timeline[] = [
                 'type' => 'reminder',
-                'title' => 'Promemoria terapia',
+                'title' => $reminder['title'] ?? 'Promemoria terapia',
                 'scheduled_at' => $reminder['scheduled_at'] ?? null,
                 'details' => $reminder['message'] ?? '',
                 'therapy_id' => $reminder['therapy_id'] ?? null,

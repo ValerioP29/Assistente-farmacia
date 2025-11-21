@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/models/TableResolver.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -14,13 +13,13 @@ if (!$token) {
 }
 
 try {
-    $reportsTable = AdesioneTableResolver::resolve('report');
+    $reportsTable = 'jta_therapy_reports';
     $reportCols = [
-        'token' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['share_token', 'token', 'public_token']),
-        'content' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['content', 'data', 'payload']),
-        'valid_until' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['valid_until', 'expires_at', 'scadenza']),
-        'pin_code' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['pin_code', 'pin']),
-        'created_at' => AdesioneTableResolver::firstAvailableColumn($reportsTable, ['created_at']),
+        'token' => 'share_token',
+        'content' => 'content',
+        'valid_until' => 'valid_until',
+        'pin_code' => 'pin_code',
+        'created_at' => 'created_at',
     ];
 
     $report = db_fetch_one(
@@ -198,8 +197,9 @@ $generatedAt = $content['generated_at'] ?? date('Y-m-d H:i:s');
                         <?php foreach ($therapy['caregivers'] as $caregiver): ?>
                             <li class="list-group-item d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong><?= htmlspecialchars($caregiver['name'] ?? 'Caregiver') ?></strong>
-                                    <div class="text-muted small"><?= htmlspecialchars($caregiver['relationship'] ?? '') ?></div>
+                                    <?php $caregiverName = trim(($caregiver['name'] ?? '') ?: (($caregiver['first_name'] ?? '') . ' ' . ($caregiver['last_name'] ?? ''))); ?>
+                                    <strong><?= htmlspecialchars($caregiverName !== '' ? $caregiverName : 'Caregiver') ?></strong>
+                                    <div class="text-muted small"><?= htmlspecialchars($caregiver['relationship'] ?? ($caregiver['type'] ?? '')) ?></div>
                                 </div>
                                 <span class="small text-muted"><?= htmlspecialchars($caregiver['phone'] ?? '') ?></span>
                             </li>
