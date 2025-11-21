@@ -280,15 +280,10 @@ class AdesioneTerapieController
             $therapyData[$this->therapyCols['patient']] = $patientId;
         }
         if ($this->therapyCols['title']) {
-            $therapyTitle = $payload['therapy_title'] ?? $payload['title'] ?? '';
-            if ($therapyTitle === '' && !empty($payload['description'])) {
-                $therapyTitle = $payload['description'];
-            }
-            $therapyData[$this->therapyCols['title']] = $this->clean($therapyTitle);
+            $therapyData[$this->therapyCols['title']] = $this->clean($payload['therapy_title'] ?? '');
         }
         if ($this->therapyCols['description']) {
-            $therapyDescription = $payload['therapy_description'] ?? $payload['description'] ?? '';
-            $therapyData[$this->therapyCols['description']] = $this->clean($therapyDescription);
+            $therapyData[$this->therapyCols['description']] = $this->clean($payload['therapy_description'] ?? '');
         }
         if ($this->therapyCols['status']) {
             $therapyData[$this->therapyCols['status']] = $this->clean($payload['status'] ?? 'active');
@@ -1152,20 +1147,13 @@ class AdesioneTerapieController
             $relative .= '&secure=1';
         }
 
-        // Ambiente locale: usa host corrente per non rompere lo sviluppo
-        if ($host) {
+        $isLocal = $host && (str_contains($host, 'localhost') || str_starts_with($host, '127.0.0.1'));
+
+        if ($isLocal) {
             return rtrim($scheme . '://' . $host, '/') . '/' . ltrim($relative, '/');
         }
 
-        // Ambiente online previsto: scommentare per forzare il dominio di produzione
-        // $remoteBase = 'https://panel.assistentefarmacia.it/';
-        // return rtrim($remoteBase, '/') . '/' . ltrim($relative, '/');
-
-        $base = APP_URL ?: rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/';
-        if (str_contains($base, 'http')) {
-            return rtrim($base, '/') . '/' . $relative;
-        }
-        return '/' . ltrim($relative, '/');
+        return 'https://panel.assistentefarmacia.it/' . ltrim($relative, '/');
     }
 
     private function normalizeSignatureImage(?string $raw): ?string
@@ -1201,22 +1189,13 @@ class AdesioneTerapieController
             return '';
         }
 
-        if (str_starts_with($stored, 'data:image')) {
-            return $stored;
-        }
-
-        $binary = base64_decode($stored, true);
-        if ($binary === false || $binary === '') {
-            $binary = $stored;
-        }
-
-        $info = @getimagesizefromstring($binary);
+        $info = @getimagesizefromstring($stored);
         if ($info === false) {
             return '';
         }
 
         $mime = $info['mime'] ?? 'image/png';
-        return 'data:' . $mime . ';base64,' . base64_encode($binary);
+        return 'data:' . $mime . ';base64,' . base64_encode($stored);
     }
 
     private function clean(?string $value): string
