@@ -180,6 +180,9 @@ $generatedAt = $content['generated_at'] ?? date('Y-m-d H:i:s');
 
             <section class="mb-4">
                 <div class="section-title">Dettagli terapia</div>
+                <?php if (!empty($therapy['title'])): ?>
+                    <h3 class="h5 mb-2 fw-semibold"><?= htmlspecialchars($therapy['title']) ?></h3>
+                <?php endif; ?>
                 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
                     <span class="badge-status bg-primary-subtle text-primary">Stato: <?= htmlspecialchars($therapy['status'] ?? 'N/A') ?></span>
                     <span><strong>Inizio:</strong> <?= htmlspecialchars($therapy['start_date'] ?? 'N/D') ?></span>
