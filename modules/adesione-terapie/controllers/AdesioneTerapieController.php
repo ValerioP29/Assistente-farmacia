@@ -1591,11 +1591,30 @@ class AdesioneTerapieController
             if (($check['type'] ?? 'execution') === 'checklist') {
                 continue;
             }
+            $answersPreview = '';
+            if (!empty($check['answers'])) {
+                $first = $check['answers'][0];
+                $previewParts = [];
+                if (!empty($first['question'])) {
+                    $previewParts[] = trim((string)$first['question']);
+                }
+                if (!empty($first['answer'])) {
+                    $previewParts[] = trim((string)$first['answer']);
+                }
+                $answersPreview = trim(implode(': ', $previewParts));
+                if (function_exists('mb_substr')) {
+                    $answersPreview = mb_substr($answersPreview, 0, 60, 'UTF-8');
+                } else {
+                    $answersPreview = substr($answersPreview, 0, 60);
+                }
+            }
             $timeline[] = [
                 'type' => 'check',
                 'title' => 'Visita di controllo',
                 'scheduled_at' => $check['scheduled_at'] ?? null,
                 'details' => $check['assessment'] ?? '',
+                'has_answers' => !empty($check['answers']),
+                'answers_preview' => $answersPreview,
                 'therapy_id' => $check['therapy_id'] ?? null,
             ];
         }

@@ -208,6 +208,136 @@
         return state.therapies.filter(therapy => therapy.patient_id === patientId).length;
     }
 
+    function getChecklistQuestionsForTherapy(therapyId) {
+        const checklist = getChecklistForTherapy(therapyId);
+        return (checklist && Array.isArray(checklist.questions)) ? checklist.questions : [];
+    }
+
+    function getCheckExecutions(therapyId) {
+        return state.checks.filter(check => check.therapy_id === therapyId && check.type !== 'checklist');
+    }
+
+    function getLatestAnswersByQuestion(therapyId) {
+        const executions = getCheckExecutions(therapyId);
+        const latest = {};
+        executions.forEach(execution => {
+            (execution.answers || []).forEach(answer => {
+                const key = answer.question || '';
+                if (!key) return;
+                const answeredAt = answer.created_at || execution.scheduled_at || '';
+                if (!latest[key] || new Date(answeredAt) > new Date(latest[key].created_at || 0)) {
+                    latest[key] = { answer: answer.answer || '', created_at: answeredAt };
+                }
+            });
+        });
+        return latest;
+    }
+
+    function buildChecklistSummaryHtml(therapyId) {
+        const questions = getChecklistQuestionsForTherapy(therapyId);
+        if (!questions.length) {
+            return `
+                <div class="alert alert-light border d-flex justify-content-between align-items-center mb-0">
+                    <div>
+                        <strong>Checklist periodica della terapia</strong>
+                        <div class="text-muted small mb-0">Nessuna checklist configurata</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" data-action="open-checklist" data-therapy="${therapyId}">
+                        <i class="fas fa-list-check me-1"></i>Configura checklist
+                    </button>
+                </div>`;
+        }
+
+        const latestAnswers = getLatestAnswersByQuestion(therapyId);
+        let html = `
+            <div class="card card-body border-0 shadow-sm mb-0 checklist-summary-box">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Checklist periodica della terapia</h6>
+                    <button class="btn btn-sm btn-outline-secondary" data-action="open-checklist" data-therapy="${therapyId}">
+                        <i class="fas fa-pen me-1"></i>Modifica
+                    </button>
+                </div>
+                <ul class="list-group list-group-flush">
+        `;
+
+        questions.forEach(question => {
+            const latest = latestAnswers[question.key];
+            const answerSafe = latest && latest.answer ? sanitizeHtml(latest.answer) : '<span class="text-muted">Nessuna risposta</span>';
+            const answeredAt = latest && latest.created_at ? formatDateTime(latest.created_at) : '';
+            html += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">${sanitizeHtml(question.text || question.key)}</div>
+                        <div class="text-muted small">${sanitizeHtml(question.key)}</div>
+                    </div>
+                    <div class="text-end">
+                        <div>${answerSafe}</div>
+                        ${answeredAt ? `<small class="text-muted">${answeredAt}</small>` : ''}
+                    </div>
+                </li>
+            `;
+        });
+
+        html += '</ul></div>';
+        return html;
+    }
+
+    function renderAnswersList(answers = []) {
+        if (!answers.length) {
+            return '<p class="text-muted mb-1">Nessuna risposta registrata.</p>';
+        }
+        let html = '<ul class="list-group list-group-flush mb-2">';
+        answers.forEach(answer => {
+            html += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="fw-semibold">${sanitizeHtml(answer.question || 'Domanda')}</div>
+                    <div class="text-end">
+                        <div>${sanitizeHtml(answer.answer || '')}</div>
+                        ${answer.created_at ? `<small class="text-muted">${formatDateTime(answer.created_at)}</small>` : ''}
+                    </div>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    function buildCheckHistoryHtml(therapyId) {
+        const executions = getCheckExecutions(therapyId);
+        if (!executions.length) {
+            return '<p class="text-muted mb-0">Nessuna esecuzione registrata.</p>';
+        }
+
+        let html = `<div class="accordion" id="checkHistory-${therapyId}">`;
+        executions.forEach((check, index) => {
+            const itemId = `check-${therapyId}-${index}`;
+            const headerId = `heading-${itemId}`;
+            const collapseId = `collapse-${itemId}`;
+            const answers = renderAnswersList(check.answers || []);
+            const scheduled = formatDateTime(check.scheduled_at || new Date().toISOString());
+            const notesBlock = check.notes ? `<p class="mb-1"><strong>Note:</strong> ${sanitizeHtml(check.notes)}</p>` : '';
+            const actionsBlock = check.actions ? `<p class="mb-1"><strong>Azioni:</strong> ${sanitizeHtml(check.actions)}</p>` : '';
+            html += `
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="${headerId}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+                            Check del ${scheduled}
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headerId}" data-bs-parent="#checkHistory-${therapyId}">
+                        <div class="accordion-body">
+                            ${answers}
+                            ${notesBlock}
+                            ${actionsBlock}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
     function renderTherapies() {
         if (!dom.therapiesContainer) return;
         dom.therapiesContainer.innerHTML = '';
@@ -248,6 +378,8 @@
             const lastCheck = therapy.last_check ? formatDateTime(therapy.last_check.scheduled_at) : 'Nessun controllo';
             const upcomingReminder = therapy.upcoming_reminder ? formatDateTime(therapy.upcoming_reminder.scheduled_at) : 'Nessun promemoria';
 
+            const checklistSummary = buildChecklistSummaryHtml(therapy.id);
+            const answersHistory = buildCheckHistoryHtml(therapy.id);
             card.innerHTML = `
                 <div class="therapy-card-header">
                     <div>
@@ -278,11 +410,21 @@
                             <h6>Prossimo promemoria</h6>
                             <p class="mb-0">${upcomingReminder}</p>
                         </div>
+                        <div class="col-12 mt-2">
+                            ${checklistSummary}
+                            <div class="mt-3">
+                                <h6 class="mb-2">Storico risposte</h6>
+                                ${answersHistory}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="therapy-card-footer">
                     <button class="btn btn-sm btn-outline-primary me-2" data-action="open-check" data-therapy="${therapy.id}">
                         <i class="fas fa-stethoscope me-1"></i>Nuovo check
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary me-2" data-action="open-checklist" data-therapy="${therapy.id}">
+                        <i class="fas fa-list-check me-1"></i>Configura checklist
                     </button>
                     <button class="btn btn-sm btn-outline-warning me-2" data-action="open-reminder" data-therapy="${therapy.id}">
                         <i class="fas fa-bell me-1"></i>Promemoria
@@ -298,6 +440,9 @@
                     switch (button.dataset.action) {
                         case 'open-check':
                             openCheckModal(therapyId);
+                            break;
+                        case 'open-checklist':
+                            openCheckModal(therapyId, 'checklist');
                             break;
                         case 'open-reminder':
                             openReminderModal(therapyId);
@@ -346,12 +491,20 @@
         items.forEach(item => {
             const entry = document.createElement('div');
             entry.className = `timeline-entry timeline-${item.type}`;
+            const hasChecklistAnswers = item.type === 'check' && item.has_answers;
+            let detailsText = item.details || '';
+            if (item.type === 'check' && item.answers_preview) {
+                const preview = sanitizeHtml(item.answers_preview);
+                detailsText = hasChecklistAnswers ? `📝 ${preview}` + (detailsText ? ` – ${sanitizeHtml(detailsText)}` : '') : sanitizeHtml(detailsText);
+            } else {
+                detailsText = sanitizeHtml(detailsText);
+            }
             entry.innerHTML = `
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
                     <h6>${sanitizeHtml(item.title)}</h6>
                     <span class="timeline-date">${formatDateTime(item.scheduled_at)}</span>
-                    <p>${sanitizeHtml(item.details || '')}</p>
+                    <p>${detailsText}</p>
                 </div>`;
             dom.timelineContainer.appendChild(entry);
         });
@@ -1436,7 +1589,7 @@
         }
     }
 
-    function openCheckModal(therapyId = null) {
+    function openCheckModal(therapyId = null, mode = 'execution') {
         resetForm(dom.checkForm);
         ensureCheckFormEnhancements();
         if (therapyId) {
@@ -1447,8 +1600,9 @@
             }
         }
         if (checkModeSelect) {
-            checkModeSelect.value = 'execution';
-            toggleCheckMode('execution');
+            checkModeSelect.value = mode;
+            toggleCheckMode(mode);
+
         }
         refreshChecklistUI();
         openModal(dom.checkModal);
