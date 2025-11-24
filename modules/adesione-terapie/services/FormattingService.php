@@ -101,4 +101,25 @@ class FormattingService
             'questions' => $questions,
         ];
     }
+
+    public function formatReminder(array $reminder, array $reminderCols): array
+    {
+        $messageRaw = $reminderCols['message'] ? ($reminder[$reminderCols['message']] ?? '') : '';
+        $decoded = json_decode($messageRaw, true);
+        $messageText = $decoded['text'] ?? ($messageRaw ?? '');
+        $type = $decoded['type'] ?? 'one-shot';
+        $recurrence = $decoded['recurrence'] ?? '';
+
+        return [
+            'id' => (int)($reminder[$reminderCols['id']] ?? 0),
+            'therapy_id' => $reminderCols['therapy'] ? (int)($reminder[$reminderCols['therapy']] ?? 0) : 0,
+            'title' => $reminderCols['title'] ? ($reminder[$reminderCols['title']] ?? 'Promemoria terapia') : 'Promemoria terapia',
+            'type' => $type,
+            'message' => $messageText,
+            'scheduled_at' => $reminderCols['scheduled_at'] ? ($reminder[$reminderCols['scheduled_at']] ?? null) : null,
+            'recurrence_rule' => $recurrence,
+            'channel' => $reminderCols['channel'] ? ($reminder[$reminderCols['channel']] ?? '') : '',
+            'status' => $reminderCols['status'] ? ($reminder[$reminderCols['status']] ?? '') : '',
+        ];
+    }
 }

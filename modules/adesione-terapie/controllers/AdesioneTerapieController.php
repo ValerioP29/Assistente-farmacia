@@ -7,6 +7,7 @@ require_once __DIR__ . '/../repositories/ConsentRepository.php';
 require_once __DIR__ . '/../repositories/QuestionnaireRepository.php';
 require_once __DIR__ . '/../repositories/CheckRepository.php';
 require_once __DIR__ . '/../repositories/CheckAnswerRepository.php';
+require_once __DIR__ . '/../repositories/ReminderRepository.php';
 require_once __DIR__ . '/../services/FormattingService.php';
 require_once __DIR__ . '/../services/TherapyMetadataService.php';
 require_once __DIR__ . '/../services/QuestionnaireService.php';
@@ -16,6 +17,7 @@ require_once __DIR__ . '/../services/CheckAnswerService.php';
 require_once __DIR__ . '/PatientsController.php';
 require_once __DIR__ . '/TherapiesController.php';
 require_once __DIR__ . '/ChecksController.php';
+require_once __DIR__ . '/RemindersController.php';
 
 class AdesioneTerapieController
 {
@@ -46,6 +48,7 @@ class AdesioneTerapieController
     private \Modules\AdesioneTerapie\Controllers\PatientsController $patientsController;
     private \Modules\AdesioneTerapie\Controllers\TherapiesController $therapiesController;
     private \Modules\AdesioneTerapie\Controllers\ChecksController $checksController;
+    private \Modules\AdesioneTerapie\Controllers\RemindersController $remindersController;
     private \Modules\AdesioneTerapie\Services\QuestionnaireService $questionnaireService;
     private \Modules\AdesioneTerapie\Services\ConsentService $consentService;
     private \Modules\AdesioneTerapie\Services\FormattingService $formattingService;
@@ -71,6 +74,7 @@ class AdesioneTerapieController
         $this->consentService = $this->makeConsentService();
         $this->patientsController = $this->makePatientsController();
         $this->checksController = $this->makeChecksController();
+        $this->remindersController = $this->makeRemindersController();
         $this->therapiesController = $this->makeTherapiesController();
     }
 
@@ -227,6 +231,25 @@ class AdesioneTerapieController
         );
     }
 
+    private function makeRemindersController(): \Modules\AdesioneTerapie\Controllers\RemindersController
+    {
+        return new \Modules\AdesioneTerapie\Controllers\RemindersController(
+            new \Modules\AdesioneTerapie\Repositories\ReminderRepository(
+                $this->remindersTable,
+                $this->reminderCols,
+                $this->therapiesTable,
+                $this->therapyCols
+            ),
+            $this->formattingService,
+            $this->pharmacyId,
+            $this->reminderCols,
+            $this->therapyCols,
+            [$this, 'clean'],
+            [$this, 'now'],
+            [$this, 'verifyTherapyOwnership']
+        );
+    }
+
     private function makeTherapiesController(): \Modules\AdesioneTerapie\Controllers\TherapiesController
     {
         return new \Modules\AdesioneTerapie\Controllers\TherapiesController(
@@ -335,97 +358,7 @@ class AdesioneTerapieController
 
     public function saveReminder(array $payload): array
     {
-        $reminderId = isset($payload['reminder_id']) && $payload['reminder_id'] !== '' ? (int)$payload['reminder_id'] : null;
-        $therapyId = isset($payload['therapy_id']) && $payload['therapy_id'] !== '' ? (int)$payload['therapy_id'] : 0;
-
-        if (!$therapyId) {
-            throw new RuntimeException('Seleziona una terapia per il promemoria.');
-        }
-
-        // Verifica che la terapia appartenga alla farmacia corrente
-        $this->verifyTherapyOwnership($therapyId);
-
-        $data = [];
-        if ($this->reminderCols['therapy']) {
-            $data[$this->reminderCols['therapy']] = $therapyId;
-        }
-        if ($this->reminderCols['title']) {
-            $title = $this->clean($payload['title'] ?? '');
-            if ($title === '' && !empty($payload['message'])) {
-                $title = mb_substr($this->clean($payload['message']), 0, 120);
-            }
-            $data[$this->reminderCols['title']] = $title !== '' ? $title : 'Promemoria terapia';
-        }
-
-        if ($this->reminderCols['scheduled_at'] && !empty($payload['scheduled_at'])) {
-            $data[$this->reminderCols['scheduled_at']] = str_replace('T', ' ', $payload['scheduled_at']);
-        }
-
-        if ($this->reminderCols['scheduled_at'] && empty($data[$this->reminderCols['scheduled_at']])) {
-            throw new RuntimeException('Imposta data e ora del promemoria.');
-        }
-
-        $allowedChannels = ['sms', 'email', 'push'];
-        $channel = strtolower($payload['channel'] ?? 'email');
-        if (!in_array($channel, $allowedChannels, true)) {
-            $channel = 'email';
-        }
-
-        $messageText = $this->clean($payload['message'] ?? '');
-        if ($messageText === '') {
-            throw new RuntimeException('Inserisci il messaggio del promemoria.');
-        }
-
-        $messagePayload = [
-            'text' => $messageText,
-            'type' => $this->clean($payload['type'] ?? 'one-shot'),
-            'recurrence' => $this->clean($payload['recurrence_rule'] ?? ''),
-        ];
-
-        if ($this->reminderCols['message']) {
-            $data[$this->reminderCols['message']] = json_encode($messagePayload, JSON_UNESCAPED_UNICODE);
-        }
-
-        if ($this->reminderCols['channel']) {
-            $data[$this->reminderCols['channel']] = $channel;
-        }
-        if ($this->reminderCols['status']) {
-            $status = $this->clean($payload['status'] ?? 'scheduled');
-            $data[$this->reminderCols['status']] = $status ?: 'scheduled';
-        }
-        if ($this->reminderCols['updated_at']) {
-            $data[$this->reminderCols['updated_at']] = $this->now();
-        }
-
-        $filtered = AdesioneTableResolver::filterData($this->remindersTable, $data);
-
-        if (!$reminderId && $this->reminderCols['therapy'] && $this->reminderCols['scheduled_at'] && !empty($filtered[$this->reminderCols['scheduled_at']])) {
-            $lookupParams = [$therapyId, $filtered[$this->reminderCols['scheduled_at']]];
-            $where = "{$this->reminderCols['therapy']} = ? AND {$this->reminderCols['scheduled_at']} = ?";
-            if ($this->reminderCols['title'] && isset($filtered[$this->reminderCols['title']])) {
-                $where .= " AND {$this->reminderCols['title']} = ?";
-                $lookupParams[] = $filtered[$this->reminderCols['title']];
-            }
-
-            $existingReminderId = (int)db()->fetchValue(
-                "SELECT {$this->reminderCols['id']} FROM {$this->remindersTable} WHERE {$where} ORDER BY {$this->reminderCols['id']} DESC LIMIT 1",
-                $lookupParams
-            );
-            if ($existingReminderId) {
-                $reminderId = $existingReminderId;
-            }
-        }
-
-        if ($reminderId) {
-            db()->update($this->remindersTable, $filtered, "{$this->reminderCols['id']} = ?", [$reminderId]);
-        } else {
-            if ($this->reminderCols['created_at'] && !isset($filtered[$this->reminderCols['created_at']])) {
-                $filtered[$this->reminderCols['created_at']] = $this->now();
-            }
-            $reminderId = (int)db()->insert($this->remindersTable, $filtered);
-        }
-
-        return $this->findReminder($reminderId);
+        return $this->remindersController->saveReminder($payload);
     }
 
     public function generateReport(array $payload): array
@@ -522,22 +455,7 @@ class AdesioneTerapieController
 
     public function findReminder(int $reminderId): array
     {
-        // JOIN con therapies per verificare l'ownership
-        $sql = "SELECT r.* FROM `{$this->remindersTable}` r ";
-        if ($this->reminderCols['therapy'] && $this->therapyCols['pharmacy']) {
-            $sql .= "JOIN `{$this->therapiesTable}` t ON r.`{$this->reminderCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
-            $sql .= "WHERE r.`{$this->reminderCols['id']}` = ? AND t.`{$this->therapyCols['pharmacy']}` = ?";
-            $params = [$reminderId, $this->pharmacyId];
-        } else {
-            $sql .= "WHERE r.`{$this->reminderCols['id']}` = ?";
-            $params = [$reminderId];
-        }
-        
-        $reminder = db_fetch_one($sql, $params);
-        if (!$reminder) {
-            throw new RuntimeException('Promemoria non trovato.');
-        }
-        return $this->formatReminder($reminder);
+        return $this->remindersController->findReminder($reminderId);
     }
 
     private function listPatients(): array
@@ -557,31 +475,7 @@ class AdesioneTerapieController
 
     private function listReminders(?int $therapyId = null): array
     {
-        // JOIN con therapies per filtrare per farmacia
-        $sql = "SELECT r.* FROM `{$this->remindersTable}` r ";
-        $params = [];
-        $conditions = [];
-        
-        if ($this->reminderCols['therapy'] && $this->therapyCols['pharmacy']) {
-            $sql .= "JOIN `{$this->therapiesTable}` t ON r.`{$this->reminderCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
-            $conditions[] = "t.`{$this->therapyCols['pharmacy']}` = ?";
-            $params[] = $this->pharmacyId;
-        }
-        
-        if ($therapyId && $this->reminderCols['therapy']) {
-            $conditions[] = "r.`{$this->reminderCols['therapy']}` = ?";
-            $params[] = $therapyId;
-        }
-        
-        if ($conditions) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        }
-        if ($this->reminderCols['scheduled_at']) {
-            $sql .= " ORDER BY r.`{$this->reminderCols['scheduled_at']}` ASC";
-        }
-
-        $rows = db_fetch_all($sql, $params);
-        return array_map([$this, 'formatReminder'], $rows);
+        return $this->remindersController->listReminders($therapyId);
     }
 
     private function listReports(?int $therapyId = null): array
@@ -637,27 +531,6 @@ class AdesioneTerapieController
             return strtotime($a['scheduled_at']) <=> strtotime($b['scheduled_at']);
         });
         return $upcoming[0];
-    }
-
-    private function formatReminder(array $reminder): array
-    {
-        $messageRaw = $this->reminderCols['message'] ? ($reminder[$this->reminderCols['message']] ?? '') : '';
-        $decoded = json_decode($messageRaw, true);
-        $messageText = $decoded['text'] ?? ($messageRaw ?? '');
-        $type = $decoded['type'] ?? 'one-shot';
-        $recurrence = $decoded['recurrence'] ?? '';
-
-        return [
-            'id' => (int)($reminder[$this->reminderCols['id']] ?? 0),
-            'therapy_id' => $this->reminderCols['therapy'] ? (int)($reminder[$this->reminderCols['therapy']] ?? 0) : 0,
-            'title' => $this->reminderCols['title'] ? ($reminder[$this->reminderCols['title']] ?? 'Promemoria terapia') : 'Promemoria terapia',
-            'type' => $type,
-            'message' => $messageText,
-            'scheduled_at' => $this->reminderCols['scheduled_at'] ? ($reminder[$this->reminderCols['scheduled_at']] ?? null) : null,
-            'recurrence_rule' => $recurrence,
-            'channel' => $this->reminderCols['channel'] ? ($reminder[$this->reminderCols['channel']] ?? '') : '',
-            'status' => $this->reminderCols['status'] ? ($reminder[$this->reminderCols['status']] ?? '') : '',
-        ];
     }
 
     private function formatReport(array $report): array
