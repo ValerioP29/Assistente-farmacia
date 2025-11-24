@@ -67,4 +67,38 @@ class FormattingService
             'relationship' => $type,
         ];
     }
+
+    public function formatCheck(array $check, array $checkCols, QuestionnaireService $questionnaireService): array
+    {
+        $assessment = '';
+        $notesText = '';
+        $actions = '';
+        $type = 'execution';
+        $questions = [];
+        $rawNotes = $checkCols['notes'] ? ($check[$checkCols['notes']] ?? '') : '';
+        $decoded = json_decode($rawNotes, true);
+        if (is_array($decoded)) {
+            $type = $decoded['type'] ?? ($decoded['questions'] ?? false ? 'checklist' : 'execution');
+            $assessment = $decoded['assessment'] ?? '';
+            $notesText = $decoded['notes'] ?? '';
+            $actions = $decoded['actions'] ?? '';
+            if (!empty($decoded['questions']) && is_array($decoded['questions'])) {
+                $questions = $questionnaireService->normalizeChecklistQuestions($decoded['questions']);
+            }
+        } elseif ($rawNotes !== '') {
+            $assessment = $rawNotes;
+            $notesText = $rawNotes;
+        }
+
+        return [
+            'id' => (int)($check[$checkCols['id']] ?? 0),
+            'therapy_id' => $checkCols['therapy'] ? (int)($check[$checkCols['therapy']] ?? 0) : 0,
+            'scheduled_at' => $checkCols['scheduled_at'] ? ($check[$checkCols['scheduled_at']] ?? null) : null,
+            'assessment' => $assessment,
+            'notes' => $notesText,
+            'actions' => $actions,
+            'type' => $type,
+            'questions' => $questions,
+        ];
+    }
 }

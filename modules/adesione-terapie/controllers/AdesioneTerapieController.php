@@ -5,12 +5,17 @@ require_once __DIR__ . '/../repositories/TherapyRepository.php';
 require_once __DIR__ . '/../repositories/AssistantRepository.php';
 require_once __DIR__ . '/../repositories/ConsentRepository.php';
 require_once __DIR__ . '/../repositories/QuestionnaireRepository.php';
+require_once __DIR__ . '/../repositories/CheckRepository.php';
+require_once __DIR__ . '/../repositories/CheckAnswerRepository.php';
 require_once __DIR__ . '/../services/FormattingService.php';
 require_once __DIR__ . '/../services/TherapyMetadataService.php';
 require_once __DIR__ . '/../services/QuestionnaireService.php';
 require_once __DIR__ . '/../services/ConsentService.php';
+require_once __DIR__ . '/../services/ChecklistService.php';
+require_once __DIR__ . '/../services/CheckAnswerService.php';
 require_once __DIR__ . '/PatientsController.php';
 require_once __DIR__ . '/TherapiesController.php';
+require_once __DIR__ . '/ChecksController.php';
 
 class AdesioneTerapieController
 {
@@ -40,6 +45,7 @@ class AdesioneTerapieController
 
     private \Modules\AdesioneTerapie\Controllers\PatientsController $patientsController;
     private \Modules\AdesioneTerapie\Controllers\TherapiesController $therapiesController;
+    private \Modules\AdesioneTerapie\Controllers\ChecksController $checksController;
     private \Modules\AdesioneTerapie\Services\QuestionnaireService $questionnaireService;
     private \Modules\AdesioneTerapie\Services\ConsentService $consentService;
     private \Modules\AdesioneTerapie\Services\FormattingService $formattingService;
@@ -64,6 +70,7 @@ class AdesioneTerapieController
         $this->questionnaireService = $this->makeQuestionnaireService();
         $this->consentService = $this->makeConsentService();
         $this->patientsController = $this->makePatientsController();
+        $this->checksController = $this->makeChecksController();
         $this->therapiesController = $this->makeTherapiesController();
     }
 
@@ -192,6 +199,34 @@ class AdesioneTerapieController
         );
     }
 
+    private function makeChecksController(): \Modules\AdesioneTerapie\Controllers\ChecksController
+    {
+        $checkRepository = new \Modules\AdesioneTerapie\Repositories\CheckRepository(
+            $this->checksTable,
+            $this->checkCols,
+            $this->therapiesTable,
+            $this->therapyCols
+        );
+
+        return new \Modules\AdesioneTerapie\Controllers\ChecksController(
+            $checkRepository,
+            new \Modules\AdesioneTerapie\Services\CheckAnswerService(
+                new \Modules\AdesioneTerapie\Repositories\CheckAnswerRepository($this->checkAnswersTable, $this->checkAnswerCols),
+                $this->checkAnswerCols,
+                [$this, 'now']
+            ),
+            new \Modules\AdesioneTerapie\Services\ChecklistService($checkRepository, $this->questionnaireService, $this->checkCols),
+            $this->formattingService,
+            $this->questionnaireService,
+            $this->pharmacyId,
+            $this->checkCols,
+            $this->therapyCols,
+            [$this, 'clean'],
+            [$this, 'now'],
+            [$this, 'verifyTherapyOwnership']
+        );
+    }
+
     private function makeTherapiesController(): \Modules\AdesioneTerapie\Controllers\TherapiesController
     {
         return new \Modules\AdesioneTerapie\Controllers\TherapiesController(
@@ -285,148 +320,17 @@ class AdesioneTerapieController
 
     public function saveCheck(array $payload): array
     {
-        return $this->saveCheckExecution($payload);
+        return $this->checksController->saveCheck($payload);
     }
 
     public function saveChecklist(array $payload): array
     {
-        $checkId = isset($payload['check_id']) && $payload['check_id'] !== '' ? (int)$payload['check_id'] : null;
-        $therapyId = isset($payload['therapy_id']) && $payload['therapy_id'] !== '' ? (int)$payload['therapy_id'] : (int)($payload['therapy_reference'] ?? 0);
-
-        if (!$therapyId) {
-            throw new RuntimeException('Seleziona una terapia per configurare la checklist.');
-        }
-
-        $this->verifyTherapyOwnership($therapyId);
-
-        $questionsRaw = $payload['questions_payload'] ?? '[]';
-        $decoded = is_array($payload['questions'] ?? null) ? ($payload['questions'] ?? []) : json_decode($questionsRaw, true);
-        $questions = $this->questionnaireService->normalizeChecklistQuestions($decoded);
-        if (empty($questions)) {
-            throw new RuntimeException('Aggiungi almeno una domanda alla checklist.');
-        }
-
-        $scheduledAt = $payload['scheduled_at'] ?? $payload['check_date'] ?? '';
-        if ($scheduledAt === '') {
-            $scheduledAt = $this->now();
-        }
-
-        $data = [];
-        if ($this->checkCols['therapy']) {
-            $data[$this->checkCols['therapy']] = $therapyId;
-        }
-        if ($this->checkCols['scheduled_at']) {
-            $data[$this->checkCols['scheduled_at']] = str_replace('T', ' ', $scheduledAt);
-        }
-        $notesPayload = [
-            'type' => 'checklist',
-            'questions' => $questions,
-        ];
-        if ($this->checkCols['notes']) {
-            $data[$this->checkCols['notes']] = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
-        }
-
-        $filtered = AdesioneTableResolver::filterData($this->checksTable, $data);
-        if (!$checkId) {
-            $checkId = $this->findChecklistId($therapyId);
-        }
-
-        if ($checkId) {
-            db()->update($this->checksTable, $filtered, "{$this->checkCols['id']} = ?", [$checkId]);
-        } else {
-            if ($this->checkCols['created_at'] && !isset($filtered[$this->checkCols['created_at']])) {
-                $filtered[$this->checkCols['created_at']] = $this->now();
-            }
-            $checkId = (int)db()->insert($this->checksTable, $filtered);
-        }
-
-        return $this->findCheck($checkId);
+        return $this->checksController->saveChecklist($payload);
     }
 
     public function saveCheckExecution(array $payload): array
     {
-        $checkId = isset($payload['check_id']) && $payload['check_id'] !== '' ? (int)$payload['check_id'] : null;
-        $therapyId = isset($payload['therapy_id']) && $payload['therapy_id'] !== '' ? (int)$payload['therapy_id'] : (int)($payload['therapy_reference'] ?? 0);
-
-        if (!$therapyId) {
-            throw new RuntimeException('Seleziona una terapia per registrare il check periodico.');
-        }
-
-        // Verifica che la terapia appartenga alla farmacia corrente
-        $this->verifyTherapyOwnership($therapyId);
-
-        $data = [];
-        if ($this->checkCols['therapy']) {
-            $data[$this->checkCols['therapy']] = $therapyId;
-        }
-        $scheduledAt = $payload['scheduled_at'] ?? $payload['check_date'] ?? '';
-        if ($this->checkCols['scheduled_at'] && $scheduledAt !== '') {
-            $data[$this->checkCols['scheduled_at']] = str_replace('T', ' ', $scheduledAt);
-        }
-
-        if ($this->checkCols['scheduled_at'] && empty($data[$this->checkCols['scheduled_at']])) {
-            throw new RuntimeException('Imposta data e ora del check.');
-        }
-
-        $notesPayload = [
-            'type' => 'execution',
-            'assessment' => $this->clean($payload['assessment'] ?? ''),
-            'notes' => $this->clean($payload['notes'] ?? ''),
-            'actions' => $this->clean($payload['actions'] ?? ''),
-        ];
-        if (empty($notesPayload['assessment'])) {
-            throw new RuntimeException('Compila almeno la valutazione del check.');
-        }
-        if ($this->checkCols['notes']) {
-            $data[$this->checkCols['notes']] = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
-        }
-
-        $filtered = AdesioneTableResolver::filterData($this->checksTable, $data);
-
-        if (!$checkId && $this->checkCols['therapy'] && $this->checkCols['scheduled_at'] && !empty($filtered[$this->checkCols['scheduled_at']])) {
-            $existingCheckId = (int)db()->fetchValue(
-                "SELECT {$this->checkCols['id']} FROM {$this->checksTable} WHERE {$this->checkCols['therapy']} = ? AND {$this->checkCols['scheduled_at']} = ? LIMIT 1",
-                [$therapyId, $filtered[$this->checkCols['scheduled_at']]]
-            );
-            if ($existingCheckId) {
-                $existingRow = db_fetch_one(
-                    "SELECT * FROM `{$this->checksTable}` WHERE `{$this->checkCols['id']}` = ? LIMIT 1",
-                    [$existingCheckId]
-                );
-                $formattedExisting = $existingRow ? $this->formatCheck($existingRow) : null;
-                if (!$formattedExisting || ($formattedExisting['type'] ?? 'execution') !== 'checklist') {
-                    $checkId = $existingCheckId;
-                }
-            }
-        }
-
-        if ($checkId) {
-            db()->update($this->checksTable, $filtered, "{$this->checkCols['id']} = ?", [$checkId]);
-        } else {
-            if ($this->checkCols['created_at'] && !isset($filtered[$this->checkCols['created_at']])) {
-                $filtered[$this->checkCols['created_at']] = $this->now();
-            }
-            $checkId = (int)db()->insert($this->checksTable, $filtered);
-        }
-
-        $answersRaw = $payload['answers_payload'] ?? '[]';
-        $decodedAnswers = is_array($payload['answers'] ?? null) ? ($payload['answers'] ?? []) : json_decode($answersRaw, true);
-        $answers = $this->normalizeCheckAnswers($decodedAnswers);
-        if (!empty($notesPayload['assessment'])) {
-            $answers['assessment'] = $notesPayload['assessment'];
-        }
-        if (!empty($notesPayload['notes'])) {
-            $answers['notes'] = $notesPayload['notes'];
-        }
-        if (!empty($notesPayload['actions'])) {
-            $answers['actions'] = $notesPayload['actions'];
-        }
-
-        if (!empty($answers)) {
-            $this->storeCheckAnswers($checkId, $answers);
-        }
-
-        return $this->findCheck($checkId);
+        return $this->checksController->saveCheckExecution($payload);
     }
 
     public function saveReminder(array $payload): array
@@ -613,28 +517,7 @@ class AdesioneTerapieController
 
     public function findCheck(int $checkId): array
     {
-        // JOIN con therapies per verificare l'ownership
-        $sql = "SELECT c.* FROM `{$this->checksTable}` c ";
-        if ($this->checkCols['therapy'] && $this->therapyCols['pharmacy']) {
-            $sql .= "JOIN `{$this->therapiesTable}` t ON c.`{$this->checkCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
-            $sql .= "WHERE c.`{$this->checkCols['id']}` = ? AND t.`{$this->therapyCols['pharmacy']}` = ?";
-            $params = [$checkId, $this->pharmacyId];
-        } else {
-            $sql .= "WHERE c.`{$this->checkCols['id']}` = ?";
-            $params = [$checkId];
-        }
-        
-        $check = db_fetch_one($sql, $params);
-        if (!$check) {
-            throw new RuntimeException('Check periodico non trovato.');
-        }
-        $formatted = $this->formatCheck($check);
-        $answers = $this->getAnswersForChecks([$formatted]);
-        if (($formatted['type'] ?? 'execution') !== 'checklist') {
-            $formatted['answers'] = $answers[$formatted['id']] ?? [];
-        }
-
-        return $formatted;
+        return $this->checksController->findCheck($checkId);
     }
 
     public function findReminder(int $reminderId): array
@@ -669,40 +552,7 @@ class AdesioneTerapieController
 
     private function listChecks(?int $therapyId = null): array
     {
-        // JOIN con therapies per filtrare per farmacia
-        $sql = "SELECT c.* FROM `{$this->checksTable}` c ";
-        $params = [];
-        $conditions = [];
-        
-        if ($this->checkCols['therapy'] && $this->therapyCols['pharmacy']) {
-            $sql .= "JOIN `{$this->therapiesTable}` t ON c.`{$this->checkCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
-            $conditions[] = "t.`{$this->therapyCols['pharmacy']}` = ?";
-            $params[] = $this->pharmacyId;
-        }
-        
-        if ($therapyId && $this->checkCols['therapy']) {
-            $conditions[] = "c.`{$this->checkCols['therapy']}` = ?";
-            $params[] = $therapyId;
-        }
-        
-        if ($conditions) {
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        }
-        if ($this->checkCols['scheduled_at']) {
-            $sql .= " ORDER BY c.`{$this->checkCols['scheduled_at']}` DESC";
-        }
-
-        $rows = db_fetch_all($sql, $params);
-        $checks = array_map([$this, 'formatCheck'], $rows);
-        $answersByCheck = $this->getAnswersForChecks($checks);
-
-        foreach ($checks as &$check) {
-            if (($check['type'] ?? 'execution') !== 'checklist') {
-                $check['answers'] = $answersByCheck[$check['id']] ?? [];
-            }
-        }
-
-        return $checks;
+        return $this->checksController->listChecks($therapyId);
     }
 
     private function listReminders(?int $therapyId = null): array
@@ -787,139 +637,6 @@ class AdesioneTerapieController
             return strtotime($a['scheduled_at']) <=> strtotime($b['scheduled_at']);
         });
         return $upcoming[0];
-    }
-
-    private function findChecklistId(int $therapyId): ?int
-    {
-        if (!$this->checkCols['therapy']) {
-            return null;
-        }
-        $rows = db_fetch_all(
-            "SELECT * FROM `{$this->checksTable}` WHERE `{$this->checkCols['therapy']}` = ? ORDER BY `{$this->checkCols['id']}` DESC",
-            [$therapyId]
-        );
-        foreach ($rows as $row) {
-            $notes = $this->checkCols['notes'] ? ($row[$this->checkCols['notes']] ?? '') : '';
-            $decoded = json_decode($notes, true);
-            if (is_array($decoded) && (!empty($decoded['questions']) || ($decoded['type'] ?? '') === 'checklist')) {
-                return (int)($row[$this->checkCols['id']] ?? 0);
-            }
-        }
-        return null;
-    }
-
-    private function normalizeCheckAnswers($answers): array
-    {
-        if (!is_array($answers)) {
-            return [];
-        }
-        $normalized = [];
-        foreach ($answers as $key => $answer) {
-            $questionKey = is_string($key) ? trim($key) : (is_array($answer) ? trim((string)($answer['question'] ?? '')) : '');
-            if ($questionKey === '') {
-                continue;
-            }
-            if (is_array($answer)) {
-                $value = $answer['answer'] ?? ($answer['value'] ?? '');
-            } else {
-                $value = $answer;
-            }
-            if (is_array($value)) {
-                $value = json_encode($value, JSON_UNESCAPED_UNICODE);
-            }
-            $normalized[$questionKey] = trim((string)$value);
-        }
-        return $normalized;
-    }
-
-    private function storeCheckAnswers(int $checkId, array $answers): void
-    {
-        if (!$checkId || !$this->checkAnswerCols['check'] || !$this->checkAnswerCols['question'] || !$this->checkAnswerCols['answer']) {
-            return;
-        }
-
-        db()->delete($this->checkAnswersTable, "`{$this->checkAnswerCols['check']}` = ?", [$checkId]);
-
-        foreach ($answers as $question => $answer) {
-            if ($answer === '') {
-                continue;
-            }
-            $payload = [
-                $this->checkAnswerCols['check'] => $checkId,
-                $this->checkAnswerCols['question'] => $question,
-                $this->checkAnswerCols['answer'] => $answer,
-            ];
-            if ($this->checkAnswerCols['created_at']) {
-                $payload[$this->checkAnswerCols['created_at']] = $this->now();
-            }
-            $filtered = AdesioneTableResolver::filterData($this->checkAnswersTable, $payload);
-            db()->insert($this->checkAnswersTable, $filtered);
-        }
-    }
-
-    private function getAnswersForChecks(array $checks): array
-    {
-        if (empty($checks) || !$this->checkAnswerCols['check']) {
-            return [];
-        }
-        $ids = array_unique(array_filter(array_map(static function ($check) {
-            return (int)($check['id'] ?? 0);
-        }, $checks)));
-        if (empty($ids)) {
-            return [];
-        }
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $rows = db_fetch_all(
-            "SELECT * FROM `{$this->checkAnswersTable}` WHERE `{$this->checkAnswerCols['check']}` IN ({$placeholders}) ORDER BY `{$this->checkAnswerCols['id']}` ASC",
-            $ids
-        );
-
-        $grouped = [];
-        foreach ($rows as $row) {
-            $checkId = (int)($row[$this->checkAnswerCols['check']] ?? 0);
-            $grouped[$checkId][] = [
-                'id' => $this->checkAnswerCols['id'] ? (int)($row[$this->checkAnswerCols['id']] ?? 0) : 0,
-                'question' => $row[$this->checkAnswerCols['question']] ?? '',
-                'answer' => $row[$this->checkAnswerCols['answer']] ?? '',
-                'created_at' => $this->checkAnswerCols['created_at'] ? ($row[$this->checkAnswerCols['created_at']] ?? null) : null,
-            ];
-        }
-
-        return $grouped;
-    }
-
-    private function formatCheck(array $check): array
-    {
-        $assessment = '';
-        $notesText = '';
-        $actions = '';
-        $type = 'execution';
-        $questions = [];
-        $rawNotes = $this->checkCols['notes'] ? ($check[$this->checkCols['notes']] ?? '') : '';
-        $decoded = json_decode($rawNotes, true);
-        if (is_array($decoded)) {
-            $type = $decoded['type'] ?? ($decoded['questions'] ?? false ? 'checklist' : 'execution');
-            $assessment = $decoded['assessment'] ?? '';
-            $notesText = $decoded['notes'] ?? '';
-            $actions = $decoded['actions'] ?? '';
-            if (!empty($decoded['questions']) && is_array($decoded['questions'])) {
-                $questions = $this->questionnaireService->normalizeChecklistQuestions($decoded['questions']);
-            }
-        } elseif ($rawNotes !== '') {
-            $assessment = $rawNotes;
-            $notesText = $rawNotes;
-        }
-
-        return [
-            'id' => (int)($check[$this->checkCols['id']] ?? 0),
-            'therapy_id' => $this->checkCols['therapy'] ? (int)($check[$this->checkCols['therapy']] ?? 0) : 0,
-            'scheduled_at' => $this->checkCols['scheduled_at'] ? ($check[$this->checkCols['scheduled_at']] ?? null) : null,
-            'assessment' => $assessment,
-            'notes' => $notesText,
-            'actions' => $actions,
-            'type' => $type,
-            'questions' => $questions,
-        ];
     }
 
     private function formatReminder(array $reminder): array
