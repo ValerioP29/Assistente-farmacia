@@ -345,7 +345,9 @@ class AdesioneTerapieController
         }
 
         $this->syncCaregivers($therapyId, $patientId, $caregivers);
-        $this->storeQuestionnaire($therapyId, $questionnaire);
+        if ($therapyId && is_array($questionnaire) && !empty($questionnaire)) {
+            $this->storeQuestionnaire($therapyId, $questionnaire);
+        }
         $this->storeConsent($therapyId, $patientId, $payload);
 
         return $this->findTherapy($therapyId);
@@ -945,7 +947,19 @@ class AdesioneTerapieController
 
     private function storeQuestionnaire(int $therapyId, array $answers): void
     {
+        if (!is_array($answers) || empty($answers)) {
+            return;
+        }
+
         if (!$this->questionnaireCols['therapy'] || !$this->questionnaireCols['question'] || !$this->questionnaireCols['answer']) {
+            error_log('[AdesioneTerapie] Colonne questionario non risolte, salvataggio saltato');
+            return;
+        }
+
+        try {
+            AdesioneTableResolver::columns($this->questionnairesTable);
+        } catch (Throwable $e) {
+            error_log('[AdesioneTerapie] Tabella questionario non disponibile: ' . $e->getMessage());
             return;
         }
 
@@ -955,13 +969,15 @@ class AdesioneTerapieController
             if (!is_array($stepAnswers)) {
                 continue;
             }
+
+            $stepKey = $this->clean((string)$step);
             foreach ($stepAnswers as $questionKey => $answer) {
                 $cleanAnswer = $this->clean($answer ?? '');
                 if ($cleanAnswer === '') {
                     continue;
                 }
 
-                $questionValue = $step . '|' . $this->clean((string)$questionKey);
+                $questionValue = $stepKey . '|' . $this->clean((string)$questionKey);
                 $row = [
                     $this->questionnaireCols['therapy'] => $therapyId,
                     $this->questionnaireCols['question'] => $questionValue,
