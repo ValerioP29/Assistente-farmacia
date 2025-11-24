@@ -21,7 +21,19 @@
         signaturePadDirty: false,
         signaturePadInitialized: false,
         therapySubmitting: false,
+        patientSubmitting: false,
+        checkSubmitting: false,
+        reminderSubmitting: false,
+        reportGenerating: false,
     };
+
+    const defaultChecklistQuestions = [
+        { key: 'aderenza', text: 'Il paziente sta seguendo la terapia come prescritto?', type: 'text' },
+        { key: 'effetti_collaterali', text: 'Sono presenti effetti collaterali?', type: 'text' },
+        { key: 'supporto', text: 'Il paziente necessita di supporto aggiuntivo?', type: 'text' },
+        { key: 'aderenza_bool', text: 'Aderenza confermata', type: 'boolean' },
+        { key: 'note_generali', text: 'Note generali', type: 'text' },
+    ];
 
     const dom = {
         patientsList: document.getElementById('patientsList'),
@@ -78,6 +90,14 @@
     };
 
     let eventsBound = false;
+    let checkModeSelect = null;
+    let checklistQuestionsContainer = null;
+    let checklistQuestionsList = null;
+    let checkAnswersContainer = null;
+    let checkAnswersList = null;
+    let checkQuestionsPayloadInput = null;
+    let checkAnswersPayloadInput = null;
+    let currentChecklistQuestions = [];
 
     function fetchJSON(url, options = {}) {
         const config = Object.assign({
@@ -188,6 +208,136 @@
         return state.therapies.filter(therapy => therapy.patient_id === patientId).length;
     }
 
+    function getChecklistQuestionsForTherapy(therapyId) {
+        const checklist = getChecklistForTherapy(therapyId);
+        return (checklist && Array.isArray(checklist.questions)) ? checklist.questions : [];
+    }
+
+    function getCheckExecutions(therapyId) {
+        return state.checks.filter(check => check.therapy_id === therapyId && check.type !== 'checklist');
+    }
+
+    function getLatestAnswersByQuestion(therapyId) {
+        const executions = getCheckExecutions(therapyId);
+        const latest = {};
+        executions.forEach(execution => {
+            (execution.answers || []).forEach(answer => {
+                const key = answer.question || '';
+                if (!key) return;
+                const answeredAt = answer.created_at || execution.scheduled_at || '';
+                if (!latest[key] || new Date(answeredAt) > new Date(latest[key].created_at || 0)) {
+                    latest[key] = { answer: answer.answer || '', created_at: answeredAt };
+                }
+            });
+        });
+        return latest;
+    }
+
+    function buildChecklistSummaryHtml(therapyId) {
+        const questions = getChecklistQuestionsForTherapy(therapyId);
+        if (!questions.length) {
+            return `
+                <div class="alert alert-light border d-flex justify-content-between align-items-center mb-0">
+                    <div>
+                        <strong>Checklist periodica della terapia</strong>
+                        <div class="text-muted small mb-0">Nessuna checklist configurata</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" data-action="open-checklist" data-therapy="${therapyId}">
+                        <i class="fas fa-list-check me-1"></i>Configura checklist
+                    </button>
+                </div>`;
+        }
+
+        const latestAnswers = getLatestAnswersByQuestion(therapyId);
+        let html = `
+            <div class="card card-body border-0 shadow-sm mb-0 checklist-summary-box">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Checklist periodica della terapia</h6>
+                    <button class="btn btn-sm btn-outline-secondary" data-action="open-checklist" data-therapy="${therapyId}">
+                        <i class="fas fa-pen me-1"></i>Modifica
+                    </button>
+                </div>
+                <ul class="list-group list-group-flush">
+        `;
+
+        questions.forEach(question => {
+            const latest = latestAnswers[question.key];
+            const answerSafe = latest && latest.answer ? sanitizeHtml(latest.answer) : '<span class="text-muted">Nessuna risposta</span>';
+            const answeredAt = latest && latest.created_at ? formatDateTime(latest.created_at) : '';
+            html += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">${sanitizeHtml(question.text || question.key)}</div>
+                        <div class="text-muted small">${sanitizeHtml(question.key)}</div>
+                    </div>
+                    <div class="text-end">
+                        <div>${answerSafe}</div>
+                        ${answeredAt ? `<small class="text-muted">${answeredAt}</small>` : ''}
+                    </div>
+                </li>
+            `;
+        });
+
+        html += '</ul></div>';
+        return html;
+    }
+
+    function renderAnswersList(answers = []) {
+        if (!answers.length) {
+            return '<p class="text-muted mb-1">Nessuna risposta registrata.</p>';
+        }
+        let html = '<ul class="list-group list-group-flush mb-2">';
+        answers.forEach(answer => {
+            html += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="fw-semibold">${sanitizeHtml(answer.question || 'Domanda')}</div>
+                    <div class="text-end">
+                        <div>${sanitizeHtml(answer.answer || '')}</div>
+                        ${answer.created_at ? `<small class="text-muted">${formatDateTime(answer.created_at)}</small>` : ''}
+                    </div>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    function buildCheckHistoryHtml(therapyId) {
+        const executions = getCheckExecutions(therapyId);
+        if (!executions.length) {
+            return '<p class="text-muted mb-0">Nessuna esecuzione registrata.</p>';
+        }
+
+        let html = `<div class="accordion" id="checkHistory-${therapyId}">`;
+        executions.forEach((check, index) => {
+            const itemId = `check-${therapyId}-${index}`;
+            const headerId = `heading-${itemId}`;
+            const collapseId = `collapse-${itemId}`;
+            const answers = renderAnswersList(check.answers || []);
+            const scheduled = formatDateTime(check.scheduled_at || new Date().toISOString());
+            const notesBlock = check.notes ? `<p class="mb-1"><strong>Note:</strong> ${sanitizeHtml(check.notes)}</p>` : '';
+            const actionsBlock = check.actions ? `<p class="mb-1"><strong>Azioni:</strong> ${sanitizeHtml(check.actions)}</p>` : '';
+            html += `
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="${headerId}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false" aria-controls="${collapseId}">
+                            Check del ${scheduled}
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse" aria-labelledby="${headerId}" data-bs-parent="#checkHistory-${therapyId}">
+                        <div class="accordion-body">
+                            ${answers}
+                            ${notesBlock}
+                            ${actionsBlock}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
     function renderTherapies() {
         if (!dom.therapiesContainer) return;
         dom.therapiesContainer.innerHTML = '';
@@ -228,6 +378,8 @@
             const lastCheck = therapy.last_check ? formatDateTime(therapy.last_check.scheduled_at) : 'Nessun controllo';
             const upcomingReminder = therapy.upcoming_reminder ? formatDateTime(therapy.upcoming_reminder.scheduled_at) : 'Nessun promemoria';
 
+            const checklistSummary = buildChecklistSummaryHtml(therapy.id);
+            const answersHistory = buildCheckHistoryHtml(therapy.id);
             card.innerHTML = `
                 <div class="therapy-card-header">
                     <div>
@@ -258,11 +410,21 @@
                             <h6>Prossimo promemoria</h6>
                             <p class="mb-0">${upcomingReminder}</p>
                         </div>
+                        <div class="col-12 mt-2">
+                            ${checklistSummary}
+                            <div class="mt-3">
+                                <h6 class="mb-2">Storico risposte</h6>
+                                ${answersHistory}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="therapy-card-footer">
                     <button class="btn btn-sm btn-outline-primary me-2" data-action="open-check" data-therapy="${therapy.id}">
                         <i class="fas fa-stethoscope me-1"></i>Nuovo check
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary me-2" data-action="open-checklist" data-therapy="${therapy.id}">
+                        <i class="fas fa-list-check me-1"></i>Configura checklist
                     </button>
                     <button class="btn btn-sm btn-outline-warning me-2" data-action="open-reminder" data-therapy="${therapy.id}">
                         <i class="fas fa-bell me-1"></i>Promemoria
@@ -278,6 +440,9 @@
                     switch (button.dataset.action) {
                         case 'open-check':
                             openCheckModal(therapyId);
+                            break;
+                        case 'open-checklist':
+                            openCheckModal(therapyId, 'checklist');
                             break;
                         case 'open-reminder':
                             openReminderModal(therapyId);
@@ -326,12 +491,20 @@
         items.forEach(item => {
             const entry = document.createElement('div');
             entry.className = `timeline-entry timeline-${item.type}`;
+            const hasChecklistAnswers = item.type === 'check' && item.has_answers;
+            let detailsText = item.details || '';
+            if (item.type === 'check' && item.answers_preview) {
+                const preview = sanitizeHtml(item.answers_preview);
+                detailsText = hasChecklistAnswers ? `📝 ${preview}` + (detailsText ? ` – ${sanitizeHtml(detailsText)}` : '') : sanitizeHtml(detailsText);
+            } else {
+                detailsText = sanitizeHtml(detailsText);
+            }
             entry.innerHTML = `
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
                     <h6>${sanitizeHtml(item.title)}</h6>
                     <span class="timeline-date">${formatDateTime(item.scheduled_at)}</span>
-                    <p>${sanitizeHtml(item.details || '')}</p>
+                    <p>${detailsText}</p>
                 </div>`;
             dom.timelineContainer.appendChild(entry);
         });
@@ -532,10 +705,258 @@
         setupForms();
     }
 
+    function ensureCheckFormEnhancements() {
+        if (!dom.checkForm) return;
+
+        if (!checkQuestionsPayloadInput) {
+            checkQuestionsPayloadInput = document.createElement('input');
+            checkQuestionsPayloadInput.type = 'hidden';
+            checkQuestionsPayloadInput.name = 'questions_payload';
+            dom.checkForm.appendChild(checkQuestionsPayloadInput);
+        }
+        if (!checkAnswersPayloadInput) {
+            checkAnswersPayloadInput = document.createElement('input');
+            checkAnswersPayloadInput.type = 'hidden';
+            checkAnswersPayloadInput.name = 'answers_payload';
+            dom.checkForm.appendChild(checkAnswersPayloadInput);
+        }
+
+        const formBody = dom.checkForm.querySelector('.modal-body');
+        const fieldRow = dom.checkForm.querySelector('.modal-body .row');
+
+        if (!checkModeSelect) {
+            const modeWrapper = document.createElement('div');
+            modeWrapper.className = 'mb-3';
+            modeWrapper.innerHTML = `
+                <label class="form-label">Modalità</label>
+                <select class="form-select" id="checkModeSelect">
+                    <option value="execution">Registra check</option>
+                    <option value="checklist">Configura checklist</option>
+                </select>`;
+            formBody.insertBefore(modeWrapper, fieldRow);
+            checkModeSelect = modeWrapper.querySelector('#checkModeSelect');
+            checkModeSelect.addEventListener('change', () => toggleCheckMode(checkModeSelect.value));
+        }
+
+        if (!checklistQuestionsContainer) {
+            checklistQuestionsContainer = document.createElement('div');
+            checklistQuestionsContainer.className = 'mt-3 d-none';
+            checklistQuestionsContainer.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Domande checklist</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addChecklistQuestionBtn">
+                        <i class="fas fa-plus me-1"></i>Aggiungi domanda
+                    </button>
+                </div>
+                <div class="checklist-questions-list"></div>
+            `;
+            formBody.appendChild(checklistQuestionsContainer);
+            checklistQuestionsList = checklistQuestionsContainer.querySelector('.checklist-questions-list');
+            const addButton = checklistQuestionsContainer.querySelector('#addChecklistQuestionBtn');
+            addButton.addEventListener('click', () => addChecklistQuestionRow());
+        }
+
+        if (!checkAnswersContainer) {
+            checkAnswersContainer = document.createElement('div');
+            checkAnswersContainer.className = 'mt-3';
+            checkAnswersContainer.innerHTML = `
+                <h6 class="mb-2">Risposte checklist</h6>
+                <div class="check-answers-list"></div>
+            `;
+            formBody.appendChild(checkAnswersContainer);
+            checkAnswersList = checkAnswersContainer.querySelector('.check-answers-list');
+        }
+
+        toggleCheckMode(checkModeSelect ? checkModeSelect.value : 'execution');
+    }
+
+    function toggleCheckMode(mode = 'execution') {
+        if (!dom.checkForm) return;
+        const assessmentField = dom.checkForm.querySelector('[name="assessment"]');
+        const notesField = dom.checkForm.querySelector('[name="notes"]');
+        const actionsField = dom.checkForm.querySelector('[name="actions"]');
+        const submitButton = dom.checkForm.querySelector('[type="submit"]');
+
+        const isChecklist = mode === 'checklist';
+        if (assessmentField) {
+            if (isChecklist) {
+                assessmentField.removeAttribute('required');
+            } else {
+                assessmentField.setAttribute('required', 'required');
+            }
+        }
+        [notesField, actionsField].forEach(field => {
+            if (!field) return;
+            if (isChecklist) {
+                field.removeAttribute('required');
+            }
+        });
+
+        if (checklistQuestionsContainer) {
+            checklistQuestionsContainer.classList.toggle('d-none', !isChecklist);
+        }
+        if (checkAnswersContainer) {
+            checkAnswersContainer.classList.toggle('d-none', isChecklist);
+        }
+        if (submitButton) {
+            submitButton.innerHTML = isChecklist ? '<i class="fas fa-save me-2"></i>Salva checklist' : '<i class="fas fa-save me-2"></i>Salva check';
+        }
+
+        if (isChecklist) {
+            const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
+            const checklist = getChecklistForTherapy(therapyId);
+            renderChecklistQuestions(checklist?.questions || currentChecklistQuestions || defaultChecklistQuestions);
+        } else if (checkAnswersList) {
+            const latestQuestions = collectChecklistQuestions();
+            if (latestQuestions.length) {
+                renderChecklistAnswers(latestQuestions);
+            } else {
+                renderChecklistAnswers(currentChecklistQuestions);
+            }
+        }
+    }
+
+    function slugifyQuestion(text, index = 0) {
+        const cleaned = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (cleaned) return cleaned;
+        return `q${index + 1}`;
+    }
+
+    function getChecklistForTherapy(therapyId) {
+        if (!therapyId) return null;
+        return state.checks.find(check => check.therapy_id === therapyId && check.type === 'checklist') || null;
+    }
+
+    function renderChecklistQuestions(questions = []) {
+        if (!checklistQuestionsList) return;
+        checklistQuestionsList.innerHTML = '';
+        const items = questions.length ? questions : defaultChecklistQuestions;
+        items.forEach((question, index) => addChecklistQuestionRow(question, index));
+    }
+
+    function addChecklistQuestionRow(question = {}, index = 0) {
+        if (!checklistQuestionsList) return;
+        const row = document.createElement('div');
+        row.className = 'row g-2 align-items-center mb-2 checklist-question-row';
+        const key = question.key || slugifyQuestion(question.text || '', index);
+        row.dataset.key = key;
+        row.innerHTML = `
+            <div class="col-md-7">
+                <input type="text" class="form-control" value="${question.text || ''}" placeholder="Testo domanda" />
+            </div>
+            <div class="col-md-3">
+                <select class="form-select">
+                    <option value="text" ${question.type === 'text' ? 'selected' : ''}>Risposta testuale</option>
+                    <option value="boolean" ${question.type === 'boolean' ? 'selected' : ''}>Sì/No</option>
+                    <option value="number" ${question.type === 'number' ? 'selected' : ''}>Numero</option>
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        row.querySelector('button').addEventListener('click', () => row.remove());
+        checklistQuestionsList.appendChild(row);
+    }
+
+    function renderChecklistAnswers(questions = []) {
+        if (!checkAnswersList) return;
+        currentChecklistQuestions = questions && questions.length ? questions : defaultChecklistQuestions;
+        checkAnswersList.innerHTML = '';
+        if (!currentChecklistQuestions.length) {
+            checkAnswersList.innerHTML = '<p class="text-muted">Nessuna checklist configurata. Passa alla modalità "Configura checklist" per aggiungere domande.</p>';
+            return;
+        }
+        currentChecklistQuestions.forEach((question, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'mb-2';
+            const inputName = `check_answer_${question.key || slugifyQuestion(question.text || '', index)}`;
+            wrapper.dataset.questionKey = question.key || slugifyQuestion(question.text || '', index);
+            let inputField = '';
+            if (question.type === 'boolean') {
+                inputField = `
+                    <select class="form-select" name="${inputName}">
+                        <option value="">--</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                    </select>`;
+            } else if (question.type === 'number') {
+                inputField = `<input type="number" class="form-control" name="${inputName}" step="any">`;
+            } else {
+                inputField = `<textarea class="form-control" name="${inputName}" rows="2"></textarea>`;
+            }
+            wrapper.innerHTML = `
+                <label class="form-label mb-1">${sanitizeHtml(question.text || 'Domanda')}</label>
+                ${inputField}
+            `;
+            checkAnswersList.appendChild(wrapper);
+        });
+    }
+
+    function collectChecklistQuestions() {
+        if (!checklistQuestionsList) return [];
+        const rows = checklistQuestionsList.querySelectorAll('.checklist-question-row');
+        const questions = [];
+        rows.forEach((row, index) => {
+            const text = row.querySelector('input')?.value.trim() || '';
+            if (!text) return;
+            const type = row.querySelector('select')?.value || 'text';
+            const key = row.dataset.key || slugifyQuestion(text, index);
+            questions.push({ key, text, type });
+        });
+        return questions;
+    }
+
+    function prepareChecklistPayload() {
+        const questions = collectChecklistQuestions();
+        checkQuestionsPayloadInput.value = JSON.stringify(questions);
+        return questions;
+    }
+
+    function prepareCheckExecutionPayload() {
+        const answers = {};
+        const assessmentField = dom.checkForm.querySelector('[name="assessment"]');
+        const notesField = dom.checkForm.querySelector('[name="notes"]');
+        const actionsField = dom.checkForm.querySelector('[name="actions"]');
+        if (assessmentField) answers.assessment = assessmentField.value.trim();
+        if (notesField) answers.notes = notesField.value.trim();
+        if (actionsField) answers.actions = actionsField.value.trim();
+
+        if (checkAnswersList) {
+            checkAnswersList.querySelectorAll('[data-question-key]').forEach(node => {
+                const key = node.dataset.questionKey;
+                const input = node.querySelector('input, textarea, select');
+                if (!key || !input) return;
+                answers[key] = input.value;
+            });
+        }
+
+        checkAnswersPayloadInput.value = JSON.stringify(answers);
+        return answers;
+    }
+
+    function refreshChecklistUI() {
+        const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
+        const checklist = getChecklistForTherapy(therapyId);
+        if (checklist && Array.isArray(checklist.questions)) {
+            renderChecklistQuestions(checklist.questions);
+            renderChecklistAnswers(checklist.questions);
+        } else {
+            renderChecklistQuestions(defaultChecklistQuestions);
+            renderChecklistAnswers(defaultChecklistQuestions);
+        }
+    }
+
     function setupForms() {
         if (dom.patientForm) {
             dom.patientForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.patientSubmitting) return;
+                state.patientSubmitting = true;
+                const submitButton = dom.patientForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.patientForm);
                 formData.append('action', 'save_patient');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -549,7 +970,10 @@
                     }
                     state.selectedPatientId = response.patient.id;
                     renderAll();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.patientSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
@@ -579,13 +1003,48 @@
         }
 
         if (dom.checkForm) {
+            ensureCheckFormEnhancements();
+            if (dom.checkTherapySelect) {
+                dom.checkTherapySelect.addEventListener('change', refreshChecklistUI);
+            }
+
             dom.checkForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.checkSubmitting) return;
+                state.checkSubmitting = true;
+                const submitButton = dom.checkForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
+                const therapyHidden = dom.checkForm.querySelector('#checkTherapyId');
+                if (therapyHidden && dom.checkTherapySelect) {
+                    therapyHidden.value = dom.checkTherapySelect.value;
+                }
+
                 const formData = new FormData(dom.checkForm);
-                formData.append('action', 'save_check');
+                const mode = checkModeSelect ? checkModeSelect.value : 'execution';
+                if (mode === 'checklist') {
+                    const questions = prepareChecklistPayload();
+                    if (!questions.length) {
+                        showAlert('Aggiungi almeno una domanda alla checklist.', 'warning');
+                        state.checkSubmitting = false;
+                        submitButton?.removeAttribute('disabled');
+                        return;
+                    }
+                    if (checkAnswersPayloadInput) {
+                        checkAnswersPayloadInput.value = '';
+                    }
+                    formData.append('action', 'save_checklist');
+                } else {
+                    prepareCheckExecutionPayload();
+                    formData.append('action', 'save_check_execution');
+                }
+
+                if (!formData.get('scheduled_at')) {
+                    formData.set('scheduled_at', new Date().toISOString().slice(0, 16));
+                }
+
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
                     closeModal(dom.checkModal);
-                    showAlert('Check periodico salvato', 'success');
+                    showAlert(mode === 'checklist' ? 'Checklist salvata' : 'Check periodico salvato', 'success');
                     const index = state.checks.findIndex(item => item.id === response.check.id);
                     if (index >= 0) {
                         state.checks[index] = response.check;
@@ -593,13 +1052,20 @@
                         state.checks.push(response.check);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.checkSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reminderForm) {
             dom.reminderForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reminderSubmitting) return;
+                state.reminderSubmitting = true;
+                const submitButton = dom.reminderForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reminderForm);
                 formData.append('action', 'save_reminder');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -612,13 +1078,20 @@
                         state.reminders.push(response.reminder);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reminderSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reportForm) {
             dom.reportForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reportGenerating) return;
+                state.reportGenerating = true;
+                const submitButton = dom.reportForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reportForm);
                 formData.append('action', 'generate_report');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -627,7 +1100,10 @@
                     dom.generatedReportInfo.textContent = response.report.valid_until ? `Valido fino al ${formatDate(response.report.valid_until)}` : 'Validità illimitata';
                     showAlert('Report generato con successo', 'success');
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reportGenerating = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
     }
@@ -1113,9 +1589,21 @@
         }
     }
 
-    function openCheckModal(therapyId = null) {
+    function openCheckModal(therapyId = null, mode = 'execution') {
         resetForm(dom.checkForm);
-        if (therapyId) dom.checkTherapySelect.value = String(therapyId);
+        ensureCheckFormEnhancements();
+        if (therapyId) {
+            dom.checkTherapySelect.value = String(therapyId);
+            const hiddenTherapy = dom.checkForm.querySelector('#checkTherapyId');
+            if (hiddenTherapy) {
+                hiddenTherapy.value = String(therapyId);
+            }
+        }
+        if (checkModeSelect) {
+            checkModeSelect.value = mode;
+            toggleCheckMode(mode);
+        }
+        refreshChecklistUI();
         openModal(dom.checkModal);
     }
 

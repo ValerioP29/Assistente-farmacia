@@ -53,6 +53,8 @@ $allowedActions = [
     'save_patient',
     'save_therapy',
     'save_check',
+    'save_checklist',
+    'save_check_execution',
     'save_reminder',
     'generate_report',
     'get_therapy',
@@ -107,9 +109,41 @@ try {
                 'check_date' => $payload['check_date'] ?? '',
                 'assessment' => $payload['assessment'] ?? '',
                 'notes' => $payload['notes'] ?? '',
-                'actions' => $payload['actions'] ?? ''
+                'actions' => $payload['actions'] ?? '',
+                'answers_payload' => $payload['answers_payload'] ?? '',
             ];
             $check = $controller->saveCheck($safePayload);
+            echo json_encode(['success' => true, 'check' => $check]);
+            break;
+
+        case 'save_checklist':
+            $payload = $_POST;
+            $safePayload = [
+                'check_id' => $payload['check_id'] ?? '',
+                'therapy_id' => $payload['therapy_id'] ?? '',
+                'therapy_reference' => $payload['therapy_reference'] ?? '',
+                'scheduled_at' => $payload['scheduled_at'] ?? '',
+                'check_date' => $payload['check_date'] ?? '',
+                'questions_payload' => $payload['questions_payload'] ?? '',
+            ];
+            $check = $controller->saveChecklist($safePayload);
+            echo json_encode(['success' => true, 'check' => $check]);
+            break;
+
+        case 'save_check_execution':
+            $payload = $_POST;
+            $safePayload = [
+                'check_id' => $payload['check_id'] ?? '',
+                'therapy_id' => $payload['therapy_id'] ?? '',
+                'therapy_reference' => $payload['therapy_reference'] ?? '',
+                'scheduled_at' => $payload['scheduled_at'] ?? '',
+                'check_date' => $payload['check_date'] ?? '',
+                'assessment' => $payload['assessment'] ?? '',
+                'notes' => $payload['notes'] ?? '',
+                'actions' => $payload['actions'] ?? '',
+                'answers_payload' => $payload['answers_payload'] ?? '',
+            ];
+            $check = $controller->saveCheckExecution($safePayload);
             echo json_encode(['success' => true, 'check' => $check]);
             break;
 
