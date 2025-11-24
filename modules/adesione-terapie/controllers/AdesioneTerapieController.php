@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/../models/TableResolver.php';
+require_once __DIR__ . '/../repositories/PatientRepository.php';
+require_once __DIR__ . '/../services/FormattingService.php';
+require_once __DIR__ . '/PatientsController.php';
 
 class AdesioneTerapieController
 {
@@ -27,6 +30,8 @@ class AdesioneTerapieController
     private array $reminderCols = [];
     private array $reportCols = [];
 
+    private \Modules\AdesioneTerapie\Controllers\PatientsController $patientsController;
+
     public function __construct(int $pharmacyId)
     {
         $this->pharmacyId = $pharmacyId;
@@ -42,6 +47,8 @@ class AdesioneTerapieController
         $this->reportsTable = 'jta_therapy_reports';
 
         $this->bootstrapColumns();
+
+        $this->patientsController = $this->makePatientsController();
     }
 
     private function bootstrapColumns(): void
@@ -157,6 +164,18 @@ class AdesioneTerapieController
         ];
     }
 
+    private function makePatientsController(): \Modules\AdesioneTerapie\Controllers\PatientsController
+    {
+        return new \Modules\AdesioneTerapie\Controllers\PatientsController(
+            new \Modules\AdesioneTerapie\Repositories\PatientRepository($this->patientsTable, $this->patientCols),
+            new \Modules\AdesioneTerapie\Services\FormattingService(),
+            $this->pharmacyId,
+            $this->patientCols,
+            [$this, 'clean'],
+            [$this, 'now']
+        );
+    }
+
     public function getInitialData(): array
     {
         $patients = $this->listPatients();
@@ -195,55 +214,7 @@ class AdesioneTerapieController
 
     public function savePatient(array $payload): array
     {
-        $patientId = isset($payload['patient_id']) && $payload['patient_id'] !== '' ? (int)$payload['patient_id'] : null;
-
-        $data = [];
-        if ($this->patientCols['pharmacy']) {
-            $data[$this->patientCols['pharmacy']] = $this->pharmacyId;
-        }
-
-        if ($this->patientCols['first_name']) {
-            $firstName = $this->clean($payload['first_name'] ?? $payload['name'] ?? '');
-            if ($firstName === '' && !$patientId) {
-                throw new RuntimeException('Il nome del paziente è obbligatorio.');
-            }
-            $data[$this->patientCols['first_name']] = $firstName;
-        }
-        if ($this->patientCols['last_name']) {
-            $data[$this->patientCols['last_name']] = $this->clean($payload['last_name'] ?? '');
-        }
-        if ($this->patientCols['phone']) {
-            $data[$this->patientCols['phone']] = $this->clean($payload['phone'] ?? '');
-        }
-        if ($this->patientCols['email']) {
-            $email = $this->clean($payload['email'] ?? '');
-            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                throw new RuntimeException('Indirizzo email non valido.');
-            }
-            $data[$this->patientCols['email']] = $email;
-        }
-        if ($this->patientCols['birth_date'] && !empty($payload['birth_date'])) {
-            $data[$this->patientCols['birth_date']] = $payload['birth_date'];
-        }
-        if ($this->patientCols['notes'] && isset($payload['notes'])) {
-            $data[$this->patientCols['notes']] = $this->clean($payload['notes']);
-        }
-        if ($this->patientCols['updated_at']) {
-            $data[$this->patientCols['updated_at']] = $this->now();
-        }
-
-        $filtered = AdesioneTableResolver::filterData($this->patientsTable, $data);
-
-        if ($patientId) {
-            db()->update($this->patientsTable, $filtered, "{$this->patientCols['id']} = ?", [$patientId]);
-        } else {
-            if ($this->patientCols['created_at'] && !isset($filtered[$this->patientCols['created_at']])) {
-                $filtered[$this->patientCols['created_at']] = $this->now();
-            }
-            $patientId = (int)db()->insert($this->patientsTable, $filtered);
-        }
-
-        return $this->findPatient($patientId);
+        return $this->patientsController->savePatient($payload);
     }
 
     public function saveTherapy(array $payload): array
@@ -699,24 +670,7 @@ class AdesioneTerapieController
 
     public function findPatient(int $patientId): array
     {
-        $columns = AdesioneTableResolver::columns($this->patientsTable);
-        $columnList = implode(', ', array_map(static function ($column) {
-            return "`$column`";
-        }, $columns));
-
-        $where = "{$this->patientCols['id']} = ?";
-        $params = [$patientId];
-        if ($this->patientCols['pharmacy']) {
-            $where .= " AND {$this->patientCols['pharmacy']} = ?";
-            $params[] = $this->pharmacyId;
-        }
-
-        $patient = db_fetch_one("SELECT {$columnList} FROM `{$this->patientsTable}` WHERE {$where}", $params);
-        if (!$patient) {
-            throw new RuntimeException('Paziente non trovato.');
-        }
-
-        return $this->formatPatient($patient);
+        return $this->patientsController->findPatient($patientId);
     }
 
     public function findTherapy(int $therapyId): array
@@ -820,31 +774,7 @@ class AdesioneTerapieController
 
     private function listPatients(): array
     {
-        $columns = AdesioneTableResolver::columns($this->patientsTable);
-        $columnList = implode(', ', array_map(static function ($column) {
-            return "p.`$column`";
-        }, $columns));
-
-        $sql = "SELECT {$columnList} FROM `{$this->patientsTable}` p";
-        $params = [];
-        
-        // Filtra per pharmacy_id se la colonna esiste
-        if ($this->patientCols['pharmacy']) {
-            $sql .= " WHERE p.`{$this->patientCols['pharmacy']}` = ?";
-            $params[] = $this->pharmacyId;
-        }
-        
-        if ($this->patientCols['last_name']) {
-            $sql .= " ORDER BY p.`{$this->patientCols['last_name']}`, p.`{$this->patientCols['first_name']}`";
-        }
-
-        $patients = db_fetch_all($sql, $params);
-
-        $result = [];
-        foreach ($patients as $patient) {
-            $result[] = $this->formatPatient($patient);
-        }
-        return $result;
+        return $this->patientsController->listPatients();
     }
 
     private function listTherapies(): array
@@ -1408,28 +1338,6 @@ class AdesioneTerapieController
         }
 
         return $grouped;
-    }
-
-    private function formatPatient(array $patient): array
-    {
-        $id = (int)($patient[$this->patientCols['id']] ?? 0);
-        $first = $this->patientCols['first_name'] ? ($patient[$this->patientCols['first_name']] ?? '') : '';
-        $last = $this->patientCols['last_name'] ? ($patient[$this->patientCols['last_name']] ?? '') : '';
-        $fullName = trim($first . ' ' . $last);
-        if ($fullName === '') {
-            $fullName = $first ?: $last;
-        }
-
-        return [
-            'id' => $id,
-            'first_name' => $first,
-            'last_name' => $last,
-            'full_name' => $fullName,
-            'phone' => $this->patientCols['phone'] ? ($patient[$this->patientCols['phone']] ?? '') : '',
-            'email' => $this->patientCols['email'] ? ($patient[$this->patientCols['email']] ?? '') : '',
-            'birth_date' => $this->patientCols['birth_date'] ? ($patient[$this->patientCols['birth_date']] ?? null) : null,
-            'notes' => $this->patientCols['notes'] ? ($patient[$this->patientCols['notes']] ?? '') : '',
-        ];
     }
 
     private function formatTherapy(array $therapy): array
