@@ -3,6 +3,8 @@ require_once __DIR__ . '/../models/TableResolver.php';
 require_once __DIR__ . '/../repositories/PatientRepository.php';
 require_once __DIR__ . '/../repositories/TherapyRepository.php';
 require_once __DIR__ . '/../repositories/AssistantRepository.php';
+require_once __DIR__ . '/../repositories/ConsentRepository.php';
+require_once __DIR__ . '/../repositories/QuestionnaireRepository.php';
 require_once __DIR__ . '/../services/FormattingService.php';
 require_once __DIR__ . '/../services/TherapyMetadataService.php';
 require_once __DIR__ . '/../services/QuestionnaireService.php';
@@ -38,6 +40,8 @@ class AdesioneTerapieController
 
     private \Modules\AdesioneTerapie\Controllers\PatientsController $patientsController;
     private \Modules\AdesioneTerapie\Controllers\TherapiesController $therapiesController;
+    private \Modules\AdesioneTerapie\Services\QuestionnaireService $questionnaireService;
+    private \Modules\AdesioneTerapie\Services\ConsentService $consentService;
     private \Modules\AdesioneTerapie\Services\FormattingService $formattingService;
 
     public function __construct(int $pharmacyId)
@@ -57,6 +61,8 @@ class AdesioneTerapieController
         $this->bootstrapColumns();
 
         $this->formattingService = new \Modules\AdesioneTerapie\Services\FormattingService();
+        $this->questionnaireService = $this->makeQuestionnaireService();
+        $this->consentService = $this->makeConsentService();
         $this->patientsController = $this->makePatientsController();
         $this->therapiesController = $this->makeTherapiesController();
     }
@@ -193,8 +199,8 @@ class AdesioneTerapieController
             new \Modules\AdesioneTerapie\Repositories\AssistantRepository($this->assistantsTable, $this->assistantCols, $this->assistantPivotTable, $this->assistantPivotCols),
             $this->formattingService,
             new \Modules\AdesioneTerapie\Services\TherapyMetadataService(),
-            new \Modules\AdesioneTerapie\Services\QuestionnaireService($this->questionnairesTable, $this->questionnaireCols, [$this, 'clean'], [$this, 'now']),
-            new \Modules\AdesioneTerapie\Services\ConsentService($this->consentsTable, $this->consentCols, [$this, 'clean'], [$this, 'now']),
+            $this->questionnaireService,
+            $this->consentService,
             $this->pharmacyId,
             $this->therapyCols,
             $this->patientCols,
@@ -208,6 +214,26 @@ class AdesioneTerapieController
             [$this, 'listReports'],
             [$this, 'getLastCheck'],
             [$this, 'getUpcomingReminder']
+        );
+    }
+
+    private function makeQuestionnaireService(): \Modules\AdesioneTerapie\Services\QuestionnaireService
+    {
+        return new \Modules\AdesioneTerapie\Services\QuestionnaireService(
+            new \Modules\AdesioneTerapie\Repositories\QuestionnaireRepository($this->questionnairesTable, $this->questionnaireCols),
+            $this->questionnaireCols,
+            [$this, 'clean'],
+            [$this, 'now']
+        );
+    }
+
+    private function makeConsentService(): \Modules\AdesioneTerapie\Services\ConsentService
+    {
+        return new \Modules\AdesioneTerapie\Services\ConsentService(
+            new \Modules\AdesioneTerapie\Repositories\ConsentRepository($this->consentsTable, $this->consentCols),
+            $this->consentCols,
+            [$this, 'clean'],
+            [$this, 'now']
         );
     }
 
@@ -275,7 +301,7 @@ class AdesioneTerapieController
 
         $questionsRaw = $payload['questions_payload'] ?? '[]';
         $decoded = is_array($payload['questions'] ?? null) ? ($payload['questions'] ?? []) : json_decode($questionsRaw, true);
-        $questions = $this->normalizeChecklistQuestions($decoded);
+        $questions = $this->questionnaireService->normalizeChecklistQuestions($decoded);
         if (empty($questions)) {
             throw new RuntimeException('Aggiungi almeno una domanda alla checklist.');
         }
@@ -782,47 +808,6 @@ class AdesioneTerapieController
         return null;
     }
 
-    private function normalizeChecklistQuestions(array $questions): array
-    {
-        $normalized = [];
-        foreach ($questions as $index => $question) {
-            if (!is_array($question)) {
-                continue;
-            }
-            $text = trim((string)($question['text'] ?? $question['label'] ?? ''));
-            if ($text === '') {
-                continue;
-            }
-            $key = trim((string)($question['key'] ?? ''));
-            if ($key === '') {
-                $key = $this->slugifyKey($text, $index);
-            }
-            $type = strtolower((string)($question['type'] ?? 'text'));
-            if (!in_array($type, ['text', 'boolean', 'number'], true)) {
-                $type = 'text';
-            }
-
-            $normalized[] = [
-                'key' => $key,
-                'text' => $text,
-                'type' => $type,
-            ];
-        }
-
-        return $normalized;
-    }
-
-    private function slugifyKey(string $value, int $fallbackIndex = 0): string
-    {
-        $value = strtolower(trim($value));
-        $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?: '';
-        $value = trim((string)$value, '-');
-        if ($value === '') {
-            $value = 'q' . ($fallbackIndex + 1);
-        }
-        return $value;
-    }
-
     private function normalizeCheckAnswers($answers): array
     {
         if (!is_array($answers)) {
@@ -918,7 +903,7 @@ class AdesioneTerapieController
             $notesText = $decoded['notes'] ?? '';
             $actions = $decoded['actions'] ?? '';
             if (!empty($decoded['questions']) && is_array($decoded['questions'])) {
-                $questions = $this->normalizeChecklistQuestions($decoded['questions']);
+                $questions = $this->questionnaireService->normalizeChecklistQuestions($decoded['questions']);
             }
         } elseif ($rawNotes !== '') {
             $assessment = $rawNotes;

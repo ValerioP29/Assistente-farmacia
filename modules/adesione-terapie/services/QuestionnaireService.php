@@ -4,17 +4,18 @@ namespace Modules\AdesioneTerapie\Services;
 
 use AdesioneTableResolver;
 use Throwable;
+use Modules\AdesioneTerapie\Repositories\QuestionnaireRepository;
 
 class QuestionnaireService
 {
-    private string $questionnairesTable;
+    private QuestionnaireRepository $questionnaireRepository;
     private array $questionnaireCols;
     private $cleanCallback;
     private $nowCallback;
 
-    public function __construct(string $questionnairesTable, array $questionnaireCols, callable $cleanCallback, callable $nowCallback)
+    public function __construct(QuestionnaireRepository $questionnaireRepository, array $questionnaireCols, callable $cleanCallback, callable $nowCallback)
     {
-        $this->questionnairesTable = $questionnairesTable;
+        $this->questionnaireRepository = $questionnaireRepository;
         $this->questionnaireCols = $questionnaireCols;
         $this->cleanCallback = $cleanCallback;
         $this->nowCallback = $nowCallback;
@@ -32,13 +33,13 @@ class QuestionnaireService
         }
 
         try {
-            AdesioneTableResolver::columns($this->questionnairesTable);
+            AdesioneTableResolver::columns($this->questionnaireRepository->getTable());
         } catch (Throwable $e) {
             error_log('[AdesioneTerapie] Tabella questionario non disponibile: ' . $e->getMessage());
             return;
         }
 
-        db()->delete($this->questionnairesTable, "{$this->questionnaireCols['therapy']} = ?", [$therapyId]);
+        $this->questionnaireRepository->deleteByTherapy($therapyId);
 
         foreach ($answers as $step => $stepAnswers) {
             if (!is_array($stepAnswers)) {
@@ -66,7 +67,9 @@ class QuestionnaireService
                     $row[$this->questionnaireCols['updated_at']] = $this->now();
                 }
 
-                db()->insert($this->questionnairesTable, AdesioneTableResolver::filterData($this->questionnairesTable, $row));
+                $this->questionnaireRepository->insert(
+                    $this->questionnaireRepository->filterData($row)
+                );
             }
         }
     }
@@ -76,10 +79,7 @@ class QuestionnaireService
         if (!$this->questionnaireCols['therapy']) {
             return [];
         }
-        $rows = db_fetch_all(
-            "SELECT * FROM `{$this->questionnairesTable}` WHERE `{$this->questionnaireCols['therapy']}` = ? ORDER BY `{$this->questionnaireCols['id']}` ASC",
-            [$therapyId]
-        );
+        $rows = $this->questionnaireRepository->listByTherapy($therapyId);
 
         if (!$rows) {
             return [];
@@ -105,6 +105,36 @@ class QuestionnaireService
         return $result;
     }
 
+    public function normalizeChecklistQuestions(array $questions): array
+    {
+        $normalized = [];
+        foreach ($questions as $index => $question) {
+            if (!is_array($question)) {
+                continue;
+            }
+            $text = trim((string)($question['text'] ?? $question['label'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+            $key = trim((string)($question['key'] ?? ''));
+            if ($key === '') {
+                $key = $this->slugifyKey($text, $index);
+            }
+            $type = strtolower((string)($question['type'] ?? 'text'));
+            if (!in_array($type, ['text', 'boolean', 'number'], true)) {
+                $type = 'text';
+            }
+
+            $normalized[] = [
+                'key' => $key,
+                'text' => $text,
+                'type' => $type,
+            ];
+        }
+
+        return $normalized;
+    }
+
     private function clean(?string $value): string
     {
         return call_user_func($this->cleanCallback, $value);
@@ -113,5 +143,16 @@ class QuestionnaireService
     private function now(): string
     {
         return call_user_func($this->nowCallback);
+    }
+
+    private function slugifyKey(string $value, int $fallbackIndex = 0): string
+    {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?: '';
+        $value = trim((string)$value, '-');
+        if ($value === '') {
+            $value = 'q' . ($fallbackIndex + 1);
+        }
+        return $value;
     }
 }

@@ -4,17 +4,18 @@ namespace Modules\AdesioneTerapie\Services;
 
 use AdesioneTableResolver;
 use RuntimeException;
+use Modules\AdesioneTerapie\Repositories\ConsentRepository;
 
 class ConsentService
 {
-    private string $consentsTable;
+    private ConsentRepository $consentRepository;
     private array $consentCols;
     private $cleanCallback;
     private $nowCallback;
 
-    public function __construct(string $consentsTable, array $consentCols, callable $cleanCallback, callable $nowCallback)
+    public function __construct(ConsentRepository $consentRepository, array $consentCols, callable $cleanCallback, callable $nowCallback)
     {
-        $this->consentsTable = $consentsTable;
+        $this->consentRepository = $consentRepository;
         $this->consentCols = $consentCols;
         $this->cleanCallback = $cleanCallback;
         $this->nowCallback = $nowCallback;
@@ -26,10 +27,7 @@ class ConsentService
             return;
         }
 
-        $existing = db_fetch_one(
-            "SELECT * FROM `{$this->consentsTable}` WHERE `{$this->consentCols['therapy']}` = ? ORDER BY `{$this->consentCols['id']}` DESC LIMIT 1",
-            [$therapyId]
-        );
+        $existing = $this->consentRepository->findLatestByTherapy($therapyId);
 
         $data = [];
         $data[$this->consentCols['therapy']] = $therapyId;
@@ -60,15 +58,15 @@ class ConsentService
             $data[$this->consentCols['created_at']] = $this->now();
         }
 
-        $filtered = AdesioneTableResolver::filterData($this->consentsTable, $data);
+        $filtered = $this->consentRepository->filterData($data);
 
         if ($existing) {
             $existingId = $existing[$this->consentCols['id']] ?? $existing['id'] ?? null;
             if ($existingId) {
-                db()->update($this->consentsTable, $filtered, "{$this->consentCols['id']} = ?", [$existingId]);
+                $this->consentRepository->update((int)$existingId, $filtered, $this->consentCols['id']);
             }
         } else {
-            db()->insert($this->consentsTable, $filtered);
+            $this->consentRepository->insert($filtered);
         }
     }
 
@@ -77,10 +75,7 @@ class ConsentService
         if (!$this->consentCols['therapy']) {
             return [];
         }
-        $row = db_fetch_one(
-            "SELECT * FROM `{$this->consentsTable}` WHERE `{$this->consentCols['therapy']}` = ? ORDER BY `{$this->consentCols['id']}` DESC LIMIT 1",
-            [$therapyId]
-        );
+        $row = $this->consentRepository->findLatestByTherapy($therapyId);
         if (!$row) {
             return [];
         }
