@@ -21,7 +21,19 @@
         signaturePadDirty: false,
         signaturePadInitialized: false,
         therapySubmitting: false,
+        patientSubmitting: false,
+        checkSubmitting: false,
+        reminderSubmitting: false,
+        reportGenerating: false,
     };
+
+    const defaultChecklistQuestions = [
+        { key: 'aderenza', text: 'Il paziente sta seguendo la terapia come prescritto?', type: 'text' },
+        { key: 'effetti_collaterali', text: 'Sono presenti effetti collaterali?', type: 'text' },
+        { key: 'supporto', text: 'Il paziente necessita di supporto aggiuntivo?', type: 'text' },
+        { key: 'aderenza_bool', text: 'Aderenza confermata', type: 'boolean' },
+        { key: 'note_generali', text: 'Note generali', type: 'text' },
+    ];
 
     const dom = {
         patientsList: document.getElementById('patientsList'),
@@ -78,6 +90,14 @@
     };
 
     let eventsBound = false;
+    let checkModeSelect = null;
+    let checklistQuestionsContainer = null;
+    let checklistQuestionsList = null;
+    let checkAnswersContainer = null;
+    let checkAnswersList = null;
+    let checkQuestionsPayloadInput = null;
+    let checkAnswersPayloadInput = null;
+    let currentChecklistQuestions = [];
 
     function fetchJSON(url, options = {}) {
         const config = Object.assign({
@@ -532,10 +552,258 @@
         setupForms();
     }
 
+    function ensureCheckFormEnhancements() {
+        if (!dom.checkForm) return;
+
+        if (!checkQuestionsPayloadInput) {
+            checkQuestionsPayloadInput = document.createElement('input');
+            checkQuestionsPayloadInput.type = 'hidden';
+            checkQuestionsPayloadInput.name = 'questions_payload';
+            dom.checkForm.appendChild(checkQuestionsPayloadInput);
+        }
+        if (!checkAnswersPayloadInput) {
+            checkAnswersPayloadInput = document.createElement('input');
+            checkAnswersPayloadInput.type = 'hidden';
+            checkAnswersPayloadInput.name = 'answers_payload';
+            dom.checkForm.appendChild(checkAnswersPayloadInput);
+        }
+
+        const formBody = dom.checkForm.querySelector('.modal-body');
+        const fieldRow = dom.checkForm.querySelector('.modal-body .row');
+
+        if (!checkModeSelect) {
+            const modeWrapper = document.createElement('div');
+            modeWrapper.className = 'mb-3';
+            modeWrapper.innerHTML = `
+                <label class="form-label">Modalità</label>
+                <select class="form-select" id="checkModeSelect">
+                    <option value="execution">Registra check</option>
+                    <option value="checklist">Configura checklist</option>
+                </select>`;
+            formBody.insertBefore(modeWrapper, fieldRow);
+            checkModeSelect = modeWrapper.querySelector('#checkModeSelect');
+            checkModeSelect.addEventListener('change', () => toggleCheckMode(checkModeSelect.value));
+        }
+
+        if (!checklistQuestionsContainer) {
+            checklistQuestionsContainer = document.createElement('div');
+            checklistQuestionsContainer.className = 'mt-3 d-none';
+            checklistQuestionsContainer.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Domande checklist</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addChecklistQuestionBtn">
+                        <i class="fas fa-plus me-1"></i>Aggiungi domanda
+                    </button>
+                </div>
+                <div class="checklist-questions-list"></div>
+            `;
+            formBody.appendChild(checklistQuestionsContainer);
+            checklistQuestionsList = checklistQuestionsContainer.querySelector('.checklist-questions-list');
+            const addButton = checklistQuestionsContainer.querySelector('#addChecklistQuestionBtn');
+            addButton.addEventListener('click', () => addChecklistQuestionRow());
+        }
+
+        if (!checkAnswersContainer) {
+            checkAnswersContainer = document.createElement('div');
+            checkAnswersContainer.className = 'mt-3';
+            checkAnswersContainer.innerHTML = `
+                <h6 class="mb-2">Risposte checklist</h6>
+                <div class="check-answers-list"></div>
+            `;
+            formBody.appendChild(checkAnswersContainer);
+            checkAnswersList = checkAnswersContainer.querySelector('.check-answers-list');
+        }
+
+        toggleCheckMode(checkModeSelect ? checkModeSelect.value : 'execution');
+    }
+
+    function toggleCheckMode(mode = 'execution') {
+        if (!dom.checkForm) return;
+        const assessmentField = dom.checkForm.querySelector('[name="assessment"]');
+        const notesField = dom.checkForm.querySelector('[name="notes"]');
+        const actionsField = dom.checkForm.querySelector('[name="actions"]');
+        const submitButton = dom.checkForm.querySelector('[type="submit"]');
+
+        const isChecklist = mode === 'checklist';
+        if (assessmentField) {
+            if (isChecklist) {
+                assessmentField.removeAttribute('required');
+            } else {
+                assessmentField.setAttribute('required', 'required');
+            }
+        }
+        [notesField, actionsField].forEach(field => {
+            if (!field) return;
+            if (isChecklist) {
+                field.removeAttribute('required');
+            }
+        });
+
+        if (checklistQuestionsContainer) {
+            checklistQuestionsContainer.classList.toggle('d-none', !isChecklist);
+        }
+        if (checkAnswersContainer) {
+            checkAnswersContainer.classList.toggle('d-none', isChecklist);
+        }
+        if (submitButton) {
+            submitButton.innerHTML = isChecklist ? '<i class="fas fa-save me-2"></i>Salva checklist' : '<i class="fas fa-save me-2"></i>Salva check';
+        }
+
+        if (isChecklist) {
+            const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
+            const checklist = getChecklistForTherapy(therapyId);
+            renderChecklistQuestions(checklist?.questions || currentChecklistQuestions || defaultChecklistQuestions);
+        } else if (checkAnswersList) {
+            const latestQuestions = collectChecklistQuestions();
+            if (latestQuestions.length) {
+                renderChecklistAnswers(latestQuestions);
+            } else {
+                renderChecklistAnswers(currentChecklistQuestions);
+            }
+        }
+    }
+
+    function slugifyQuestion(text, index = 0) {
+        const cleaned = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (cleaned) return cleaned;
+        return `q${index + 1}`;
+    }
+
+    function getChecklistForTherapy(therapyId) {
+        if (!therapyId) return null;
+        return state.checks.find(check => check.therapy_id === therapyId && check.type === 'checklist') || null;
+    }
+
+    function renderChecklistQuestions(questions = []) {
+        if (!checklistQuestionsList) return;
+        checklistQuestionsList.innerHTML = '';
+        const items = questions.length ? questions : defaultChecklistQuestions;
+        items.forEach((question, index) => addChecklistQuestionRow(question, index));
+    }
+
+    function addChecklistQuestionRow(question = {}, index = 0) {
+        if (!checklistQuestionsList) return;
+        const row = document.createElement('div');
+        row.className = 'row g-2 align-items-center mb-2 checklist-question-row';
+        const key = question.key || slugifyQuestion(question.text || '', index);
+        row.dataset.key = key;
+        row.innerHTML = `
+            <div class="col-md-7">
+                <input type="text" class="form-control" value="${question.text || ''}" placeholder="Testo domanda" />
+            </div>
+            <div class="col-md-3">
+                <select class="form-select">
+                    <option value="text" ${question.type === 'text' ? 'selected' : ''}>Risposta testuale</option>
+                    <option value="boolean" ${question.type === 'boolean' ? 'selected' : ''}>Sì/No</option>
+                    <option value="number" ${question.type === 'number' ? 'selected' : ''}>Numero</option>
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        row.querySelector('button').addEventListener('click', () => row.remove());
+        checklistQuestionsList.appendChild(row);
+    }
+
+    function renderChecklistAnswers(questions = []) {
+        if (!checkAnswersList) return;
+        currentChecklistQuestions = questions && questions.length ? questions : defaultChecklistQuestions;
+        checkAnswersList.innerHTML = '';
+        if (!currentChecklistQuestions.length) {
+            checkAnswersList.innerHTML = '<p class="text-muted">Nessuna checklist configurata. Passa alla modalità "Configura checklist" per aggiungere domande.</p>';
+            return;
+        }
+        currentChecklistQuestions.forEach((question, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'mb-2';
+            const inputName = `check_answer_${question.key || slugifyQuestion(question.text || '', index)}`;
+            wrapper.dataset.questionKey = question.key || slugifyQuestion(question.text || '', index);
+            let inputField = '';
+            if (question.type === 'boolean') {
+                inputField = `
+                    <select class="form-select" name="${inputName}">
+                        <option value="">--</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                    </select>`;
+            } else if (question.type === 'number') {
+                inputField = `<input type="number" class="form-control" name="${inputName}" step="any">`;
+            } else {
+                inputField = `<textarea class="form-control" name="${inputName}" rows="2"></textarea>`;
+            }
+            wrapper.innerHTML = `
+                <label class="form-label mb-1">${sanitizeHtml(question.text || 'Domanda')}</label>
+                ${inputField}
+            `;
+            checkAnswersList.appendChild(wrapper);
+        });
+    }
+
+    function collectChecklistQuestions() {
+        if (!checklistQuestionsList) return [];
+        const rows = checklistQuestionsList.querySelectorAll('.checklist-question-row');
+        const questions = [];
+        rows.forEach((row, index) => {
+            const text = row.querySelector('input')?.value.trim() || '';
+            if (!text) return;
+            const type = row.querySelector('select')?.value || 'text';
+            const key = row.dataset.key || slugifyQuestion(text, index);
+            questions.push({ key, text, type });
+        });
+        return questions;
+    }
+
+    function prepareChecklistPayload() {
+        const questions = collectChecklistQuestions();
+        checkQuestionsPayloadInput.value = JSON.stringify(questions);
+        return questions;
+    }
+
+    function prepareCheckExecutionPayload() {
+        const answers = {};
+        const assessmentField = dom.checkForm.querySelector('[name="assessment"]');
+        const notesField = dom.checkForm.querySelector('[name="notes"]');
+        const actionsField = dom.checkForm.querySelector('[name="actions"]');
+        if (assessmentField) answers.assessment = assessmentField.value.trim();
+        if (notesField) answers.notes = notesField.value.trim();
+        if (actionsField) answers.actions = actionsField.value.trim();
+
+        if (checkAnswersList) {
+            checkAnswersList.querySelectorAll('[data-question-key]').forEach(node => {
+                const key = node.dataset.questionKey;
+                const input = node.querySelector('input, textarea, select');
+                if (!key || !input) return;
+                answers[key] = input.value;
+            });
+        }
+
+        checkAnswersPayloadInput.value = JSON.stringify(answers);
+        return answers;
+    }
+
+    function refreshChecklistUI() {
+        const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
+        const checklist = getChecklistForTherapy(therapyId);
+        if (checklist && Array.isArray(checklist.questions)) {
+            renderChecklistQuestions(checklist.questions);
+            renderChecklistAnswers(checklist.questions);
+        } else {
+            renderChecklistQuestions(defaultChecklistQuestions);
+            renderChecklistAnswers(defaultChecklistQuestions);
+        }
+    }
+
     function setupForms() {
         if (dom.patientForm) {
             dom.patientForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.patientSubmitting) return;
+                state.patientSubmitting = true;
+                const submitButton = dom.patientForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.patientForm);
                 formData.append('action', 'save_patient');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -549,7 +817,10 @@
                     }
                     state.selectedPatientId = response.patient.id;
                     renderAll();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.patientSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
@@ -579,13 +850,48 @@
         }
 
         if (dom.checkForm) {
+            ensureCheckFormEnhancements();
+            if (dom.checkTherapySelect) {
+                dom.checkTherapySelect.addEventListener('change', refreshChecklistUI);
+            }
+
             dom.checkForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.checkSubmitting) return;
+                state.checkSubmitting = true;
+                const submitButton = dom.checkForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
+                const therapyHidden = dom.checkForm.querySelector('#checkTherapyId');
+                if (therapyHidden && dom.checkTherapySelect) {
+                    therapyHidden.value = dom.checkTherapySelect.value;
+                }
+
                 const formData = new FormData(dom.checkForm);
-                formData.append('action', 'save_check');
+                const mode = checkModeSelect ? checkModeSelect.value : 'execution';
+                if (mode === 'checklist') {
+                    const questions = prepareChecklistPayload();
+                    if (!questions.length) {
+                        showAlert('Aggiungi almeno una domanda alla checklist.', 'warning');
+                        state.checkSubmitting = false;
+                        submitButton?.removeAttribute('disabled');
+                        return;
+                    }
+                    if (checkAnswersPayloadInput) {
+                        checkAnswersPayloadInput.value = '';
+                    }
+                    formData.append('action', 'save_checklist');
+                } else {
+                    prepareCheckExecutionPayload();
+                    formData.append('action', 'save_check_execution');
+                }
+
+                if (!formData.get('scheduled_at')) {
+                    formData.set('scheduled_at', new Date().toISOString().slice(0, 16));
+                }
+
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
                     closeModal(dom.checkModal);
-                    showAlert('Check periodico salvato', 'success');
+                    showAlert(mode === 'checklist' ? 'Checklist salvata' : 'Check periodico salvato', 'success');
                     const index = state.checks.findIndex(item => item.id === response.check.id);
                     if (index >= 0) {
                         state.checks[index] = response.check;
@@ -593,13 +899,20 @@
                         state.checks.push(response.check);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.checkSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reminderForm) {
             dom.reminderForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reminderSubmitting) return;
+                state.reminderSubmitting = true;
+                const submitButton = dom.reminderForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reminderForm);
                 formData.append('action', 'save_reminder');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -612,13 +925,20 @@
                         state.reminders.push(response.reminder);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reminderSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reportForm) {
             dom.reportForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reportGenerating) return;
+                state.reportGenerating = true;
+                const submitButton = dom.reportForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reportForm);
                 formData.append('action', 'generate_report');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -627,7 +947,10 @@
                     dom.generatedReportInfo.textContent = response.report.valid_until ? `Valido fino al ${formatDate(response.report.valid_until)}` : 'Validità illimitata';
                     showAlert('Report generato con successo', 'success');
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reportGenerating = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
     }
@@ -1115,7 +1438,19 @@
 
     function openCheckModal(therapyId = null) {
         resetForm(dom.checkForm);
-        if (therapyId) dom.checkTherapySelect.value = String(therapyId);
+        ensureCheckFormEnhancements();
+        if (therapyId) {
+            dom.checkTherapySelect.value = String(therapyId);
+            const hiddenTherapy = dom.checkForm.querySelector('#checkTherapyId');
+            if (hiddenTherapy) {
+                hiddenTherapy.value = String(therapyId);
+            }
+        }
+        if (checkModeSelect) {
+            checkModeSelect.value = 'execution';
+            toggleCheckMode('execution');
+        }
+        refreshChecklistUI();
         openModal(dom.checkModal);
     }
 
