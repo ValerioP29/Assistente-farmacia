@@ -345,7 +345,9 @@ class AdesioneTerapieController
         }
 
         $this->syncCaregivers($therapyId, $patientId, $caregivers);
-        $this->storeQuestionnaire($therapyId, $questionnaire);
+        if ($therapyId && is_array($questionnaire) && !empty($questionnaire)) {
+            $this->storeQuestionnaire($therapyId, $questionnaire);
+        }
         $this->storeConsent($therapyId, $patientId, $payload);
 
         return $this->findTherapy($therapyId);
@@ -389,6 +391,16 @@ class AdesioneTerapieController
         }
 
         $filtered = AdesioneTableResolver::filterData($this->checksTable, $data);
+
+        if (!$checkId && $this->checkCols['therapy'] && $this->checkCols['scheduled_at'] && !empty($filtered[$this->checkCols['scheduled_at']])) {
+            $existingCheckId = (int)db()->fetchValue(
+                "SELECT {$this->checkCols['id']} FROM {$this->checksTable} WHERE {$this->checkCols['therapy']} = ? AND {$this->checkCols['scheduled_at']} = ? LIMIT 1",
+                [$therapyId, $filtered[$this->checkCols['scheduled_at']]]
+            );
+            if ($existingCheckId) {
+                $checkId = $existingCheckId;
+            }
+        }
 
         if ($checkId) {
             db()->update($this->checksTable, $filtered, "{$this->checkCols['id']} = ?", [$checkId]);
@@ -467,6 +479,23 @@ class AdesioneTerapieController
         }
 
         $filtered = AdesioneTableResolver::filterData($this->remindersTable, $data);
+
+        if (!$reminderId && $this->reminderCols['therapy'] && $this->reminderCols['scheduled_at'] && !empty($filtered[$this->reminderCols['scheduled_at']])) {
+            $lookupParams = [$therapyId, $filtered[$this->reminderCols['scheduled_at']]];
+            $where = "{$this->reminderCols['therapy']} = ? AND {$this->reminderCols['scheduled_at']} = ?";
+            if ($this->reminderCols['title'] && isset($filtered[$this->reminderCols['title']])) {
+                $where .= " AND {$this->reminderCols['title']} = ?";
+                $lookupParams[] = $filtered[$this->reminderCols['title']];
+            }
+
+            $existingReminderId = (int)db()->fetchValue(
+                "SELECT {$this->reminderCols['id']} FROM {$this->remindersTable} WHERE {$where} ORDER BY {$this->reminderCols['id']} DESC LIMIT 1",
+                $lookupParams
+            );
+            if ($existingReminderId) {
+                $reminderId = $existingReminderId;
+            }
+        }
 
         if ($reminderId) {
             db()->update($this->remindersTable, $filtered, "{$this->reminderCols['id']} = ?", [$reminderId]);
@@ -945,7 +974,19 @@ class AdesioneTerapieController
 
     private function storeQuestionnaire(int $therapyId, array $answers): void
     {
+        if (!is_array($answers) || empty($answers)) {
+            return;
+        }
+
         if (!$this->questionnaireCols['therapy'] || !$this->questionnaireCols['question'] || !$this->questionnaireCols['answer']) {
+            error_log('[AdesioneTerapie] Colonne questionario non risolte, salvataggio saltato');
+            return;
+        }
+
+        try {
+            AdesioneTableResolver::columns($this->questionnairesTable);
+        } catch (Throwable $e) {
+            error_log('[AdesioneTerapie] Tabella questionario non disponibile: ' . $e->getMessage());
             return;
         }
 
@@ -955,13 +996,15 @@ class AdesioneTerapieController
             if (!is_array($stepAnswers)) {
                 continue;
             }
+
+            $stepKey = $this->clean((string)$step);
             foreach ($stepAnswers as $questionKey => $answer) {
                 $cleanAnswer = $this->clean($answer ?? '');
                 if ($cleanAnswer === '') {
                     continue;
                 }
 
-                $questionValue = $step . '|' . $this->clean((string)$questionKey);
+                $questionValue = $stepKey . '|' . $this->clean((string)$questionKey);
                 $row = [
                     $this->questionnaireCols['therapy'] => $therapyId,
                     $this->questionnaireCols['question'] => $questionValue,

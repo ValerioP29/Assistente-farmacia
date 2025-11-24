@@ -21,6 +21,10 @@
         signaturePadDirty: false,
         signaturePadInitialized: false,
         therapySubmitting: false,
+        patientSubmitting: false,
+        checkSubmitting: false,
+        reminderSubmitting: false,
+        reportGenerating: false,
     };
 
     const dom = {
@@ -536,6 +540,10 @@
         if (dom.patientForm) {
             dom.patientForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.patientSubmitting) return;
+                state.patientSubmitting = true;
+                const submitButton = dom.patientForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.patientForm);
                 formData.append('action', 'save_patient');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -549,7 +557,10 @@
                     }
                     state.selectedPatientId = response.patient.id;
                     renderAll();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.patientSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
@@ -581,6 +592,10 @@
         if (dom.checkForm) {
             dom.checkForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.checkSubmitting) return;
+                state.checkSubmitting = true;
+                const submitButton = dom.checkForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.checkForm);
                 formData.append('action', 'save_check');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -593,13 +608,20 @@
                         state.checks.push(response.check);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.checkSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reminderForm) {
             dom.reminderForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reminderSubmitting) return;
+                state.reminderSubmitting = true;
+                const submitButton = dom.reminderForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reminderForm);
                 formData.append('action', 'save_reminder');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -612,13 +634,20 @@
                         state.reminders.push(response.reminder);
                     }
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reminderSubmitting = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
 
         if (dom.reportForm) {
             dom.reportForm.addEventListener('submit', event => {
                 event.preventDefault();
+                if (state.reportGenerating) return;
+                state.reportGenerating = true;
+                const submitButton = dom.reportForm.querySelector('[type="submit"]');
+                submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reportForm);
                 formData.append('action', 'generate_report');
                 fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
@@ -627,7 +656,10 @@
                     dom.generatedReportInfo.textContent = response.report.valid_until ? `Valido fino al ${formatDate(response.report.valid_until)}` : 'Validità illimitata';
                     showAlert('Report generato con successo', 'success');
                     loadData();
-                }).catch(handleError);
+                }).catch(handleError).finally(() => {
+                    state.reportGenerating = false;
+                    submitButton?.removeAttribute('disabled');
+                });
             });
         }
     }
