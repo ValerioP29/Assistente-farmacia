@@ -1602,6 +1602,7 @@
         if (checkModeSelect) {
             checkModeSelect.value = mode;
             toggleCheckMode(mode);
+
         }
         refreshChecklistUI();
         openModal(dom.checkModal);
