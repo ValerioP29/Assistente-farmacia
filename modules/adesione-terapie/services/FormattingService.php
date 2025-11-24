@@ -25,4 +25,46 @@ class FormattingService
             'notes' => $patientCols['notes'] ? ($patient[$patientCols['notes']] ?? '') : '',
         ];
     }
+
+    public function formatTherapy(array $therapy, array $therapyCols, array $patientCols, TherapyMetadataService $metadataService): array
+    {
+        $metadata = $metadataService->extractMetadata($therapy, $therapyCols);
+
+        $patientName = trim(($therapy['patient_first_name'] ?? '') . ' ' . ($therapy['patient_last_name'] ?? ''));
+
+        return [
+            'id' => (int)($therapy[$therapyCols['id']] ?? 0),
+            'patient_id' => (int)($therapy[$therapyCols['patient']] ?? 0),
+            'patient_name' => $patientName,
+            'patient_phone' => $therapy['patient_phone'] ?? '',
+            'patient_email' => $therapy['patient_email'] ?? '',
+            'title' => $therapyCols['title'] ? ($therapy[$therapyCols['title']] ?? '') : '',
+            'description' => $therapyCols['description'] ? ($therapy[$therapyCols['description']] ?? '') : '',
+            'status' => $therapyCols['status'] ? ($therapy[$therapyCols['status']] ?? 'active') : 'active',
+            'start_date' => $therapyCols['start_date'] ? ($therapy[$therapyCols['start_date']] ?? null) : null,
+            'end_date' => $therapyCols['end_date'] ? ($therapy[$therapyCols['end_date']] ?? null) : null,
+            'caregivers' => $metadata['caregivers'],
+            'questionnaire' => $metadata['questionnaire'],
+            'metadata' => $metadata['metadata'],
+        ];
+    }
+
+    public function formatCaregiver(array $caregiver, array $assistantCols): array
+    {
+        $type = $caregiver[$assistantCols['type']] ?? $caregiver['pivot_role'] ?? 'familiare';
+        $firstName = $assistantCols['first_name'] ? ($caregiver[$assistantCols['first_name']] ?? '') : '';
+        $lastName = $assistantCols['last_name'] ? ($caregiver[$assistantCols['last_name']] ?? '') : '';
+        $fullName = trim($firstName . ' ' . $lastName);
+
+        return [
+            'id' => (int)($caregiver[$assistantCols['id']] ?? 0),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'name' => $fullName !== '' ? $fullName : ($firstName !== '' ? $firstName : $lastName),
+            'type' => $assistantCols['type'] ? $type : '',
+            'phone' => $assistantCols['phone'] ? ($caregiver[$assistantCols['phone']] ?? '') : '',
+            'email' => $assistantCols['email'] ? ($caregiver[$assistantCols['email']] ?? '') : '',
+            'relationship' => $type,
+        ];
+    }
 }
