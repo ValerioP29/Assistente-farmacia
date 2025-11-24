@@ -28,15 +28,15 @@ class AdesioneTerapieController
     public function __construct(int $pharmacyId)
     {
         $this->pharmacyId = $pharmacyId;
-        $this->patientsTable        = 'jta_patients';
-        $this->therapiesTable       = 'jta_therapies';
-        $this->assistantsTable      = 'jta_assistants';
-        $this->assistantPivotTable  = 'jta_therapy_assistant';
-        $this->consentsTable        = 'jta_therapy_consents';
-        $this->questionnairesTable  = 'jta_therapy_questionnaire';
-        $this->checksTable          = 'jta_therapy_checks';
-        $this->remindersTable       = 'jta_therapy_reminders';
-        $this->reportsTable         = 'jta_therapy_reports';
+        $this->patientsTable = 'jta_patients';
+        $this->therapiesTable = 'jta_therapies';
+        $this->assistantsTable = 'jta_assistants';
+        $this->assistantPivotTable = 'jta_therapy_assistant';
+        $this->consentsTable = 'jta_therapy_consents';
+        $this->questionnairesTable = 'jta_therapy_questionnaire';
+        $this->checksTable = 'jta_therapy_checks';
+        $this->remindersTable = 'jta_therapy_reminders';
+        $this->reportsTable = 'jta_therapy_reports';
 
         $this->bootstrapColumns();
     }
@@ -74,7 +74,7 @@ class AdesioneTerapieController
 
         $this->assistantCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['id']),
-            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['pharma_id']),
+            'pharmacy' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['pharma_id', 'pharmacy_id']),
             'first_name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['first_name']),
             'last_name' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['last_name']),
             'type' => AdesioneTableResolver::firstAvailableColumn($this->assistantsTable, ['type']),
@@ -115,7 +115,7 @@ class AdesioneTerapieController
         $this->checkCols = [
             'id' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['id', 'check_id', 'id_check']),
             'therapy' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['therapy_id', 'id_therapy']),
-            'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['check_date', 'scheduled_at', 'data_controllo', 'data_visita']),
+            'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['scheduled_at', 'check_date', 'data_controllo', 'data_visita']),
             'notes' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['notes']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($this->checksTable, ['created_at'])
         ];
@@ -188,7 +188,11 @@ class AdesioneTerapieController
         }
 
         if ($this->patientCols['first_name']) {
-            $data[$this->patientCols['first_name']] = $this->clean($payload['first_name'] ?? $payload['name'] ?? '');
+            $firstName = $this->clean($payload['first_name'] ?? $payload['name'] ?? '');
+            if ($firstName === '' && !$patientId) {
+                throw new RuntimeException('Il nome del paziente è obbligatorio.');
+            }
+            $data[$this->patientCols['first_name']] = $firstName;
         }
         if ($this->patientCols['last_name']) {
             $data[$this->patientCols['last_name']] = $this->clean($payload['last_name'] ?? '');
@@ -197,7 +201,11 @@ class AdesioneTerapieController
             $data[$this->patientCols['phone']] = $this->clean($payload['phone'] ?? '');
         }
         if ($this->patientCols['email']) {
-            $data[$this->patientCols['email']] = $this->clean($payload['email'] ?? '');
+            $email = $this->clean($payload['email'] ?? '');
+            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new RuntimeException('Indirizzo email non valido.');
+            }
+            $data[$this->patientCols['email']] = $email;
         }
         if ($this->patientCols['birth_date'] && !empty($payload['birth_date'])) {
             $data[$this->patientCols['birth_date']] = $payload['birth_date'];
@@ -241,6 +249,11 @@ class AdesioneTerapieController
                 'birth_date' => $payload['inline_birth_date'] ?? null,
                 'notes' => $payload['inline_notes'] ?? '',
             ];
+            
+            if (empty($patientPayload['first_name']) && empty($patientPayload['last_name'])) {
+                throw new RuntimeException('Seleziona un paziente esistente o compila i dati del nuovo paziente.');
+            }
+            
             $patient = $this->savePatient($patientPayload);
             $patientId = $patient['id'];
         }
@@ -273,13 +286,22 @@ class AdesioneTerapieController
             $therapyData[$this->therapyCols['patient']] = $patientId;
         }
         if ($this->therapyCols['title']) {
-            $therapyData[$this->therapyCols['title']] = $this->clean($payload['therapy_title'] ?? '');
+            $title = $this->clean($payload['therapy_title'] ?? '');
+            if ($title === '' && !$therapyId) {
+                throw new RuntimeException('Il titolo della terapia è obbligatorio.');
+            }
+            $therapyData[$this->therapyCols['title']] = $title;
         }
         if ($this->therapyCols['description']) {
             $therapyData[$this->therapyCols['description']] = $this->clean($payload['therapy_description'] ?? '');
         }
         if ($this->therapyCols['status']) {
-            $therapyData[$this->therapyCols['status']] = $this->clean($payload['status'] ?? 'active');
+            $status = $this->clean($payload['status'] ?? 'active');
+            $allowedStatuses = ['active', 'planned', 'completed', 'suspended'];
+            if (!in_array($status, $allowedStatuses, true)) {
+                $status = 'active';
+            }
+            $therapyData[$this->therapyCols['status']] = $status;
         }
         if ($this->therapyCols['start_date'] && !empty($payload['start_date'])) {
             $therapyData[$this->therapyCols['start_date']] = $payload['start_date'];
@@ -338,6 +360,9 @@ class AdesioneTerapieController
             throw new RuntimeException('Seleziona una terapia per registrare il check periodico.');
         }
 
+        // Verifica che la terapia appartenga alla farmacia corrente
+        $this->verifyTherapyOwnership($therapyId);
+
         $data = [];
         if ($this->checkCols['therapy']) {
             $data[$this->checkCols['therapy']] = $therapyId;
@@ -356,7 +381,7 @@ class AdesioneTerapieController
             'notes' => $this->clean($payload['notes'] ?? ''),
             'actions' => $this->clean($payload['actions'] ?? ''),
         ];
-        if (empty(array_filter($notesPayload))) {
+        if (empty($notesPayload['assessment'])) {
             throw new RuntimeException('Compila almeno la valutazione del check.');
         }
         if ($this->checkCols['notes']) {
@@ -385,6 +410,9 @@ class AdesioneTerapieController
         if (!$therapyId) {
             throw new RuntimeException('Seleziona una terapia per il promemoria.');
         }
+
+        // Verifica che la terapia appartenga alla farmacia corrente
+        $this->verifyTherapyOwnership($therapyId);
 
         $data = [];
         if ($this->reminderCols['therapy']) {
@@ -459,6 +487,9 @@ class AdesioneTerapieController
             throw new RuntimeException('Seleziona una terapia per generare il report.');
         }
 
+        // Verifica che la terapia appartenga alla farmacia corrente
+        $this->verifyTherapyOwnership($therapyId);
+
         if (!$this->reportCols['share_token']) {
             throw new RuntimeException('La condivisione del report non è disponibile.');
         }
@@ -518,6 +549,25 @@ class AdesioneTerapieController
         ];
     }
 
+    /**
+     * Verifica che una terapia appartenga alla farmacia corrente
+     */
+    private function verifyTherapyOwnership(int $therapyId): void
+    {
+        if (!$this->therapyCols['pharmacy']) {
+            return;
+        }
+        
+        $therapy = db_fetch_one(
+            "SELECT `{$this->therapyCols['id']}` FROM `{$this->therapiesTable}` WHERE `{$this->therapyCols['id']}` = ? AND `{$this->therapyCols['pharmacy']}` = ?",
+            [$therapyId, $this->pharmacyId]
+        );
+        
+        if (!$therapy) {
+            throw new RuntimeException('Terapia non trovata o non accessibile.');
+        }
+    }
+
     public function findPatient(int $patientId): array
     {
         $columns = AdesioneTableResolver::columns($this->patientsTable);
@@ -568,8 +618,15 @@ class AdesioneTerapieController
             $sql .= "LEFT JOIN `{$this->patientsTable}` p ON t.`{$this->therapyCols['patient']}` = p.`{$this->patientCols['id']}` ";
         }
         $sql .= "WHERE t.`{$this->therapyCols['id']}` = ?";
+        $params = [$therapyId];
+        
+        // Filtra per farmacia
+        if ($this->therapyCols['pharmacy']) {
+            $sql .= " AND t.`{$this->therapyCols['pharmacy']}` = ?";
+            $params[] = $this->pharmacyId;
+        }
 
-        $therapy = db_fetch_one($sql, [$therapyId]);
+        $therapy = db_fetch_one($sql, $params);
 
         if (!$therapy) {
             throw new RuntimeException('Terapia non trovata.');
@@ -588,10 +645,18 @@ class AdesioneTerapieController
 
     public function findCheck(int $checkId): array
     {
-        $check = db_fetch_one(
-            "SELECT * FROM `{$this->checksTable}` WHERE `{$this->checkCols['id']}` = ?",
-            [$checkId]
-        );
+        // JOIN con therapies per verificare l'ownership
+        $sql = "SELECT c.* FROM `{$this->checksTable}` c ";
+        if ($this->checkCols['therapy'] && $this->therapyCols['pharmacy']) {
+            $sql .= "JOIN `{$this->therapiesTable}` t ON c.`{$this->checkCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
+            $sql .= "WHERE c.`{$this->checkCols['id']}` = ? AND t.`{$this->therapyCols['pharmacy']}` = ?";
+            $params = [$checkId, $this->pharmacyId];
+        } else {
+            $sql .= "WHERE c.`{$this->checkCols['id']}` = ?";
+            $params = [$checkId];
+        }
+        
+        $check = db_fetch_one($sql, $params);
         if (!$check) {
             throw new RuntimeException('Check periodico non trovato.');
         }
@@ -600,10 +665,18 @@ class AdesioneTerapieController
 
     public function findReminder(int $reminderId): array
     {
-        $reminder = db_fetch_one(
-            "SELECT * FROM `{$this->remindersTable}` WHERE `{$this->reminderCols['id']}` = ?",
-            [$reminderId]
-        );
+        // JOIN con therapies per verificare l'ownership
+        $sql = "SELECT r.* FROM `{$this->remindersTable}` r ";
+        if ($this->reminderCols['therapy'] && $this->therapyCols['pharmacy']) {
+            $sql .= "JOIN `{$this->therapiesTable}` t ON r.`{$this->reminderCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
+            $sql .= "WHERE r.`{$this->reminderCols['id']}` = ? AND t.`{$this->therapyCols['pharmacy']}` = ?";
+            $params = [$reminderId, $this->pharmacyId];
+        } else {
+            $sql .= "WHERE r.`{$this->reminderCols['id']}` = ?";
+            $params = [$reminderId];
+        }
+        
+        $reminder = db_fetch_one($sql, $params);
         if (!$reminder) {
             throw new RuntimeException('Promemoria non trovato.');
         }
@@ -614,17 +687,20 @@ class AdesioneTerapieController
     {
         $columns = AdesioneTableResolver::columns($this->patientsTable);
         $columnList = implode(', ', array_map(static function ($column) {
-            return "`$column`";
+            return "p.`$column`";
         }, $columns));
 
-        $sql = "SELECT {$columnList} FROM `{$this->patientsTable}`";
+        $sql = "SELECT {$columnList} FROM `{$this->patientsTable}` p";
         $params = [];
+        
+        // Filtra per pharmacy_id se la colonna esiste
         if ($this->patientCols['pharmacy']) {
-            $sql .= " WHERE `{$this->patientCols['pharmacy']}` = ?";
+            $sql .= " WHERE p.`{$this->patientCols['pharmacy']}` = ?";
             $params[] = $this->pharmacyId;
         }
+        
         if ($this->patientCols['last_name']) {
-            $sql .= " ORDER BY `{$this->patientCols['last_name']}`, `{$this->patientCols['first_name']}`";
+            $sql .= " ORDER BY p.`{$this->patientCols['last_name']}`, p.`{$this->patientCols['first_name']}`";
         }
 
         $patients = db_fetch_all($sql, $params);
@@ -698,22 +774,27 @@ class AdesioneTerapieController
 
     private function listChecks(?int $therapyId = null): array
     {
-        $sql = "SELECT * FROM `{$this->checksTable}`";
+        // JOIN con therapies per filtrare per farmacia
+        $sql = "SELECT c.* FROM `{$this->checksTable}` c ";
         $params = [];
         $conditions = [];
-        if ($this->checkCols['pharmacy']) {
-            $conditions[] = "`{$this->checkCols['pharmacy']}` = ?";
+        
+        if ($this->checkCols['therapy'] && $this->therapyCols['pharmacy']) {
+            $sql .= "JOIN `{$this->therapiesTable}` t ON c.`{$this->checkCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
+            $conditions[] = "t.`{$this->therapyCols['pharmacy']}` = ?";
             $params[] = $this->pharmacyId;
         }
+        
         if ($therapyId && $this->checkCols['therapy']) {
-            $conditions[] = "`{$this->checkCols['therapy']}` = ?";
+            $conditions[] = "c.`{$this->checkCols['therapy']}` = ?";
             $params[] = $therapyId;
         }
+        
         if ($conditions) {
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         }
         if ($this->checkCols['scheduled_at']) {
-            $sql .= " ORDER BY `{$this->checkCols['scheduled_at']}` DESC";
+            $sql .= " ORDER BY c.`{$this->checkCols['scheduled_at']}` DESC";
         }
 
         $rows = db_fetch_all($sql, $params);
@@ -722,22 +803,27 @@ class AdesioneTerapieController
 
     private function listReminders(?int $therapyId = null): array
     {
-        $sql = "SELECT * FROM `{$this->remindersTable}`";
+        // JOIN con therapies per filtrare per farmacia
+        $sql = "SELECT r.* FROM `{$this->remindersTable}` r ";
         $params = [];
         $conditions = [];
-        if ($this->reminderCols['pharmacy']) {
-            $conditions[] = "`{$this->reminderCols['pharmacy']}` = ?";
+        
+        if ($this->reminderCols['therapy'] && $this->therapyCols['pharmacy']) {
+            $sql .= "JOIN `{$this->therapiesTable}` t ON r.`{$this->reminderCols['therapy']}` = t.`{$this->therapyCols['id']}` ";
+            $conditions[] = "t.`{$this->therapyCols['pharmacy']}` = ?";
             $params[] = $this->pharmacyId;
         }
+        
         if ($therapyId && $this->reminderCols['therapy']) {
-            $conditions[] = "`{$this->reminderCols['therapy']}` = ?";
+            $conditions[] = "r.`{$this->reminderCols['therapy']}` = ?";
             $params[] = $therapyId;
         }
+        
         if ($conditions) {
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         }
         if ($this->reminderCols['scheduled_at']) {
-            $sql .= " ORDER BY `{$this->reminderCols['scheduled_at']}` ASC";
+            $sql .= " ORDER BY r.`{$this->reminderCols['scheduled_at']}` ASC";
         }
 
         $rows = db_fetch_all($sql, $params);
@@ -774,7 +860,10 @@ class AdesioneTerapieController
             return [];
         }
 
-        $sql = "SELECT a.*, ta.`{$this->assistantPivotCols['role']}` AS pivot_role FROM `{$this->assistantPivotTable}` ta JOIN `{$this->assistantsTable}` a ON ta.`{$this->assistantPivotCols['assistant']}` = a.`{$this->assistantCols['id']}` WHERE ta.`{$this->assistantPivotCols['therapy']}` = ?";
+        $sql = "SELECT a.*, ta.`{$this->assistantPivotCols['role']}` AS pivot_role 
+                FROM `{$this->assistantPivotTable}` ta 
+                JOIN `{$this->assistantsTable}` a ON ta.`{$this->assistantPivotCols['assistant']}` = a.`{$this->assistantCols['id']}` 
+                WHERE ta.`{$this->assistantPivotCols['therapy']}` = ?";
         $params = [$therapyId];
         if ($this->assistantCols['pharmacy']) {
             $sql .= " AND a.`{$this->assistantCols['pharmacy']}` = ?";
@@ -818,7 +907,9 @@ class AdesioneTerapieController
                 $data[$this->assistantCols['type']] = $type;
             }
             if ($this->assistantCols['phone']) {
-                $data[$this->assistantCols['phone']] = $this->clean($caregiver['phone'] ?? '');
+                $data[$this->assistantCols['phone']] = $this->
+            
+                clean($caregiver['phone'] ?? '');
             }
             if ($this->assistantCols['email'] && isset($caregiver['email'])) {
                 $data[$this->assistantCols['email']] = $this->clean($caregiver['email']);
@@ -827,21 +918,28 @@ class AdesioneTerapieController
                 $data[$this->assistantCols['created_at']] = $this->now();
             }
 
-            if (!empty(array_filter($data))) {
-                db()->insert($this->assistantsTable, AdesioneTableResolver::filterData($this->assistantsTable, $data));
-                $assistantId = (int)db()->lastInsertId();
-
-                $pivotData = [
-                    $this->assistantPivotCols['therapy'] => $therapyId,
-                    $this->assistantPivotCols['assistant'] => $assistantId,
-                    $this->assistantPivotCols['role'] => $type,
-                ];
-                if ($this->assistantPivotCols['created_at']) {
-                    $pivotData[$this->assistantPivotCols['created_at']] = $this->now();
-                }
-
-                db()->insert($this->assistantPivotTable, AdesioneTableResolver::filterData($this->assistantPivotTable, $pivotData));
+            // Salta caregiver vuoti
+            $hasData = !empty($data[$this->assistantCols['first_name']]) || 
+                       !empty($data[$this->assistantCols['last_name']]) || 
+                       !empty($data[$this->assistantCols['phone']]);
+            
+            if (!$hasData) {
+                continue;
             }
+
+            db()->insert($this->assistantsTable, AdesioneTableResolver::filterData($this->assistantsTable, $data));
+            $assistantId = (int)db()->lastInsertId();
+
+            $pivotData = [
+                $this->assistantPivotCols['therapy'] => $therapyId,
+                $this->assistantPivotCols['assistant'] => $assistantId,
+                $this->assistantPivotCols['role'] => $type,
+            ];
+            if ($this->assistantPivotCols['created_at']) {
+                $pivotData[$this->assistantPivotCols['created_at']] = $this->now();
+            }
+
+            db()->insert($this->assistantPivotTable, AdesioneTableResolver::filterData($this->assistantPivotTable, $pivotData));
         }
     }
 
@@ -922,10 +1020,15 @@ class AdesioneTerapieController
             $data[$this->consentCols['created_at']] = $this->now();
         }
 
+        $filtered = AdesioneTableResolver::filterData($this->consentsTable, $data);
+        
         if ($existing) {
-            db()->update($this->consentsTable, AdesioneTableResolver::filterData($this->consentsTable, $data), "{$this->consentCols['id']} = ?", [$existing[$this->consentCols['id']] ?? $existing['id'] ?? $existing]);
+            $existingId = $existing[$this->consentCols['id']] ?? $existing['id'] ?? null;
+            if ($existingId) {
+                db()->update($this->consentsTable, $filtered, "{$this->consentCols['id']} = ?", [$existingId]);
+            }
         } else {
-            db()->insert($this->consentsTable, AdesioneTableResolver::filterData($this->consentsTable, $data));
+            db()->insert($this->consentsTable, $filtered);
         }
     }
 

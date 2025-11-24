@@ -57,7 +57,6 @@
         signatureCanvasWrapper: document.getElementById('signatureCanvasWrapper'),
         digitalSignatureWrapper: document.getElementById('digitalSignatureWrapper'),
         therapySummary: document.getElementById('therapySummary'),
-        questionnaireInputs: document.querySelectorAll('.questionnaire-input'),
         generatedReportContainer: document.getElementById('generatedReportContainer'),
         generatedReportLink: document.getElementById('generatedReportLink'),
         generatedReportInfo: document.getElementById('generatedReportInfo'),
@@ -743,21 +742,25 @@
         dom.caregiversPayloadInput.value = JSON.stringify(caregivers);
     }
 
-    function prepareQuestionnairePayload() {
-        if (!dom.questionnaireInputs || !dom.questionnairePayloadInput) return;
-        const questionnaire = {};
-        dom.questionnaireInputs.forEach(input => {
-            const step = input.closest('.wizard-step');
-            if (!step) return;
-            const stepNumber = step.dataset.step;
-            const questionKey = input.dataset.question;
-            if (!questionnaire[stepNumber]) {
-                questionnaire[stepNumber] = {};
-            }
-            questionnaire[stepNumber][questionKey] = input.value.trim();
-        });
-        dom.questionnairePayloadInput.value = JSON.stringify(questionnaire);
-    }
+   function prepareQuestionnairePayload() {
+    if (!dom.questionnairePayloadInput || !dom.therapyForm) return;
+    
+    // Seleziona gli input AL MOMENTO DELL'USO, non al caricamento pagina
+    const questionnaireInputs = dom.therapyForm.querySelectorAll('.questionnaire-input');
+    
+    const questionnaire = {};
+    questionnaireInputs.forEach(input => {
+        const step = input.closest('.wizard-step');
+        if (!step) return;
+        const stepNumber = step.dataset.step;
+        const questionKey = input.dataset.question;
+        if (!questionnaire[stepNumber]) {
+            questionnaire[stepNumber] = {};
+        }
+        questionnaire[stepNumber][questionKey] = input.value.trim();
+    });
+    dom.questionnairePayloadInput.value = JSON.stringify(questionnaire);
+}
 
     function changeTherapyStep(direction) {
         const nextStep = state.currentTherapyStep + direction;
@@ -887,17 +890,68 @@
 
     function initializeSignaturePad() {
         if (!dom.signatureCanvas) return;
+
         if (state.signaturePadInitialized) {
             clearSignature();
             return;
         }
+
         const canvas = dom.signatureCanvas;
         const context = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const parent = canvas.parentElement;
+            const displayWidth = parent?.offsetWidth || 600;
+            const displayHeight = parent?.offsetHeight || 200;
+
+            let existingImage = null;
+            if (state.signaturePadDirty) {
+                existingImage = new Image();
+                existingImage.src = canvas.toDataURL('image/png');
+            }
+
+            canvas.width = displayWidth * ratio;
+            canvas.height = displayHeight * ratio;
+            canvas.style.width = displayWidth + 'px';
+            canvas.style.height = displayHeight + 'px';
+
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.scale(ratio, ratio);
+
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, displayWidth, displayHeight);
+
+            context.strokeStyle = '#000000';
+            context.lineWidth = 2;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+
+            if (existingImage && state.signaturePadDirty) {
+                existingImage.onload = () => {
+                    context.drawImage(existingImage, 0, 0, displayWidth, displayHeight);
+                };
+            }
+        }
+
         resizeCanvas();
 
         let drawing = false;
         let lastX = 0;
         let lastY = 0;
+
+        function getCanvasPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const ratio = window.devicePixelRatio || 1;
+
+            const clientX = event.clientX ?? (event.touches && event.touches[0]?.clientX);
+            const clientY = event.clientY ?? (event.touches && event.touches[0]?.clientY);
+
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width) / ratio,
+                y: (clientY - rect.top) * (canvas.height / rect.height) / ratio
+            };
+        }
 
         function startDrawing(event) {
             drawing = true;
@@ -909,14 +963,15 @@
 
         function draw(event) {
             if (!drawing) return;
+            event.preventDefault();
+
             const pos = getCanvasPosition(event);
+
             context.beginPath();
             context.moveTo(lastX, lastY);
             context.lineTo(pos.x, pos.y);
-            context.strokeStyle = '#000000';
-            context.lineWidth = 2;
-            context.lineCap = 'round';
             context.stroke();
+
             lastX = pos.x;
             lastY = pos.y;
         }
@@ -930,59 +985,33 @@
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseleave', stopDrawing);
 
-        canvas.addEventListener('touchstart', event => {
-            event.preventDefault();
-            startDrawing(event.touches[0]);
-        });
-        canvas.addEventListener('touchmove', event => {
-            event.preventDefault();
-            draw(event.touches[0]);
-        });
-        canvas.addEventListener('touchend', event => {
-            event.preventDefault();
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            startDrawing(e.touches[0]);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            draw(e.touches[0]);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
             stopDrawing();
+        }, { passive: false });
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 250);
         });
 
-        window.addEventListener('resize', resizeCanvas);
         state.signaturePadInitialized = true;
-
-        function resizeCanvas() {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            const displayWidth = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 600;
-            const displayHeight = canvas.offsetHeight || canvas.parentElement?.offsetHeight || 200;
-            const existing = canvas.toDataURL();
-
-            canvas.width = displayWidth * ratio;
-            canvas.height = displayHeight * ratio;
-            context.setTransform(1, 0, 0, 1, 0, 0);
-            context.scale(ratio, ratio);
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            context.fillStyle = '#ffffff';
-            context.fillRect(0, 0, displayWidth, displayHeight);
-            context.strokeStyle = '#000000';
-            context.lineWidth = 2;
-            context.lineCap = 'round';
-
-            if (existing && existing !== 'data:,') {
-                const img = new Image();
-                img.onload = () => {
-                    context.drawImage(img, 0, 0, displayWidth, displayHeight);
-                };
-                img.src = existing;
-            }
-        }
-    }
-
-    function getCanvasPosition(event) {
-        const rect = dom.signatureCanvas.getBoundingClientRect();
-        return {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
-        };
     }
 
     function saveSignature() {
         if (!dom.signatureCanvas || !dom.signatureImageInput) return;
+
         if (dom.signatureTypeSelect.value === 'digital') {
             const digital = dom.therapyForm.querySelector('[name="digital_signature"]').value.trim();
             if (!digital) {
@@ -998,6 +1027,7 @@
             showAlert('Disegna la firma prima di salvarla', 'warning');
             return;
         }
+
         captureSignatureImage(true);
         if (dom.signatureImageInput.value) {
             showAlert('Firma salvata', 'success');
@@ -1006,11 +1036,21 @@
 
     function clearSignature() {
         if (!dom.signatureCanvas) return;
-        const context = dom.signatureCanvas.getContext('2d');
+
+        const canvas = dom.signatureCanvas;
+        const context = canvas.getContext('2d');
+
         context.setTransform(1, 0, 0, 1, 0, 0);
-        context.clearRect(0, 0, dom.signatureCanvas.width, dom.signatureCanvas.height);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
         context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, dom.signatureCanvas.width, dom.signatureCanvas.height);
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.strokeStyle = '#000000';
+        context.lineWidth = 2;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+
         state.signaturePadDirty = false;
         dom.signatureImageInput.value = '';
     }
@@ -1028,6 +1068,7 @@
 
     function toggleInlinePatientForm(show) {
         if (!dom.inlinePatientForm) return;
+
         if (show) {
             dom.inlinePatientForm.classList.add('show');
             dom.inlinePatientForm.style.display = 'block';
@@ -1039,7 +1080,8 @@
             if (patientIdField) {
                 patientIdField.value = '';
             }
-            dom.inlinePatientForm.querySelectorAll('input, textarea').forEach(field => field.value = '');
+            dom.inlinePatientForm.querySelectorAll('input, textarea')
+                .forEach(field => field.value = '');
             dom.inlinePatientToggle?.setAttribute('aria-expanded', 'true');
         } else {
             dom.inlinePatientForm.classList.remove('show');
@@ -1051,40 +1093,42 @@
 
     function captureSignatureImage(force = false) {
         if (!dom.signatureCanvas || !dom.signatureImageInput) return;
+
         const mode = dom.signatureTypeSelect ? dom.signatureTypeSelect.value : 'graphical';
         if (mode === 'digital') {
             dom.signatureImageInput.value = '';
             return;
         }
-        if (!state.signaturePadDirty && !force) {
-            return;
+
+        if (!state.signaturePadDirty && !force) return;
+
+        try {
+            const dataUrl = dom.signatureCanvas.toDataURL('image/png');
+            if (dataUrl && dataUrl !== 'data:,') {
+                dom.signatureImageInput.value = dataUrl;
+            }
+        } catch (e) {
+            console.error('Errore cattura firma:', e);
+            showAlert('Errore nel salvataggio della firma. Riprova.', 'danger');
         }
-        const dataUrl = dom.signatureCanvas.toDataURL('image/png');
-        dom.signatureImageInput.value = dataUrl;
     }
 
     function openCheckModal(therapyId = null) {
         resetForm(dom.checkForm);
-        if (therapyId) {
-            dom.checkTherapySelect.value = String(therapyId);
-        }
+        if (therapyId) dom.checkTherapySelect.value = String(therapyId);
         openModal(dom.checkModal);
     }
 
     function openReminderModal(therapyId = null) {
         resetForm(dom.reminderForm);
-        if (therapyId) {
-            dom.reminderTherapySelect.value = String(therapyId);
-        }
+        if (therapyId) dom.reminderTherapySelect.value = String(therapyId);
         openModal(dom.reminderModal);
     }
 
     function openReportModal(therapyId = null) {
         resetForm(dom.reportForm);
         dom.generatedReportContainer.classList.add('d-none');
-        if (therapyId) {
-            dom.reportTherapySelect.value = String(therapyId);
-        }
+        if (therapyId) dom.reportTherapySelect.value = String(therapyId);
         openModal(dom.reportModal);
     }
 
