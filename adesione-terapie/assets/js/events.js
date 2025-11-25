@@ -230,6 +230,16 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         if (dom.addCaregiverButton) {
             dom.addCaregiverButton.addEventListener('click', addCaregiverRow);
         }
+        if (dom.therapyForm) {
+            dom.therapyForm.querySelectorAll('.questionnaire-input').forEach(input => {
+                input.addEventListener('input', () => {
+                    logic.prepareQuestionnairePayload(dom.therapyForm, dom.questionnairePayloadInput);
+                    if (state.currentTherapyStep === dom.wizardSteps.length) {
+                        updateSummaryPreview();
+                    }
+                });
+            });
+        }
         if (dom.nextStepButton) {
             dom.nextStepButton.addEventListener('click', () => changeTherapyStep(1));
         }
@@ -419,12 +429,22 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
                 state.therapySubmitting = true;
                 dom.submitTherapyButton?.setAttribute('disabled', 'disabled');
 
+                const questionnaire = logic.prepareQuestionnairePayload(
+                    dom.therapyForm,
+                    dom.questionnairePayloadInput
+                );
+                const caregivers = logic.prepareCaregiversPayload(
+                    dom.caregiversContainer,
+                    dom.caregiversPayloadInput
+                );
                 updateSummaryPreview();
 
                 signature.captureSignatureImage({ dom, state });
                 logic.updateHiddenConsentFields({ dom, state });
 
                 const formData = new FormData(dom.therapyForm);
+                formData.set('questionnaire_payload', JSON.stringify(questionnaire));
+                formData.set('caregivers_payload', JSON.stringify(caregivers));
 
                 api.saveTherapy(formData)
                     .then(response => {
