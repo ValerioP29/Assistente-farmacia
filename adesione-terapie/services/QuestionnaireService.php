@@ -27,15 +27,7 @@ class QuestionnaireService
             return;
         }
 
-        if (!$this->questionnaireCols['therapy'] || !$this->questionnaireCols['question'] || !$this->questionnaireCols['answer']) {
-            error_log('[AdesioneTerapie] Colonne questionario non risolte, salvataggio saltato');
-            return;
-        }
-
-        try {
-            AdesioneTableResolver::columns($this->questionnaireRepository->getTable());
-        } catch (Throwable $e) {
-            error_log('[AdesioneTerapie] Tabella questionario non disponibile: ' . $e->getMessage());
+        if (!$this->hasValidColumns()) {
             return;
         }
 
@@ -103,6 +95,32 @@ class QuestionnaireService
         }
 
         return $result;
+    }
+
+    private function hasValidColumns(): bool
+    {
+        foreach (['therapy', 'question', 'answer'] as $key) {
+            if (empty($this->questionnaireCols[$key])) {
+                error_log("[AdesioneTerapie] Colonna questionario '{$key}' non risolta");
+                return false;
+            }
+        }
+
+        try {
+            $tableColumns = AdesioneTableResolver::columns($this->questionnaireRepository->getTable());
+        } catch (Throwable $e) {
+            error_log('[AdesioneTerapie] Tabella questionario non disponibile: ' . $e->getMessage());
+            return false;
+        }
+
+        foreach (['therapy', 'question', 'answer'] as $key) {
+            if (!in_array($this->questionnaireCols[$key], $tableColumns, true)) {
+                error_log("[AdesioneTerapie] Colonna questionario '{$this->questionnaireCols[$key]}' non trovata in tabella");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function normalizeChecklistQuestions(array $questions): array
