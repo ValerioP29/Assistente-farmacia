@@ -1,25 +1,47 @@
 // Utility helpers for Adesione Terapie module.
 
-export function sanitizeHtml(html) {
-    // TODO: sanitize HTML content.
+export function sanitizeHtml(input) {
+    const div = document.createElement('div');
+    div.textContent = input || '';
+    return div.innerHTML;
 }
 
-export function formatDate(value) {
-    // TODO: format date values.
+export function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('it-IT');
 }
 
-export function formatDateTime(value) {
-    // TODO: format date-time values.
+export function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return dateString;
+    return date.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 export function statusLabel(status) {
-    // TODO: map status to label.
+    switch (status) {
+        case 'completed':
+            return 'Completata';
+        case 'planned':
+            return 'Pianificata';
+        case 'suspended':
+            return 'Sospesa';
+        case 'active':
+        default:
+            return 'Attiva';
+    }
 }
 
 export function addDays(date, days) {
-    // TODO: add days to a date.
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
 }
 
-export function caregiverFullName(caregiver) {
-    // TODO: return caregiver full name.
+export function caregiverFullName(caregiver = {}) {
+    const parts = [caregiver.first_name, caregiver.last_name].filter(Boolean);
+    const fullName = parts.join(' ').trim();
+    return fullName || 'Caregiver';
 }

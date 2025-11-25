@@ -8,8 +8,16 @@ const state = {
     reports: [],
     timeline: [],
     stats: {},
-    selectedPatient: null,
-    submissionFlags: {},
+    selectedPatientId: null,
+    currentTherapyStep: 1,
+    signaturePad: null,
+    signaturePadDirty: false,
+    signaturePadInitialized: false,
+    therapySubmitting: false,
+    patientSubmitting: false,
+    checkSubmitting: false,
+    reminderSubmitting: false,
+    reportGenerating: false,
 };
 
 export function getState() {
@@ -29,7 +37,15 @@ export function resetState() {
         reports: [],
         timeline: [],
         stats: {},
-        selectedPatient: null,
-        submissionFlags: {},
+        selectedPatientId: null,
+        currentTherapyStep: 1,
+        signaturePad: null,
+        signaturePadDirty: false,
+        signaturePadInitialized: false,
+        therapySubmitting: false,
+        patientSubmitting: false,
+        checkSubmitting: false,
+        reminderSubmitting: false,
+        reportGenerating: false,
     });
 }
