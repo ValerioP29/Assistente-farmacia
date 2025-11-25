@@ -239,6 +239,110 @@ class AdesioneTerapieController
         );
     }
 
+    private function makePatientsController(): \Modules\AdesioneTerapie\Controllers\PatientsController
+    {
+        return new \Modules\AdesioneTerapie\Controllers\PatientsController(
+            new \Modules\AdesioneTerapie\Repositories\PatientRepository($this->patientsTable, $this->patientCols),
+            $this->formattingService,
+            $this->pharmacyId,
+            $this->patientCols,
+            [$this, 'clean'],
+            [$this, 'now']
+        );
+    }
+
+    private function makeChecksController(): \Modules\AdesioneTerapie\Controllers\ChecksController
+    {
+        $checkRepository = new \Modules\AdesioneTerapie\Repositories\CheckRepository(
+            $this->checksTable,
+            $this->checkCols,
+            $this->therapiesTable,
+            $this->therapyCols
+        );
+
+        return new \Modules\AdesioneTerapie\Controllers\ChecksController(
+            $checkRepository,
+            new \Modules\AdesioneTerapie\Services\CheckAnswerService(
+                new \Modules\AdesioneTerapie\Repositories\CheckAnswerRepository($this->checkAnswersTable, $this->checkAnswerCols),
+                $this->checkAnswerCols,
+                [$this, 'now']
+            ),
+            new \Modules\AdesioneTerapie\Services\ChecklistService($checkRepository, $this->questionnaireService, $this->checkCols),
+            $this->formattingService,
+            $this->questionnaireService,
+            $this->pharmacyId,
+            $this->checkCols,
+            $this->therapyCols,
+            [$this, 'clean'],
+            [$this, 'now'],
+            [$this, 'verifyTherapyOwnership']
+        );
+    }
+
+    private function makeRemindersController(): \Modules\AdesioneTerapie\Controllers\RemindersController
+    {
+        return new \Modules\AdesioneTerapie\Controllers\RemindersController(
+            new \Modules\AdesioneTerapie\Repositories\ReminderRepository(
+                $this->remindersTable,
+                $this->reminderCols,
+                $this->therapiesTable,
+                $this->therapyCols
+            ),
+            $this->formattingService,
+            $this->pharmacyId,
+            $this->reminderCols,
+            $this->therapyCols,
+            [$this, 'clean'],
+            [$this, 'now'],
+            [$this, 'verifyTherapyOwnership']
+        );
+    }
+
+    private function makeTherapiesController(): \Modules\AdesioneTerapie\Controllers\TherapiesController
+    {
+        return new \Modules\AdesioneTerapie\Controllers\TherapiesController(
+            new \Modules\AdesioneTerapie\Repositories\TherapyRepository($this->therapiesTable, $this->therapyCols, $this->patientsTable, $this->patientCols),
+            new \Modules\AdesioneTerapie\Repositories\AssistantRepository($this->assistantsTable, $this->assistantCols, $this->assistantPivotTable, $this->assistantPivotCols),
+            $this->formattingService,
+            new \Modules\AdesioneTerapie\Services\TherapyMetadataService(),
+            $this->questionnaireService,
+            $this->consentService,
+            $this->pharmacyId,
+            $this->therapyCols,
+            $this->patientCols,
+            $this->assistantCols,
+            $this->assistantPivotCols,
+            [$this, 'clean'],
+            [$this, 'now'],
+            [$this->patientsController, 'savePatient'],
+            [$this, 'listChecks'],
+            [$this, 'listReminders'],
+            [$this, 'listReports'],
+            [$this, 'getLastCheck'],
+            [$this, 'getUpcomingReminder']
+        );
+    }
+
+    private function makeQuestionnaireService(): \Modules\AdesioneTerapie\Services\QuestionnaireService
+    {
+        return new \Modules\AdesioneTerapie\Services\QuestionnaireService(
+            new \Modules\AdesioneTerapie\Repositories\QuestionnaireRepository($this->questionnairesTable, $this->questionnaireCols),
+            $this->questionnaireCols,
+            [$this, 'clean'],
+            [$this, 'now']
+        );
+    }
+
+    private function makeConsentService(): \Modules\AdesioneTerapie\Services\ConsentService
+    {
+        return new \Modules\AdesioneTerapie\Services\ConsentService(
+            new \Modules\AdesioneTerapie\Repositories\ConsentRepository($this->consentsTable, $this->consentCols),
+            $this->consentCols,
+            [$this, 'clean'],
+            [$this, 'now']
+        );
+    }
+
     public function getInitialData(): array
     {
         $patients = $this->listPatients();
