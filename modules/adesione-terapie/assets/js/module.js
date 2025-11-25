@@ -1,5 +1,5 @@
 (function () {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const routesBase = 'adesione-terapie/routes.php';
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         const moduleRoot = document.querySelector('.adesione-terapie-module');
@@ -7,25 +7,29 @@
             return;
         }
 
-    const state = {
-        patients: [],
-        therapies: [],
-        checks: [],
-        reminders: [],
-        reports: [],
-        timeline: [],
-        stats: {},
-        selectedPatientId: null,
-        currentTherapyStep: 1,
-        signaturePad: null,
-        signaturePadDirty: false,
-        signaturePadInitialized: false,
-        therapySubmitting: false,
-        patientSubmitting: false,
-        checkSubmitting: false,
-        reminderSubmitting: false,
-        reportGenerating: false,
-    };
+        const { api, state: stateModule, utils } = await import('./index.js');
+        const {
+            configureApi,
+            loadInitialData,
+            savePatient,
+            saveTherapy,
+            saveCheck,
+            saveChecklist,
+            saveReminder,
+            generateReport,
+        } = api;
+        const { getState } = stateModule;
+        const {
+            sanitizeHtml,
+            formatDate,
+            formatDateTime,
+            statusLabel,
+            addDays,
+            caregiverFullName,
+        } = utils;
+
+        configureApi({ routesBase, csrfToken });
+        const state = getState();
 
     const defaultChecklistQuestions = [
         { key: 'aderenza', text: 'Il paziente sta seguendo la terapia come prescritto?', type: 'text' },
@@ -99,36 +103,12 @@
     let checkAnswersPayloadInput = null;
     let currentChecklistQuestions = [];
 
-    function fetchJSON(url, options = {}) {
-        const config = Object.assign({
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-        }, options);
-
-        if (config.method && config.method.toUpperCase() === 'POST') {
-            config.headers['X-CSRF-Token'] = csrfToken;
-        }
-
-        return fetch(url, config).then(async response => {
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.success === false) {
-                const errorMessage = data.message || 'Errore durante la richiesta';
-                throw new Error(errorMessage);
-            }
-            return data;
-        });
-    }
-
     function loadData() {
         toggleLoading(true);
-        fetchJSON(`${routesBase}?action=init`).then(response => {
-            if (!response || typeof response.data === 'undefined') {
+        loadInitialData().then(data => {
+            if (!data) {
                 throw new Error('Dati iniziali non disponibili. Riprova più tardi.');
             }
-
-            const data = response.data || {};
 
             state.patients = data.patients || [];
             state.therapies = data.therapies || [];
@@ -547,52 +527,6 @@
         return html;
     }
 
-    function statusLabel(status) {
-        switch (status) {
-            case 'completed':
-                return 'Completata';
-            case 'planned':
-                return 'Pianificata';
-            case 'suspended':
-                return 'Sospesa';
-            case 'active':
-            default:
-                return 'Attiva';
-        }
-    }
-
-    function formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        if (Number.isNaN(date.getTime())) return dateString;
-        return date.toLocaleDateString('it-IT');
-    }
-
-    function formatDateTime(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        if (Number.isNaN(date.getTime())) return dateString;
-        return date.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
-    }
-
-    function addDays(date, days) {
-        const result = new Date(date);
-        result.setDate(result.getDate() + days);
-        return result;
-    }
-
-    function sanitizeHtml(input) {
-        const div = document.createElement('div');
-        div.textContent = input || '';
-        return div.innerHTML;
-    }
-
-    function caregiverFullName(caregiver) {
-        const parts = [caregiver.first_name, caregiver.last_name].filter(Boolean);
-        const fullName = parts.join(' ').trim();
-        return fullName || 'Caregiver';
-    }
-
     function toggleLoading(isLoading) {
         moduleRoot.classList.toggle('is-loading', isLoading);
     }
@@ -958,8 +892,7 @@
                 const submitButton = dom.patientForm.querySelector('[type="submit"]');
                 submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.patientForm);
-                formData.append('action', 'save_patient');
-                fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
+                savePatient(formData).then(response => {
                     closeModal(dom.patientModal);
                     showAlert('Paziente salvato con successo', 'success');
                     const patientIndex = state.patients.findIndex(p => p.id === response.patient.id);
@@ -989,8 +922,7 @@
                 appendConsentFields();
 
                 const formData = new FormData(dom.therapyForm);
-                formData.append('action', 'save_therapy');
-                fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
+                saveTherapy(formData).then(response => {
                     closeModal(dom.therapyModal);
                     showAlert('Terapia salvata con successo', 'success');
                     upsertTherapy(response.therapy);
@@ -1020,6 +952,9 @@
                 }
 
                 const formData = new FormData(dom.checkForm);
+                if (!formData.get('scheduled_at')) {
+                    formData.set('scheduled_at', new Date().toISOString().slice(0, 16));
+                }
                 const mode = checkModeSelect ? checkModeSelect.value : 'execution';
                 if (mode === 'checklist') {
                     const questions = prepareChecklistPayload();
@@ -1032,30 +967,40 @@
                     if (checkAnswersPayloadInput) {
                         checkAnswersPayloadInput.value = '';
                     }
-                    formData.append('action', 'save_checklist');
+                    saveChecklist(formData).then(response => {
+                        closeModal(dom.checkModal);
+                        showAlert('Checklist salvata', 'success');
+                        const index = state.checks.findIndex(item => item.id === response.check.id);
+                        if (index >= 0) {
+                            state.checks[index] = response.check;
+                        } else {
+                            state.checks.push(response.check);
+                        }
+                        loadData();
+                    }).catch(handleError).finally(() => {
+                        state.checkSubmitting = false;
+                        submitButton?.removeAttribute('disabled');
+                    });
+                    return;
                 } else {
                     prepareCheckExecutionPayload();
-                    formData.append('action', 'save_check_execution');
+                    saveCheck(formData).then(response => {
+                        closeModal(dom.checkModal);
+                        showAlert('Check periodico salvato', 'success');
+                        const index = state.checks.findIndex(item => item.id === response.check.id);
+                        if (index >= 0) {
+                            state.checks[index] = response.check;
+                        } else {
+                            state.checks.push(response.check);
+                        }
+                        loadData();
+                    }).catch(handleError).finally(() => {
+                        state.checkSubmitting = false;
+                        submitButton?.removeAttribute('disabled');
+                    });
+                    return;
                 }
 
-                if (!formData.get('scheduled_at')) {
-                    formData.set('scheduled_at', new Date().toISOString().slice(0, 16));
-                }
-
-                fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
-                    closeModal(dom.checkModal);
-                    showAlert(mode === 'checklist' ? 'Checklist salvata' : 'Check periodico salvato', 'success');
-                    const index = state.checks.findIndex(item => item.id === response.check.id);
-                    if (index >= 0) {
-                        state.checks[index] = response.check;
-                    } else {
-                        state.checks.push(response.check);
-                    }
-                    loadData();
-                }).catch(handleError).finally(() => {
-                    state.checkSubmitting = false;
-                    submitButton?.removeAttribute('disabled');
-                });
             });
         }
 
@@ -1067,8 +1012,7 @@
                 const submitButton = dom.reminderForm.querySelector('[type="submit"]');
                 submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reminderForm);
-                formData.append('action', 'save_reminder');
-                fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
+                saveReminder(formData).then(response => {
                     closeModal(dom.reminderModal);
                     showAlert('Promemoria salvato', 'success');
                     const index = state.reminders.findIndex(item => item.id === response.reminder.id);
@@ -1093,8 +1037,7 @@
                 const submitButton = dom.reportForm.querySelector('[type="submit"]');
                 submitButton?.setAttribute('disabled', 'disabled');
                 const formData = new FormData(dom.reportForm);
-                formData.append('action', 'generate_report');
-                fetchJSON(routesBase, { method: 'POST', body: formData }).then(response => {
+                generateReport(formData).then(response => {
                     dom.generatedReportContainer.classList.remove('d-none');
                     dom.generatedReportLink.value = response.report.url;
                     dom.generatedReportInfo.textContent = response.report.valid_until ? `Valido fino al ${formatDate(response.report.valid_until)}` : 'Validità illimitata';
