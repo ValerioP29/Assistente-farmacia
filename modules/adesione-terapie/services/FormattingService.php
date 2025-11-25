@@ -122,4 +122,29 @@ class FormattingService
             'status' => $reminderCols['status'] ? ($reminder[$reminderCols['status']] ?? '') : '',
         ];
     }
+
+    public function formatReport(array $report, array $reportCols, callable $buildReportUrl): array
+    {
+        $content = [];
+        if ($reportCols['content'] && !empty($report[$reportCols['content']])) {
+            $decoded = json_decode($report[$reportCols['content']], true);
+            if (is_array($decoded)) {
+                $content = $decoded;
+            }
+        }
+
+        $token = $reportCols['share_token'] ? ($report[$reportCols['share_token']] ?? '') : '';
+        $pinRequired = $reportCols['pin_code'] ? !empty($report[$reportCols['pin_code']]) : false;
+
+        return [
+            'id' => (int)($report[$reportCols['id']] ?? 0),
+            'therapy_id' => $reportCols['therapy'] ? (int)($report[$reportCols['therapy']] ?? 0) : 0,
+            'token' => $token,
+            'valid_until' => $reportCols['valid_until'] ? ($report[$reportCols['valid_until']] ?? null) : null,
+            'recipients' => $reportCols['recipients'] ? ($report[$reportCols['recipients']] ?? '') : '',
+            'pin_required' => $pinRequired,
+            'content' => $content,
+            'url' => $token !== '' ? call_user_func($buildReportUrl, $token, $pinRequired) : null,
+        ];
+    }
 }
