@@ -7,60 +7,93 @@ import { getState } from './state.js';
 import { formatDate } from './utils.js';
 
 export function buildDomReferences(moduleRoot = document) {
-    const scopedQuery = selector => (moduleRoot?.querySelector ? moduleRoot.querySelector(selector) : document.querySelector(selector));
+    const scopedQuery = selector =>
+        moduleRoot?.querySelector ? moduleRoot.querySelector(selector) : document.querySelector(selector);
+
+    const scopedQueryAll = selector =>
+        moduleRoot?.querySelectorAll ? moduleRoot.querySelectorAll(selector) : document.querySelectorAll(selector);
+
     return {
         moduleRoot,
+
+        // liste & container
         patientsList: scopedQuery('#patientsList'),
         therapiesContainer: scopedQuery('#therapiesContainer'),
         patientSummary: scopedQuery('#patientSummary'),
         timelineContainer: scopedQuery('#timelineContainer'),
-        statElements: moduleRoot?.querySelectorAll ? moduleRoot.querySelectorAll('.stat-value') : document.querySelectorAll('.stat-value'),
+        statElements: scopedQueryAll('.stat-value'),
+
+        // form
         patientForm: scopedQuery('#patientForm'),
         therapyForm: scopedQuery('#therapyForm'),
         checkForm: scopedQuery('#checkForm'),
         reminderForm: scopedQuery('#reminderForm'),
         reportForm: scopedQuery('#reportForm'),
+
+        // modali
         therapyModal: scopedQuery('#therapyModal'),
         patientModal: scopedQuery('#patientModal'),
         checkModal: scopedQuery('#checkModal'),
         reminderModal: scopedQuery('#reminderModal'),
         reportModal: scopedQuery('#reportModal'),
+
+        // wizard
         therapyWizardIndicator: scopedQuery('#therapyWizardIndicator'),
-        therapyWizardSteps: moduleRoot?.querySelectorAll ? moduleRoot.querySelectorAll('#therapyWizardSteps span') : document.querySelectorAll('#therapyWizardSteps span'),
-        wizardSteps: moduleRoot?.querySelectorAll ? moduleRoot.querySelectorAll('.wizard-step') : document.querySelectorAll('.wizard-step'),
+        therapyWizardSteps: scopedQueryAll('#therapyWizardSteps span'),
+        wizardSteps: scopedQueryAll('.wizard-step'),
         nextStepButton: scopedQuery('#nextStepButton'),
         prevStepButton: scopedQuery('#prevStepButton'),
         submitTherapyButton: scopedQuery('#submitTherapyButton'),
+
+        // therapy
         therapyPatientSelect: scopedQuery('#therapyPatientSelect'),
         caregiversContainer: scopedQuery('#caregiversContainer'),
         caregiversTemplate: scopedQuery('.caregiver-row.template'),
         addCaregiverButton: scopedQuery('#addCaregiverButton'),
+
+        // timeline
         timelineFilter: scopedQuery('#timelineFilter'),
+
+        // firma
         signatureCanvas: scopedQuery('#consentSignaturePad'),
         saveSignatureButton: scopedQuery('#saveSignatureButton'),
         clearSignatureButton: scopedQuery('#clearSignatureButton'),
         signatureTypeSelect: scopedQuery('#signatureType'),
         signatureCanvasWrapper: scopedQuery('#signatureCanvasWrapper'),
         digitalSignatureWrapper: scopedQuery('#digitalSignatureWrapper'),
+
+        // riepilogo
         therapySummary: scopedQuery('#therapySummary'),
+
+        // report
         generatedReportContainer: scopedQuery('#generatedReportContainer'),
         generatedReportLink: scopedQuery('#generatedReportLink'),
         generatedReportInfo: scopedQuery('#generatedReportInfo'),
         copyReportLink: scopedQuery('#copyReportLink'),
         reportTherapySelect: scopedQuery('#reportTherapySelect'),
+
+        // associazioni
         checkTherapySelect: scopedQuery('#checkTherapySelect'),
         reminderTherapySelect: scopedQuery('#reminderTherapySelect'),
+
+        // bottoni header
         exportReportButton: scopedQuery('#exportReportButton'),
         newPatientButton: scopedQuery('#newPatientButton'),
         newTherapyButton: scopedQuery('#newTherapyButton'),
         newCheckButton: scopedQuery('#newCheckButton'),
         newReminderButton: scopedQuery('#newReminderButton'),
         refreshDataButton: scopedQuery('#refreshDataButton'),
+
+        // inline patient
         inlinePatientToggle: scopedQuery('#openInlinePatientForm'),
         inlinePatientForm: scopedQuery('#inlinePatientForm'),
+
+        // hidden inputs
         caregiversPayloadInput: scopedQuery('#caregiversPayloadInput'),
         questionnairePayloadInput: scopedQuery('#questionnairePayloadInput'),
         signatureImageInput: scopedQuery('#signatureImageInput'),
+
+        // sezione report
         generatedReportSection: scopedQuery('#generatedReportSection'),
     };
 }
@@ -382,24 +415,30 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
             dom.therapyForm.addEventListener('submit', event => {
                 event.preventDefault();
                 if (state.therapySubmitting) return;
+
                 state.therapySubmitting = true;
                 dom.submitTherapyButton?.setAttribute('disabled', 'disabled');
-                const caregivers = logic.prepareCaregiversPayload(dom.caregiversContainer, dom.caregiversPayloadInput);
-                const questionnaire = logic.prepareQuestionnairePayload(dom.therapyForm, dom.questionnairePayloadInput);
+
+                updateSummaryPreview();
+
                 signature.captureSignatureImage({ dom, state });
                 logic.updateHiddenConsentFields({ dom, state });
-                updateSummaryPreview(caregivers, questionnaire);
+
                 const formData = new FormData(dom.therapyForm);
-                api.saveTherapy(formData).then(response => {
-                    closeModal(dom.therapyModal);
-                    showAlert('Terapia salvata con successo', 'success');
-                    upsertTherapy(response.therapy);
-                    state.selectedPatientId = response.therapy.patient_id;
-                    renderAll();
-                }).catch(handleError).finally(() => {
-                    state.therapySubmitting = false;
-                    dom.submitTherapyButton?.removeAttribute('disabled');
-                });
+
+                api.saveTherapy(formData)
+                    .then(response => {
+                        closeModal(dom.therapyModal);
+                        showAlert('Terapia salvata con successo', 'success');
+                        upsertTherapy(response.therapy);
+                        state.selectedPatientId = response.therapy.patient_id;
+                        renderAll();
+                    })
+                    .catch(handleError)
+                    .finally(() => {
+                        state.therapySubmitting = false;
+                        dom.submitTherapyButton?.removeAttribute('disabled');
+                    });
             });
         }
 
@@ -521,15 +560,20 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         resetForm(dom.therapyForm);
         state.currentTherapyStep = 1;
         updateWizardUI();
+
         if (dom.signatureImageInput) dom.signatureImageInput.value = '';
         if (dom.questionnairePayloadInput) dom.questionnairePayloadInput.value = '';
         if (dom.caregiversPayloadInput) dom.caregiversPayloadInput.value = '';
+
         toggleInlinePatientForm(false);
         clearCaregivers();
         addCaregiverRow();
+
         signature.initializeSignaturePad({ dom, state });
         signature.updateSignatureMode({ dom });
+
         state.signaturePadDirty = false;
+
         if (state.selectedPatientId) {
             dom.therapyPatientSelect.value = String(state.selectedPatientId);
             const patientIdField = document.getElementById('therapyPatientId');
@@ -537,7 +581,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
                 patientIdField.value = String(state.selectedPatientId);
             }
         }
+
+        logic.prepareQuestionnairePayload(dom.therapyForm, dom.questionnairePayloadInput);
     }
+
 
     function toggleInlinePatientForm(show) {
         if (!dom.inlinePatientForm) return;
@@ -589,6 +636,7 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         const nextStep = state.currentTherapyStep + direction;
         const minStep = 1;
         const maxStep = dom.wizardSteps.length;
+
         if (nextStep < minStep || nextStep > maxStep) {
             return;
         }
@@ -599,6 +647,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
 
         state.currentTherapyStep = nextStep;
         updateWizardUI();
+
+        if (state.currentTherapyStep === maxStep) {
+            updateSummaryPreview();
+        }
     }
 
     function validateCurrentStep() {
@@ -653,20 +705,44 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
             dom.therapyWizardIndicator.style.width = `${progress}%`;
         }
 
-        dom.prevStepButton.disabled = state.currentTherapyStep === 1;
-        dom.nextStepButton.classList.toggle('d-none', state.currentTherapyStep === dom.wizardSteps.length);
-        dom.submitTherapyButton.classList.toggle('d-none', state.currentTherapyStep !== dom.wizardSteps.length);
+        if (dom.prevStepButton) {
+            dom.prevStepButton.disabled = state.currentTherapyStep === 1;
+        }
+        if (dom.nextStepButton) {
+            dom.nextStepButton.classList.toggle(
+                'd-none',
+                state.currentTherapyStep === dom.wizardSteps.length
+            );
+        }
+        if (dom.submitTherapyButton) {
+            dom.submitTherapyButton.classList.toggle(
+                'd-none',
+                state.currentTherapyStep !== dom.wizardSteps.length
+            );
+        }
 
         if (state.currentTherapyStep === dom.wizardSteps.length) {
             updateSummaryPreview();
         }
     }
 
-    function updateSummaryPreview(caregivers = [], questionnaire = {}) {
-        const computedCaregivers = caregivers.length ? caregivers : JSON.parse(dom.caregiversPayloadInput?.value || '[]');
-        const computedQuestionnaire = Object.keys(questionnaire).length ? questionnaire : JSON.parse(dom.questionnairePayloadInput?.value || '{}');
-        logic.updateSummaryPreview({ dom, state, caregivers: computedCaregivers, questionnaire: computedQuestionnaire });
+    function updateSummaryPreview() {
+        const caregivers = logic.prepareCaregiversPayload(
+            dom.caregiversContainer,
+            dom.caregiversPayloadInput
+        );
+        const questionnaire = logic.prepareQuestionnairePayload(
+            dom.therapyForm,
+            dom.questionnairePayloadInput
+        );
+        logic.updateSummaryPreview({
+            dom,
+            state,
+            caregivers,
+            questionnaire,
+        });
     }
+
 
     function upsertTherapy(therapy) {
         const index = state.therapies.findIndex(item => item.id === therapy.id);

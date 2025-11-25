@@ -183,7 +183,6 @@ require_once __DIR__ . '/../includes/header.php';
             </section>
         </main>
     </div>
-</div>
 
 <!-- Modale Nuovo Paziente -->
 <div class="modal fade" id="patientModal" tabindex="-1" aria-labelledby="patientModalLabel" aria-hidden="true">
@@ -472,20 +471,20 @@ require_once __DIR__ . '/../includes/header.php';
                         <section class="wizard-step" data-step="9">
                             <div class="summary-preview" id="therapySummary"></div>
                         </section>
+                        <div class="wizard-controls d-flex justify-content-between mt-4">
+                            <button type="button" id="prevStepButton" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Indietro
+                            </button>
+
+                            <button type="button" id="nextStepButton" class="btn btn-primary">
+                                Avanti <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+
+                            <button type="submit" id="submitTherapyButton" class="btn btn-success d-none">
+                                <i class="fas fa-check me-1"></i> Salva Terapia
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-footer justify-content-between">
-                    <div>
-                        <button type="button" class="btn btn-outline-secondary" id="prevStepButton">
-                            <i class="fas fa-arrow-left me-2"></i>Indietro
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="nextStepButton">
-                            Avanti<i class="fas fa-arrow-right ms-2"></i>
-                        </button>
-                    </div>
-                    <button type="submit" class="btn btn-success d-none" id="submitTherapyButton">
-                        <i class="fas fa-check me-2"></i>Conferma e Salva Terapia
-                    </button>
                 </div>
             </form>
         </div>
@@ -665,5 +664,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+</div>
+
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -66,30 +66,34 @@ class AdesioneTerapieController
     public function __construct(int $pharmacyId)
     {
         $this->pharmacyId = $pharmacyId;
-        $this->patientsTable = 'jta_patients';
-        $this->therapiesTable = 'jta_therapies';
-        $this->assistantsTable = 'jta_assistants';
-        $this->assistantPivotTable = 'jta_therapy_assistant';
-        $this->consentsTable = 'jta_therapy_consents';
-        $this->questionnairesTable = 'jta_therapy_questionnaire';
-        $this->checksTable = 'jta_therapy_checks';
-        $this->checkAnswersTable = 'jta_therapy_check_answers';
-        $this->remindersTable = 'jta_therapy_reminders';
-        $this->reportsTable = 'jta_therapy_reports';
+
+        // Tabelle
+        $this->patientsTable        = 'jta_patients';
+        $this->therapiesTable       = 'jta_therapies';
+        $this->assistantsTable      = 'jta_assistants';
+        $this->assistantPivotTable  = 'jta_therapy_assistant';
+        $this->consentsTable        = 'jta_therapy_consents';
+        $this->questionnairesTable  = 'jta_therapy_questionnaire';
+        $this->checksTable          = 'jta_therapy_checks';
+        $this->checkAnswersTable    = 'jta_therapy_check_answers';
+        $this->remindersTable       = 'jta_therapy_reminders';
+        $this->reportsTable         = 'jta_therapy_reports';
 
         $this->bootstrapColumns();
 
-        $this->validationService = new \Modules\AdesioneTerapie\Services\ValidationService();
-        $this->formattingService = new \Modules\AdesioneTerapie\Services\FormattingService();
-        $this->reportService = new \Modules\AdesioneTerapie\Services\ReportService();
-        $this->timelineService = new \Modules\AdesioneTerapie\Services\TimelineService();
+        // Servizi base
+        $this->validationService   = new \Modules\AdesioneTerapie\Services\ValidationService();
+        $this->formattingService   = new \Modules\AdesioneTerapie\Services\FormattingService();
+        $this->reportService       = new \Modules\AdesioneTerapie\Services\ReportService();
+        $this->timelineService     = new \Modules\AdesioneTerapie\Services\TimelineService();
         $this->questionnaireService = $this->makeQuestionnaireService();
-        $this->consentService = $this->makeConsentService();
-        $this->patientsController = $this->makePatientsController();
-        $this->checksController = $this->makeChecksController();
-        $this->remindersController = $this->makeRemindersController();
-        $this->reportsController = $this->makeReportsController();
-        $this->therapiesController = $this->makeTherapiesController();
+        $this->consentService       = $this->makeConsentService();
+
+        $this->patientsController   = $this->makePatientsController();
+        $this->therapiesController  = $this->makeTherapiesController();
+        $this->checksController     = $this->makeChecksController();
+        $this->remindersController  = $this->makeRemindersController();
+        $this->reportsController    = $this->makeReportsController();
     }
 
     private function bootstrapColumns(): void
@@ -142,20 +146,31 @@ class AdesioneTerapieController
 
         return new \Modules\AdesioneTerapie\Controllers\ChecksController(
             $checkRepository,
+
             new \Modules\AdesioneTerapie\Services\CheckAnswerService(
-                new \Modules\AdesioneTerapie\Repositories\CheckAnswerRepository($this->checkAnswersTable, $this->checkAnswerCols),
+                new \Modules\AdesioneTerapie\Repositories\CheckAnswerRepository(
+                    $this->checkAnswersTable,
+                    $this->checkAnswerCols
+                ),
                 $this->checkAnswerCols,
-                [$this, 'now']
+                [$this->validationService, 'now']
             ),
-            new \Modules\AdesioneTerapie\Services\ChecklistService($checkRepository, $this->questionnaireService, $this->checkCols),
+
+            new \Modules\AdesioneTerapie\Services\ChecklistService(
+                $checkRepository,
+                $this->questionnaireService,
+                $this->checkCols
+            ),
+
             $this->formattingService,
             $this->questionnaireService,
             $this->pharmacyId,
             $this->checkCols,
             $this->therapyCols,
+
             [$this->validationService, 'clean'],
             [$this->validationService, 'now'],
-            [$this, 'verifyTherapyOwnership']
+            [$this->therapiesController, 'verifyTherapyOwnership']
         );
     }
 
@@ -172,23 +187,28 @@ class AdesioneTerapieController
             $this->pharmacyId,
             $this->reminderCols,
             $this->therapyCols,
+
             [$this->validationService, 'clean'],
             [$this->validationService, 'now'],
-            [$this, 'verifyTherapyOwnership']
+            [$this->therapiesController, 'verifyTherapyOwnership']
         );
     }
 
-    private function makeReportsController(): \Modules\AdesioneTerapie\Controllers\ReportsController
+   private function makeReportsController(): \Modules\AdesioneTerapie\Controllers\ReportsController
     {
         return new \Modules\AdesioneTerapie\Controllers\ReportsController(
-            new \Modules\AdesioneTerapie\Repositories\ReportRepository($this->reportsTable, $this->reportCols),
+            new \Modules\AdesioneTerapie\Repositories\ReportRepository(
+                $this->reportsTable,
+                $this->reportCols
+            ),
             $this->formattingService,
             $this->reportService,
             $this->pharmacyId,
             $this->reportCols,
+
             [$this->validationService, 'clean'],
             [$this->validationService, 'now'],
-            [$this, 'verifyTherapyOwnership'],
+            [$this->therapiesController, 'verifyTherapyOwnership'],
             [$this, 'findTherapy'],
             [$this, 'listChecks']
         );
@@ -197,8 +217,18 @@ class AdesioneTerapieController
     private function makeTherapiesController(): \Modules\AdesioneTerapie\Controllers\TherapiesController
     {
         return new \Modules\AdesioneTerapie\Controllers\TherapiesController(
-            new \Modules\AdesioneTerapie\Repositories\TherapyRepository($this->therapiesTable, $this->therapyCols, $this->patientsTable, $this->patientCols),
-            new \Modules\AdesioneTerapie\Repositories\AssistantRepository($this->assistantsTable, $this->assistantCols, $this->assistantPivotTable, $this->assistantPivotCols),
+            new \Modules\AdesioneTerapie\Repositories\TherapyRepository(
+                $this->therapiesTable,
+                $this->therapyCols,
+                $this->patientsTable,
+                $this->patientCols
+            ),
+            new \Modules\AdesioneTerapie\Repositories\AssistantRepository(
+                $this->assistantsTable,
+                $this->assistantCols,
+                $this->assistantPivotTable,
+                $this->assistantPivotCols
+            ),
             $this->formattingService,
             new \Modules\AdesioneTerapie\Services\TherapyMetadataService(),
             $this->questionnaireService,
@@ -208,6 +238,7 @@ class AdesioneTerapieController
             $this->patientCols,
             $this->assistantCols,
             $this->assistantPivotCols,
+
             [$this->validationService, 'clean'],
             [$this->validationService, 'now'],
             [$this->patientsController, 'savePatient'],
@@ -313,7 +344,7 @@ class AdesioneTerapieController
     /**
      * Verifica che una terapia appartenga alla farmacia corrente
      */
-    private function verifyTherapyOwnership(int $therapyId): void
+    public function verifyTherapyOwnership(int $therapyId): void
     {
         $this->therapiesController->verifyTherapyOwnership($therapyId);
     }
@@ -338,27 +369,27 @@ class AdesioneTerapieController
         return $this->remindersController->findReminder($reminderId);
     }
 
-    private function listPatients(): array
+    public function listPatients(): array
     {
         return $this->patientsController->listPatients();
     }
 
-    private function listTherapies(): array
+    public function listTherapies(): array
     {
         return $this->therapiesController->listTherapies();
     }
 
-    private function listChecks(?int $therapyId = null): array
+    public function listChecks(?int $therapyId = null): array
     {
         return $this->checksController->listChecks($therapyId);
     }
 
-    private function listReminders(?int $therapyId = null): array
+    public function listReminders(?int $therapyId = null): array
     {
         return $this->remindersController->listReminders($therapyId);
     }
 
-    private function listReports(?int $therapyId = null): array
+    public function listReports(?int $therapyId = null): array
     {
         return $this->reportsController->listReports($therapyId);
     }
