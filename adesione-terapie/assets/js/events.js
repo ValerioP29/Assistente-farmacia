@@ -625,11 +625,12 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         if (!dom.caregiversContainer || !dom.caregiversTemplate) return;
         const clone = dom.caregiversTemplate.cloneNode(true);
         clone.classList.remove('template', 'd-none');
-        clone.querySelectorAll('.remove-caregiver').forEach(button => {
-            button.addEventListener('click', () => {
-                clone.remove();
-            });
-        });
+        const removeButton = clone.querySelector('.remove-caregiver');
+        if (removeButton) {
+            const cleanRemoveButton = removeButton.cloneNode(true);
+            cleanRemoveButton.onclick = () => clone.remove();
+            removeButton.replaceWith(cleanRemoveButton);
+        }
         const roleField = clone.querySelector('[data-field="role"]');
         if (roleField && !roleField.value) {
             roleField.value = 'caregiver';
