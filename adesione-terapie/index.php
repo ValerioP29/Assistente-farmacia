@@ -355,13 +355,10 @@ require_once __DIR__ . '/../includes/header.php';
               <div class="wizard-steps" id="therapyWizardSteps">
                 <span data-step="1" class="active">Paziente</span>
                 <span data-step="2">Dettagli Terapia</span>
-                <span data-step="3">Questionario 1</span>
-                <span data-step="4">Questionario 2</span>
-                <span data-step="5">Questionario 3</span>
-                <span data-step="6">Questionario 4</span>
-                <span data-step="7">Questionario 5</span>
-                <span data-step="8">Consenso</span>
-                <span data-step="9">Riepilogo</span>
+                <span data-step="3">Questionario 2</span>
+                <span data-step="4">Questionario 4</span>
+                <span data-step="5">Consenso</span>
+                <span data-step="6">Riepilogo</span>
               </div>
             </div>
 
@@ -547,31 +544,21 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
               </section>
 
-              <!-- Steps 3-7: Questionario -->
+              <!-- Steps 3-4: Questionario -->
               <?php
                         $questionnaireSteps = [
-                            3 =>
-              ['title' => 'Adesione Attuale', 'questions' => [ 'aderenza' =>
-              'Quanto spesso il paziente segue la terapia prescritta?',
-              'difficolta' => 'Quali difficoltà incontra nel seguire la
-              terapia?', 'supporto' => 'Riceve già supporto da familiari o
-              caregiver?' ]], 4 => ['title' => 'Stile di Vita', 'questions' => [
-              'alimentazione' => 'Com\'è l\'alimentazione abituale?', 'attivita'
-              => 'Svolge attività fisica regolare?', 'riposo' => 'Qualità del
-              sonno e riposo?' ]], 5 => ['title' => 'Gestione Farmaci',
-              'questions' => [ 'conservazione' => 'Come vengono conservati i
-              farmaci?', 'organizzazione' => 'Utilizza strumenti per organizzare
-              l\'assunzione (es. pilloliere)?', 'reazioni' => 'Sono state
-              segnalate reazioni avverse?' ]], 6 => ['title' => 'Monitoraggio',
-              'questions' => [ 'parametri' => 'Vengono monitorati parametri
-              clinici? Quali?', 'visite' => 'Frequenza delle visite mediche di
-              controllo?', 'autonomia' => 'Livello di autonomia nella gestione
-              della terapia?' ]], 7 => ['title' => 'Obiettivi e Motivazioni',
-              'questions' => [ 'obiettivi' => 'Quali obiettivi terapeutici sono
-              stati condivisi?', 'motivazione' => 'Livello di motivazione del
-              paziente?', 'strategie' => 'Strategie concordate per migliorare
-              l\'aderenza?' ]], ]; foreach ($questionnaireSteps as $stepNumber
-              => $stepData): ?>
+                            3 => ['title' => 'Stile di Vita', 'questions' => [
+                                'alimentazione' => 'Com\'è l\'alimentazione abituale?',
+                                'attivita' => 'Svolge attività fisica regolare?',
+                                'riposo' => 'Qualità del sonno e riposo?'
+                            ]],
+                            4 => ['title' => 'Monitoraggio', 'questions' => [
+                                'parametri' => 'Vengono monitorati parametri clinici? Quali?',
+                                'visite' => 'Frequenza delle visite mediche di controllo?',
+                                'autonomia' => 'Livello di autonomia nella gestione della terapia?'
+                            ]],
+                        ];
+                        foreach ($questionnaireSteps as $stepNumber => $stepData): ?>
               <section class="wizard-step" data-step="<?= $stepNumber ?>">
                 <h6 class="fw-semibold mb-3">
                   <i class="fas fa-list-check me-2 text-primary"></i
@@ -593,8 +580,8 @@ require_once __DIR__ . '/../includes/header.php';
               </section>
               <?php endforeach; ?>
 
-              <!-- Step 8: Consenso -->
-              <section class="wizard-step" data-step="8">
+              <!-- Step 5: Consenso -->
+              <section class="wizard-step" data-step="5">
                 <div class="row g-4">
                   <div class="col-lg-6">
                     <label class="form-label">Tipologia di firma</label>
@@ -656,8 +643,8 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
               </section>
 
-              <!-- Step 9: Riepilogo -->
-              <section class="wizard-step" data-step="9">
+              <!-- Step 6: Riepilogo -->
+              <section class="wizard-step" data-step="6">
                 <div class="summary-preview" id="therapySummary"></div>
               </section>
               <div class="wizard-controls d-flex justify-content-between mt-4">
