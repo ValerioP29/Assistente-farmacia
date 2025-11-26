@@ -782,6 +782,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
           <div class="modal-body">
             <input type="hidden" name="reminder_id" id="reminderId" />
+            <input type="hidden" name="therapy_id" id="reminderTherapyId" />
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label">Terapia associata</label>

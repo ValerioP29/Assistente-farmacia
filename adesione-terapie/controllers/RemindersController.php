@@ -4,12 +4,14 @@ namespace Modules\AdesioneTerapie\Controllers;
 
 use Modules\AdesioneTerapie\Repositories\ReminderRepository;
 use Modules\AdesioneTerapie\Services\FormattingService;
+use Modules\AdesioneTerapie\Services\ReminderService;
 use RuntimeException;
 
 class RemindersController
 {
     private ReminderRepository $reminderRepository;
     private FormattingService $formattingService;
+    private ReminderService $reminderService;
     private int $pharmacyId;
     private array $reminderCols;
     private array $therapyCols;
@@ -20,6 +22,7 @@ class RemindersController
     public function __construct(
         ReminderRepository $reminderRepository,
         FormattingService $formattingService,
+        ReminderService $reminderService,
         int $pharmacyId,
         array $reminderCols,
         array $therapyCols,
@@ -29,6 +32,7 @@ class RemindersController
     ) {
         $this->reminderRepository = $reminderRepository;
         $this->formattingService = $formattingService;
+        $this->reminderService = $reminderService;
         $this->pharmacyId = $pharmacyId;
         $this->reminderCols = $reminderCols;
         $this->therapyCols = $therapyCols;
@@ -44,6 +48,10 @@ class RemindersController
 
         if (!$therapyId) {
             throw new RuntimeException('Seleziona una terapia per il promemoria.');
+        }
+
+        if (empty($this->reminderCols['therapy'])) {
+            throw new RuntimeException('Configurazione promemoria non valida: colonna terapia mancante.');
         }
 
         $this->verifyTherapyOwnership($therapyId);
@@ -134,7 +142,10 @@ class RemindersController
             $reminderId = $this->reminderRepository->insert($filtered);
         }
 
-        return $this->findReminder($reminderId);
+        $reminder = $this->findReminder($reminderId);
+        $this->reminderService->notifyNewReminder($reminder);
+
+        return $reminder;
     }
 
     public function findReminder(int $reminderId): array

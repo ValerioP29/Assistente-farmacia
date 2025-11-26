@@ -17,6 +17,7 @@ require_once __DIR__ . '/../services/ChecklistService.php';
 require_once __DIR__ . '/../services/CheckAnswerService.php';
 require_once __DIR__ . '/../services/ReportService.php';
 require_once __DIR__ . '/../services/TimelineService.php';
+require_once __DIR__ . '/../services/ReminderService.php';
 require_once __DIR__ . '/../services/ColumnBootstrapService.php';
 require_once __DIR__ . '/../services/ValidationService.php';
 require_once __DIR__ . '/PatientsController.php';
@@ -176,6 +177,8 @@ class AdesioneTerapieController
 
     private function makeRemindersController(): \Modules\AdesioneTerapie\Controllers\RemindersController
     {
+        $notificationService = class_exists('\\NotificationService') ? new \NotificationService() : null;
+
         return new \Modules\AdesioneTerapie\Controllers\RemindersController(
             new \Modules\AdesioneTerapie\Repositories\ReminderRepository(
                 $this->remindersTable,
@@ -184,6 +187,7 @@ class AdesioneTerapieController
                 $this->therapyCols
             ),
             $this->formattingService,
+            new \Modules\AdesioneTerapie\Services\ReminderService($notificationService),
             $this->pharmacyId,
             $this->reminderCols,
             $this->therapyCols,
