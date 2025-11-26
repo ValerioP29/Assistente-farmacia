@@ -10,12 +10,13 @@ export function initializeSignaturePad({ dom, state }) {
 
     const canvas = dom.signatureCanvas;
     const context = canvas.getContext('2d');
+    const wrapper = canvas.parentElement;
 
     function resizeCanvas() {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        const parent = canvas.parentElement;
-        const displayWidth = parent?.offsetWidth || 600;
-        const displayHeight = parent?.offsetHeight || 200;
+        const rect = wrapper?.getBoundingClientRect();
+        const displayWidth = Math.max(rect?.width || wrapper?.offsetWidth || canvas.offsetWidth || 600, 1);
+        const displayHeight = Math.max(rect?.height || wrapper?.offsetHeight || canvas.offsetHeight || 200, 1);
 
         let existingImage = null;
         if (state.signaturePadDirty) {
@@ -54,14 +55,15 @@ export function initializeSignaturePad({ dom, state }) {
 
     function getCanvasPosition(event) {
         const rect = canvas.getBoundingClientRect();
-        const ratio = window.devicePixelRatio || 1;
+        const scaleX = rect.width ? (canvas.width / rect.width) : 1;
+        const scaleY = rect.height ? (canvas.height / rect.height) : 1;
 
         const clientX = event.clientX ?? (event.touches && event.touches[0]?.clientX);
         const clientY = event.clientY ?? (event.touches && event.touches[0]?.clientY);
 
         return {
-            x: (clientX - rect.left) * (canvas.width / rect.width) / ratio,
-            y: (clientY - rect.top) * (canvas.height / rect.height) / ratio
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
@@ -117,6 +119,11 @@ export function initializeSignaturePad({ dom, state }) {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(resizeCanvas, 250);
     });
+
+    if (wrapper && typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(() => resizeCanvas());
+        observer.observe(wrapper);
+    }
 
     state.signaturePadInitialized = true;
 }

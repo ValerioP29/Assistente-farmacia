@@ -231,7 +231,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
             dom.addCaregiverButton.addEventListener('click', addCaregiverRow);
         }
         if (dom.nextStepButton) {
-            dom.nextStepButton.addEventListener('click', () => changeTherapyStep(1));
+            dom.nextStepButton.addEventListener('click', () => {
+                if (!validateCurrentStep()) return;
+                changeTherapyStep(1);
+            });
         }
         if (dom.prevStepButton) {
             dom.prevStepButton.addEventListener('click', () => changeTherapyStep(-1));
@@ -649,10 +652,6 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         const maxStep = dom.wizardSteps.length;
 
         if (nextStep < minStep || nextStep > maxStep) {
-            return;
-        }
-
-        if (direction > 0 && !validateCurrentStep()) {
             return;
         }
 
