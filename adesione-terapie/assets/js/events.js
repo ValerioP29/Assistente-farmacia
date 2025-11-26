@@ -101,6 +101,8 @@ export function buildDomReferences(moduleRoot = document) {
 export function initializeEvents({ routesBase, csrfToken, dom }) {
     api.configureApi({ routesBase, csrfToken });
     const state = getState();
+    if (state.eventsInitialized) return;
+    state.eventsInitialized = true;
     const checkFormState = {
         eventsBound: false,
         checkModeSelect: null,
