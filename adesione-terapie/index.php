@@ -355,8 +355,8 @@ require_once __DIR__ . '/../includes/header.php';
               <div class="wizard-steps" id="therapyWizardSteps">
                 <span data-step="1" class="active">Paziente</span>
                 <span data-step="2">Dettagli Terapia</span>
-                <span data-step="3">Questionario 2</span>
-                <span data-step="4">Questionario 4</span>
+                <span data-step="3">Questionario Stile di Vita</span>
+                <span data-step="4">Questionario Monitoraggio</span>
                 <span data-step="5">Consenso</span>
                 <span data-step="6">Riepilogo</span>
               </div>
@@ -544,22 +544,32 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
               </section>
 
-              <!-- Steps 3-4: Questionario -->
+              <!-- Steps 3-4: Questionario (DB steps 2 e 4) -->
               <?php
                         $questionnaireSteps = [
-                            3 => ['title' => 'Stile di Vita', 'questions' => [
-                                'alimentazione' => 'Com\'è l\'alimentazione abituale?',
-                                'attivita' => 'Svolge attività fisica regolare?',
-                                'riposo' => 'Qualità del sonno e riposo?'
-                            ]],
-                            4 => ['title' => 'Monitoraggio', 'questions' => [
-                                'parametri' => 'Vengono monitorati parametri clinici? Quali?',
-                                'visite' => 'Frequenza delle visite mediche di controllo?',
-                                'autonomia' => 'Livello di autonomia nella gestione della terapia?'
-                            ]],
+                            [
+                                'ui_step' => 3,
+                                'db_step' => 2,
+                                'title' => 'Stile di Vita',
+                                'questions' => [
+                                    'alimentazione' => 'Com\'è l\'alimentazione abituale?',
+                                    'attivita' => 'Svolge attività fisica regolare?',
+                                    'riposo' => 'Qualità del sonno e riposo?'
+                                ]
+                            ],
+                            [
+                                'ui_step' => 4,
+                                'db_step' => 4,
+                                'title' => 'Monitoraggio',
+                                'questions' => [
+                                    'parametri' => 'Vengono monitorati parametri clinici? Quali?',
+                                    'visite' => 'Frequenza delle visite mediche di controllo?',
+                                    'autonomia' => 'Livello di autonomia nella gestione della terapia?'
+                                ]
+                            ],
                         ];
-                        foreach ($questionnaireSteps as $stepNumber => $stepData): ?>
-              <section class="wizard-step" data-step="<?= $stepNumber ?>">
+                        foreach ($questionnaireSteps as $stepData): ?>
+              <section class="wizard-step" data-step="<?= $stepData['ui_step'] ?>" data-db-step="<?= $stepData['db_step'] ?>">
                 <h6 class="fw-semibold mb-3">
                   <i class="fas fa-list-check me-2 text-primary"></i
                   ><?= htmlspecialchars($stepData['title']) ?>
