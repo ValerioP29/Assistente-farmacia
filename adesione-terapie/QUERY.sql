@@ -157,14 +157,22 @@ CREATE TABLE jta_therapy_reports (
 CREATE TABLE jta_therapy_reminders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     therapy_id INT UNSIGNED NOT NULL,
+
     title VARCHAR(255) NOT NULL,
-    message JSON NULL,
+    message TEXT NOT NULL,
+
+    type ENUM('one-shot','daily','weekly','monthly') NOT NULL DEFAULT 'one-shot',
+
     scheduled_at DATETIME NOT NULL,
-    channel ENUM('sms','email','push') DEFAULT 'email',
+
+    channel ENUM('email','sms','push') DEFAULT 'email',
     status ENUM('scheduled','sent','canceled') DEFAULT 'scheduled',
+
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_tr_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
+
     INDEX idx_tr_therapy (therapy_id),
     INDEX idx_tr_schedule (scheduled_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
