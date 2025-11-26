@@ -230,16 +230,6 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         if (dom.addCaregiverButton) {
             dom.addCaregiverButton.addEventListener('click', addCaregiverRow);
         }
-        if (dom.therapyForm) {
-            dom.therapyForm.querySelectorAll('.questionnaire-input').forEach(input => {
-                input.addEventListener('input', () => {
-                    logic.prepareQuestionnairePayload(dom.therapyForm, dom.questionnairePayloadInput);
-                    if (state.currentTherapyStep === dom.wizardSteps.length) {
-                        updateSummaryPreview();
-                    }
-                });
-            });
-        }
         if (dom.nextStepButton) {
             dom.nextStepButton.addEventListener('click', () => changeTherapyStep(1));
         }
@@ -741,9 +731,7 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
             );
         }
 
-        if (state.currentTherapyStep === dom.wizardSteps.length) {
-            updateSummaryPreview();
-        }
+        updateSummaryPreview();
     }
 
     function updateSummaryPreview() {

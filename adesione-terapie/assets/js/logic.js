@@ -118,18 +118,29 @@ export function prepareCaregiversPayload(container, hiddenInput) {
 
 export function prepareQuestionnairePayload(form, hiddenInput) {
     if (!hiddenInput || !form) return {};
-    const questionnaireInputs = form.querySelectorAll('.questionnaire-input');
+
     const questionnaire = {};
-    questionnaireInputs.forEach(input => {
-        const step = input.closest('.wizard-step');
-        if (!step) return;
-        const stepNumber = step.dataset.step;
-        const questionKey = input.dataset.question;
-        if (!questionnaire[stepNumber]) {
-            questionnaire[stepNumber] = {};
+
+    const fields = form.querySelectorAll('.wizard-step[data-step] .questionnaire-input');
+
+    fields.forEach(input => {
+        const stepEl = input.closest('.wizard-step');
+        if (!stepEl) return;
+
+        const step = stepEl.dataset.step || '1';
+        const key = input.dataset.question || null;
+        if (!key) return;
+
+        const value = (input.value || '').trim();
+        if (value === '') return;
+
+        if (!questionnaire[step]) {
+            questionnaire[step] = {};
         }
-        questionnaire[stepNumber][questionKey] = input.value.trim();
+
+        questionnaire[step][key] = value;
     });
+
     hiddenInput.value = JSON.stringify(questionnaire);
     return questionnaire;
 }

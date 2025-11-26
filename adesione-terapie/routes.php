@@ -93,11 +93,21 @@ try {
             break;
 
         case 'save_therapy':
-            $payload = $_POST;
-            // Non sanitizzare signature_image che contiene base64
-            $therapy = $controller->saveTherapy($payload);
-            echo json_encode(['success' => true, 'therapy' => $therapy]);
-            break;
+        $payload = $_POST;
+
+        foreach ($_REQUEST as $key => $value) {
+            if (!isset($payload[$key])) {
+                $payload[$key] = $value;
+            }
+        }
+
+        $payload['questionnaire_payload'] = $_POST['questionnaire_payload'] ?? '';
+        $payload['caregivers_payload'] = $_POST['caregivers_payload'] ?? '';
+        $payload['signature_image'] = $_POST['signature_image'] ?? '';
+
+        $therapy = $controller->saveTherapy($payload);
+        echo json_encode(['success' => true, 'therapy' => $therapy]);
+        break;
 
         case 'save_check':
             $payload = $_POST;
