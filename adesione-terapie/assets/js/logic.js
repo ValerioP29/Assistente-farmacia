@@ -134,11 +134,14 @@ export function prepareQuestionnairePayload(form, hiddenInput) {
         const value = (input.value || '').trim();
         if (value === '') return;
 
-        if (!questionnaire[step]) {
-            questionnaire[step] = {};
+        const stepMap = { '3': '2', '4': '4' };
+        const dbStep = stepMap[step] || step;
+
+        if (!questionnaire[dbStep]) {
+            questionnaire[dbStep] = {};
         }
 
-        questionnaire[step][key] = value;
+        questionnaire[dbStep][key] = value;
     });
 
     hiddenInput.value = JSON.stringify(questionnaire);
