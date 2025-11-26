@@ -119,10 +119,26 @@ class FormattingService
     public function formatReminder(array $reminder, array $reminderCols): array
     {
         $messageRaw = $reminderCols['message'] ? ($reminder[$reminderCols['message']] ?? '') : '';
-        $decoded = json_decode($messageRaw, true);
-        $messageText = $decoded['text'] ?? ($messageRaw ?? '');
-        $type = $decoded['type'] ?? 'one-shot';
-        $recurrence = $decoded['recurrence'] ?? '';
+        $messageText = is_string($messageRaw) ? trim($messageRaw) : '';
+        $type = $reminderCols['type'] ? ($reminder[$reminderCols['type']] ?? '') : '';
+
+        if (is_string($messageRaw)) {
+            $decoded = json_decode($messageRaw, true);
+            if (is_array($decoded)) {
+                if (isset($decoded['text']) && trim((string)$decoded['text']) !== '') {
+                    $messageText = trim((string)$decoded['text']);
+                } elseif (isset($decoded['message']) && trim((string)$decoded['message']) !== '') {
+                    $messageText = trim((string)$decoded['message']);
+                }
+
+                if ($type === '' && !empty($decoded['type'])) {
+                    $type = (string)$decoded['type'];
+                }
+            }
+        }
+
+        $messageText = $messageText !== '' ? $messageText : ($messageRaw ?? '');
+        $type = $type !== '' ? $type : 'one-shot';
 
         return [
             'id' => (int)($reminder[$reminderCols['id']] ?? 0),
@@ -131,7 +147,6 @@ class FormattingService
             'type' => $type,
             'message' => $messageText,
             'scheduled_at' => $reminderCols['scheduled_at'] ? ($reminder[$reminderCols['scheduled_at']] ?? null) : null,
-            'recurrence_rule' => $recurrence,
             'channel' => $reminderCols['channel'] ? ($reminder[$reminderCols['channel']] ?? '') : '',
             'status' => $reminderCols['status'] ? ($reminder[$reminderCols['status']] ?? '') : '',
         ];

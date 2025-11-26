@@ -69,12 +69,23 @@ class RemindersController
             $data[$this->reminderCols['title']] = $title !== '' ? $title : 'Promemoria terapia';
         }
 
-        if ($this->reminderCols['scheduled_at'] && !empty($payload['scheduled_at'])) {
-            $data[$this->reminderCols['scheduled_at']] = str_replace('T', ' ', $payload['scheduled_at']);
+        $scheduledAtInput = $this->clean($payload['scheduled_at'] ?? '');
+        $scheduledAt = str_replace('T', ' ', $scheduledAtInput);
+        if ($scheduledAt !== '') {
+            $date = date_create($scheduledAt);
+            if (!$date && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $scheduledAt)) {
+                $date = date_create($scheduledAt . ':00');
+            }
+            if ($date) {
+                $scheduledAt = $date->format('Y-m-d H:i:s');
+                if ($this->reminderCols['scheduled_at']) {
+                    $data[$this->reminderCols['scheduled_at']] = $scheduledAt;
+                }
+            }
         }
 
         if ($this->reminderCols['scheduled_at'] && empty($data[$this->reminderCols['scheduled_at']])) {
-            throw new RuntimeException('Imposta data e ora del promemoria.');
+            throw new RuntimeException('Imposta data e ora valida del promemoria.');
         }
 
         $allowedChannels = ['sms', 'email', 'push'];
@@ -88,14 +99,18 @@ class RemindersController
             throw new RuntimeException('Inserisci il messaggio del promemoria.');
         }
 
-        $messagePayload = [
-            'text' => $messageText,
-            'type' => $this->clean($payload['type'] ?? 'one-shot'),
-            'recurrence' => $this->clean($payload['recurrence_rule'] ?? ''),
-        ];
+        $allowedTypes = ['one-shot', 'daily', 'weekly', 'monthly'];
+        $type = strtolower($this->clean($payload['type'] ?? 'one-shot'));
+        if (!in_array($type, $allowedTypes, true)) {
+            $type = 'one-shot';
+        }
 
         if ($this->reminderCols['message']) {
-            $data[$this->reminderCols['message']] = json_encode($messagePayload, JSON_UNESCAPED_UNICODE);
+            $data[$this->reminderCols['message']] = $messageText;
+        }
+
+        if ($this->reminderCols['type']) {
+            $data[$this->reminderCols['type']] = $type;
         }
 
         if ($this->reminderCols['channel']) {
