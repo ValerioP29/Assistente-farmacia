@@ -20,8 +20,12 @@ class TimelineService
                 if (!empty($first['question'])) {
                     $previewParts[] = trim((string)$first['question']);
                 }
-                if (!empty($first['answer'])) {
-                    $previewParts[] = trim((string)$first['answer']);
+                $valueLabel = $first['value_label'] ?? ($first['value'] === 'yes' ? 'Sì' : ($first['value'] === 'no' ? 'No' : ''));
+                if (!empty($valueLabel)) {
+                    $previewParts[] = trim((string)$valueLabel);
+                }
+                if (!empty($first['note'])) {
+                    $previewParts[] = trim((string)$first['note']);
                 }
                 $answersPreview = trim(implode(': ', $previewParts));
                 if (function_exists('mb_substr')) {
@@ -35,7 +39,7 @@ class TimelineService
                 'type' => 'check',
                 'title' => 'Visita di controllo',
                 'scheduled_at' => $check['scheduled_at'] ?? null,
-                'details' => $check['assessment'] ?? '',
+                'details' => $answersPreview !== '' ? $answersPreview : ($check['assessment'] ?? ''),
                 'has_answers' => !empty($check['answers']),
                 'answers_preview' => $answersPreview,
                 'therapy_id' => $check['therapy_id'] ?? null,

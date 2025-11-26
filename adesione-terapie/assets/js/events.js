@@ -328,25 +328,9 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
 
     function toggleCheckMode(mode = 'execution') {
         if (!dom.checkForm) return;
-        const assessmentField = dom.checkForm.querySelector('[name="assessment"]');
-        const notesField = dom.checkForm.querySelector('[name="notes"]');
-        const actionsField = dom.checkForm.querySelector('[name="actions"]');
         const submitButton = dom.checkForm.querySelector('[type="submit"]');
 
         const isChecklist = mode === 'checklist';
-        if (assessmentField) {
-            if (isChecklist) {
-                assessmentField.removeAttribute('required');
-            } else {
-                assessmentField.setAttribute('required', 'required');
-            }
-        }
-        [notesField, actionsField].forEach(field => {
-            if (!field) return;
-            if (isChecklist) {
-                field.removeAttribute('required');
-            }
-        });
 
         if (checkFormState.checklistQuestionsContainer) {
             checkFormState.checklistQuestionsContainer.classList.toggle('d-none', !isChecklist);
@@ -505,7 +489,18 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
                         submitButton?.removeAttribute('disabled');
                     });
                 } else {
-                    logic.prepareCheckExecutionPayload(dom.checkForm, checkFormState.checkAnswersList, checkFormState.checkAnswersPayloadInput);
+                    const answers = logic.prepareCheckExecutionPayload(dom.checkForm, checkFormState.checkAnswersList, checkFormState.checkAnswersPayloadInput);
+                    const hasResponse = Object.values(answers || {}).some(answer => {
+                        if (!answer || typeof answer !== 'object') return false;
+                        const valueProvided = answer.value === 'yes' || answer.value === 'no';
+                        return valueProvided || (answer.note || '').trim() !== '';
+                    });
+                    if (!hasResponse) {
+                        showAlert('Compila almeno una risposta della checklist.', 'warning');
+                        state.checkSubmitting = false;
+                        submitButton?.removeAttribute('disabled');
+                        return;
+                    }
                     api.saveCheck(formData).then(response => {
                         const existingIndex = state.checks.findIndex(item => item.id === response.check.id);
                         if (existingIndex >= 0) {

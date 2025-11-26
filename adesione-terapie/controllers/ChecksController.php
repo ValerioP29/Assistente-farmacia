@@ -88,6 +88,9 @@ class ChecksController
             'type' => 'checklist',
             'questions' => $questions,
         ];
+        if ($this->checkCols['questions_payload']) {
+            $data[$this->checkCols['questions_payload']] = json_encode($questions, JSON_UNESCAPED_UNICODE);
+        }
         if ($this->checkCols['notes']) {
             $data[$this->checkCols['notes']] = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
         }
@@ -133,17 +136,16 @@ class ChecksController
             throw new RuntimeException('Imposta data e ora del check.');
         }
 
-        $notesPayload = [
-            'type' => 'execution',
-            'assessment' => $this->clean($payload['assessment'] ?? ''),
-            'notes' => $this->clean($payload['notes'] ?? ''),
-            'actions' => $this->clean($payload['actions'] ?? ''),
-        ];
-        if (empty($notesPayload['assessment'])) {
-            throw new RuntimeException('Compila almeno la valutazione del check.');
+        $answersPayload = $this->normalizeAnswersPayload($payload['answers_payload'] ?? '[]');
+        if (empty($answersPayload)) {
+            throw new RuntimeException('Compila almeno una risposta della checklist.');
+        }
+
+        if ($this->checkCols['answers_payload']) {
+            $data[$this->checkCols['answers_payload']] = json_encode($answersPayload, JSON_UNESCAPED_UNICODE);
         }
         if ($this->checkCols['notes']) {
-            $data[$this->checkCols['notes']] = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
+            $data[$this->checkCols['notes']] = json_encode(['type' => 'execution'], JSON_UNESCAPED_UNICODE);
         }
 
         $filtered = $this->checkRepository->filterData($data);
@@ -168,21 +170,9 @@ class ChecksController
             $checkId = $this->checkRepository->insert($filtered);
         }
 
-        $answersRaw = $payload['answers_payload'] ?? '[]';
-        $decodedAnswers = is_array($payload['answers'] ?? null) ? ($payload['answers'] ?? []) : json_decode($answersRaw, true);
-        $answers = $this->checkAnswerService->normalizeCheckAnswers($decodedAnswers);
-        if (!empty($notesPayload['assessment'])) {
-            $answers['assessment'] = $notesPayload['assessment'];
-        }
-        if (!empty($notesPayload['notes'])) {
-            $answers['notes'] = $notesPayload['notes'];
-        }
-        if (!empty($notesPayload['actions'])) {
-            $answers['actions'] = $notesPayload['actions'];
-        }
-
-        if (!empty($answers)) {
-            $this->checkAnswerService->storeCheckAnswers($checkId, $answers);
+        $legacyAnswers = $this->flattenAnswersForLegacy($answersPayload);
+        if (!empty($legacyAnswers)) {
+            $this->checkAnswerService->storeCheckAnswers($checkId, $legacyAnswers);
         }
 
         return $this->findCheck($checkId);
@@ -195,12 +185,9 @@ class ChecksController
             throw new RuntimeException('Check periodico non trovato.');
         }
         $formatted = $this->formattingService->formatCheck($check, $this->checkCols, $this->questionnaireService);
-        $answers = $this->checkAnswerService->getAnswersForChecks([$formatted]);
-        if (($formatted['type'] ?? 'execution') !== 'checklist') {
-            $formatted['answers'] = $answers[$formatted['id']] ?? [];
-        }
+        $enriched = $this->enrichChecksWithChecklistData([$formatted]);
 
-        return $formatted;
+        return $enriched[0];
     }
 
     public function listChecks(?int $therapyId = null): array
@@ -210,15 +197,7 @@ class ChecksController
             return $this->formattingService->formatCheck($row, $this->checkCols, $this->questionnaireService);
         }, $rows);
 
-        $answersByCheck = $this->checkAnswerService->getAnswersForChecks($checks);
-
-        foreach ($checks as &$check) {
-            if (($check['type'] ?? 'execution') !== 'checklist') {
-                $check['answers'] = $answersByCheck[$check['id']] ?? [];
-            }
-        }
-
-        return $checks;
+        return $this->enrichChecksWithChecklistData($checks);
     }
 
     private function clean(?string $value): string
@@ -234,5 +213,115 @@ class ChecksController
     private function verifyTherapyOwnership(int $therapyId): void
     {
         call_user_func($this->verifyTherapyOwnershipCallback, $therapyId);
+    }
+
+    private function normalizeAnswersPayload($rawPayload): array
+    {
+        $decoded = is_array($rawPayload) ? $rawPayload : json_decode((string)$rawPayload, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($decoded as $key => $answer) {
+            $questionKey = trim((string)$key);
+            if ($questionKey === '') {
+                continue;
+            }
+            $value = is_array($answer) ? ($answer['value'] ?? null) : $answer;
+            $value = in_array($value, ['yes', 'no'], true) ? $value : null;
+            $note = is_array($answer) ? trim((string)($answer['note'] ?? '')) : '';
+            $normalized[$questionKey] = [
+                'value' => $value,
+                'note' => $note,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function flattenAnswersForLegacy(array $answersPayload): array
+    {
+        $flattened = [];
+        foreach ($answersPayload as $question => $answer) {
+            $label = ($answer['value'] ?? null) === 'yes' ? 'Sì' : (($answer['value'] ?? null) === 'no' ? 'No' : '');
+            $note = trim((string)($answer['note'] ?? ''));
+            $flattened[$question] = trim($label . ($note !== '' ? ' - ' . $note : ''));
+        }
+
+        return $flattened;
+    }
+
+    private function enrichChecksWithChecklistData(array $checks): array
+    {
+        if (empty($checks)) {
+            return [];
+        }
+
+        $questionsByTherapy = [];
+        foreach ($checks as $check) {
+            if (($check['type'] ?? 'execution') === 'checklist' && !empty($check['questions'])) {
+                $questionsByTherapy[$check['therapy_id']] = $check['questions'];
+            }
+        }
+
+        $answersByCheck = $this->checkAnswerService->getAnswersForChecks($checks);
+
+        foreach ($checks as &$check) {
+            $therapyQuestions = $questionsByTherapy[$check['therapy_id']] ?? ($check['questions'] ?? []);
+            $check['checklist_questions'] = $therapyQuestions;
+
+            if (($check['type'] ?? 'execution') === 'checklist') {
+                continue;
+            }
+
+            $legacyAnswers = $answersByCheck[$check['id']] ?? [];
+            $check['answers'] = $this->buildAnswersList($check, $therapyQuestions, $legacyAnswers);
+        }
+
+        return $checks;
+    }
+
+    private function buildAnswersList(array $check, array $therapyQuestions, array $legacyAnswers = []): array
+    {
+        $questionsMap = [];
+        foreach ($therapyQuestions as $question) {
+            if (!empty($question['key'])) {
+                $questionsMap[$question['key']] = $question['text'] ?? $question['key'];
+            }
+        }
+
+        $payloadAnswers = is_array($check['answers_payload'] ?? null) ? $check['answers_payload'] : [];
+        if (!empty($payloadAnswers)) {
+            $list = [];
+            foreach ($payloadAnswers as $key => $answer) {
+                $value = is_array($answer) ? ($answer['value'] ?? null) : $answer;
+                $note = is_array($answer) ? trim((string)($answer['note'] ?? '')) : '';
+                $valueLabel = $value === 'yes' ? 'Sì' : ($value === 'no' ? 'No' : 'Non compilato');
+                $list[] = [
+                    'question' => $questionsMap[$key] ?? $key,
+                    'value' => in_array($value, ['yes', 'no'], true) ? $value : null,
+                    'value_label' => $valueLabel,
+                    'note' => $note,
+                    'created_at' => $check['scheduled_at'] ?? null,
+                ];
+            }
+
+            return $list;
+        }
+
+        if (!empty($legacyAnswers)) {
+            return array_map(function ($answer) use ($questionsMap, $check) {
+                return [
+                    'question' => $questionsMap[$answer['question']] ?? ($answer['question'] ?? ''),
+                    'value' => null,
+                    'value_label' => $answer['answer'] ?? 'Non compilato',
+                    'note' => '',
+                    'created_at' => $answer['created_at'] ?? ($check['scheduled_at'] ?? null),
+                ];
+            }, $legacyAnswers);
+        }
+
+        return [];
     }
 }

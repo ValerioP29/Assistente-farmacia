@@ -75,6 +75,15 @@ class FormattingService
         $actions = '';
         $type = 'execution';
         $questions = [];
+        $answersPayloadRaw = $checkCols['answers_payload'] ? ($check[$checkCols['answers_payload']] ?? '') : '';
+        $answersPayload = $this->normalizeAnswersPayload($answersPayloadRaw);
+        $questionsPayloadRaw = $checkCols['questions_payload'] ? ($check[$checkCols['questions_payload']] ?? '') : '';
+        if ($questionsPayloadRaw !== '') {
+            $decodedQuestions = json_decode($questionsPayloadRaw, true);
+            if (is_array($decodedQuestions)) {
+                $questions = $questionnaireService->normalizeChecklistQuestions($decodedQuestions);
+            }
+        }
         $rawNotes = $checkCols['notes'] ? ($check[$checkCols['notes']] ?? '') : '';
         $decoded = json_decode($rawNotes, true);
         if (is_array($decoded)) {
@@ -90,6 +99,10 @@ class FormattingService
             $notesText = $rawNotes;
         }
 
+        if (!empty($questions)) {
+            $type = 'checklist';
+        }
+
         return [
             'id' => (int)($check[$checkCols['id']] ?? 0),
             'therapy_id' => $checkCols['therapy'] ? (int)($check[$checkCols['therapy']] ?? 0) : 0,
@@ -99,6 +112,7 @@ class FormattingService
             'actions' => $actions,
             'type' => $type,
             'questions' => $questions,
+            'answers_payload' => $answersPayload,
         ];
     }
 
@@ -146,5 +160,35 @@ class FormattingService
             'content' => $content,
             'url' => $token !== '' ? call_user_func($buildReportUrl, $token, $pinRequired) : null,
         ];
+    }
+
+    private function normalizeAnswersPayload($rawPayload): array
+    {
+        if (is_string($rawPayload)) {
+            $decoded = json_decode($rawPayload, true);
+        } else {
+            $decoded = $rawPayload;
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($decoded as $key => $answer) {
+            $questionKey = trim((string)$key);
+            if ($questionKey === '') {
+                continue;
+            }
+            $value = is_array($answer) ? ($answer['value'] ?? null) : $answer;
+            $value = in_array($value, ['yes', 'no'], true) ? $value : null;
+            $note = is_array($answer) ? trim((string)($answer['note'] ?? '')) : '';
+            $normalized[$questionKey] = [
+                'value' => $value,
+                'note' => $note,
+            ];
+        }
+
+        return $normalized;
     }
 }
