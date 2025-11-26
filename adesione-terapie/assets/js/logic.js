@@ -2,11 +2,11 @@
 import { formatDate, statusLabel, caregiverFullName, sanitizeHtml } from './utils.js';
 
 export const defaultChecklistQuestions = [
-    { key: 'aderenza', text: 'Il paziente sta seguendo la terapia come prescritto?', type: 'text' },
-    { key: 'effetti_collaterali', text: 'Sono presenti effetti collaterali?', type: 'text' },
-    { key: 'supporto', text: 'Il paziente necessita di supporto aggiuntivo?', type: 'text' },
+    { key: 'aderenza', text: 'Il paziente sta seguendo la terapia come prescritto?', type: 'boolean' },
+    { key: 'effetti_collaterali', text: 'Sono presenti effetti collaterali?', type: 'boolean' },
+    { key: 'supporto', text: 'Il paziente necessita di supporto aggiuntivo?', type: 'boolean' },
     { key: 'aderenza_bool', text: 'Aderenza confermata', type: 'boolean' },
-    { key: 'note_generali', text: 'Note generali', type: 'text' },
+    { key: 'note_generali', text: 'Note generali', type: 'boolean' },
 ];
 
 export function countTherapiesForPatient(therapies, patientId) {
@@ -31,14 +31,25 @@ export function getLatestAnswersByQuestion(checks, therapyId) {
     const executions = getCheckExecutions(checks, therapyId);
     const latest = {};
     executions.forEach(execution => {
-        (execution.answers || []).forEach(answer => {
-            const key = answer.question || '';
+        const answersPayload = execution.answers_payload || {};
+        Object.entries(answersPayload).forEach(([key, answer]) => {
             if (!key) return;
-            const answeredAt = answer.created_at || execution.scheduled_at || '';
+            const answeredAt = execution.scheduled_at || '';
+            const parsed = typeof answer === 'object' ? answer : { value: answer };
             if (!latest[key] || new Date(answeredAt) > new Date(latest[key].created_at || 0)) {
-                latest[key] = { answer: answer.answer || '', created_at: answeredAt };
+                latest[key] = { answer: parsed, created_at: answeredAt };
             }
         });
+        if (!Object.keys(answersPayload || {}).length && Array.isArray(execution.answers)) {
+            execution.answers.forEach(answer => {
+                const key = answer.question || '';
+                if (!key) return;
+                const answeredAt = answer.created_at || execution.scheduled_at || '';
+                if (!latest[key] || new Date(answeredAt) > new Date(latest[key].created_at || 0)) {
+                    latest[key] = { answer: { value: answer.answer || '' }, created_at: answeredAt };
+                }
+            });
+        }
     });
     return latest;
 }
@@ -56,9 +67,8 @@ export function collectChecklistQuestions(checklistQuestionsList) {
     rows.forEach((row, index) => {
         const text = row.querySelector('input')?.value.trim() || '';
         if (!text) return;
-        const type = row.querySelector('select')?.value || 'text';
         const key = row.dataset.key || slugifyQuestion(text, index);
-        questions.push({ key, text, type });
+        questions.push({ key, text, type: 'boolean' });
     });
     return questions;
 }
@@ -73,21 +83,17 @@ export function prepareChecklistPayload(checklistQuestionsList, payloadInput) {
 
 export function prepareCheckExecutionPayload(form, checkAnswersList, payloadInput) {
     const answers = {};
-    if (form) {
-        const assessmentField = form.querySelector('[name="assessment"]');
-        const notesField = form.querySelector('[name="notes"]');
-        const actionsField = form.querySelector('[name="actions"]');
-        if (assessmentField) answers.assessment = assessmentField.value.trim();
-        if (notesField) answers.notes = notesField.value.trim();
-        if (actionsField) answers.actions = actionsField.value.trim();
-    }
 
     if (checkAnswersList) {
         checkAnswersList.querySelectorAll('[data-question-key]').forEach(node => {
             const key = node.dataset.questionKey;
-            const input = node.querySelector('input, textarea, select');
-            if (!key || !input) return;
-            answers[key] = input.value;
+            if (!key) return;
+            const selected = node.querySelector('input[type="radio"]:checked');
+            const noteField = node.querySelector('textarea');
+            const valueRaw = selected ? selected.value : '';
+            const value = valueRaw === 'yes' || valueRaw === 'no' ? valueRaw : null;
+            const note = noteField ? noteField.value.trim() : '';
+            answers[key] = { value, note };
         });
     }
 

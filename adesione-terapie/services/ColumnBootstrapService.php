@@ -126,6 +126,8 @@ class ColumnBootstrapService
             'therapy' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['therapy_id', 'id_therapy']),
             'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['scheduled_at', 'check_date', 'data_controllo', 'data_visita']),
             'notes' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['notes']),
+            'questions_payload' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['questions_payload', 'questions_json']),
+            'answers_payload' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['answers_payload', 'answers_json']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['created_at'])
         ];
     }

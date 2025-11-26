@@ -237,12 +237,22 @@ $generatedAt = $content['generated_at'] ?? date('Y-m-d H:i:s');
                     <?php foreach ($checks as $check): ?>
                         <div class="timeline-check">
                             <h6><?= date('d/m/Y H:i', strtotime($check['scheduled_at'] ?? 'now')) ?></h6>
-                            <p class="mb-1"><strong>Valutazione:</strong> <?= nl2br(htmlspecialchars($check['assessment'] ?? '')) ?></p>
-                            <?php if (!empty($check['actions'])): ?>
-                                <p class="small mb-0"><strong>Azioni:</strong> <?= nl2br(htmlspecialchars($check['actions'])) ?></p>
-                            <?php endif; ?>
-                            <?php if (!empty($check['notes'])): ?>
-                                <p class="small text-muted mb-0">Note: <?= nl2br(htmlspecialchars($check['notes'])) ?></p>
+                            <?php if (!empty($check['answers'])): ?>
+                                <ul class="list-group list-group-flush">
+                                    <?php foreach ($check['answers'] as $answer): ?>
+                                        <li class="list-group-item">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="fw-semibold"><?= htmlspecialchars($answer['question'] ?? 'Domanda') ?></div>
+                                                <div><?= htmlspecialchars($answer['value_label'] ?? (($answer['value'] ?? null) === 'yes' ? 'Sì' : (($answer['value'] ?? null) === 'no' ? 'No' : 'Non compilato'))) ?></div>
+                                            </div>
+                                            <?php if (!empty($answer['note'])): ?>
+                                                <div class="text-muted small mt-1">Nota: <?= nl2br(htmlspecialchars($answer['note'])) ?></div>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else: ?>
+                                <p class="text-muted mb-0">Nessuna risposta registrata.</p>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>

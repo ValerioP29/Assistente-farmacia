@@ -83,6 +83,15 @@ function renderQuestionnaireSummary(questionnaire) {
     return `<ul class="list-unstyled mb-0 questionnaire-summary">${items.join('')}</ul>`;
 }
 
+function formatChecklistAnswerView(answer) {
+    const value = answer && typeof answer === 'object' ? answer.value ?? null : null;
+    let valueLabel = 'Non compilato';
+    if (value === 'yes') valueLabel = 'Sì';
+    if (value === 'no') valueLabel = 'No';
+    const note = answer && typeof answer === 'object' ? (answer.note || '').trim() : '';
+    return { valueLabel, note };
+}
+
 export function buildChecklistSummaryHtml({ state, therapyId }) {
     const questions = getChecklistQuestionsForTherapy(state.checks, therapyId);
     if (!questions.length) {
@@ -112,8 +121,10 @@ export function buildChecklistSummaryHtml({ state, therapyId }) {
 
     questions.forEach(question => {
         const latest = latestAnswers[question.key];
-        const answerSafe = latest && latest.answer ? sanitizeHtml(latest.answer) : '<span class="text-muted">Nessuna risposta</span>';
+        const parsed = formatChecklistAnswerView(latest?.answer || latest || {});
+        const answerSafe = sanitizeHtml(parsed.valueLabel);
         const answeredAt = latest && latest.created_at ? formatDateTime(latest.created_at) : '';
+        const noteBlock = parsed.note ? `<div class="text-muted small">Nota: ${sanitizeHtml(parsed.note)}</div>` : '';
         html += `
             <li class="list-group-item d-flex justify-content-between align-items-start">
                 <div>
@@ -122,6 +133,7 @@ export function buildChecklistSummaryHtml({ state, therapyId }) {
                 </div>
                 <div class="text-end">
                     <div>${answerSafe}</div>
+                    ${noteBlock}
                     ${answeredAt ? `<small class="text-muted">${answeredAt}</small>` : ''}
                 </div>
             </li>
@@ -138,11 +150,14 @@ export function renderAnswersList(answers = []) {
     }
     let html = '<ul class="list-group list-group-flush mb-2">';
     answers.forEach(answer => {
+        const parsed = formatChecklistAnswerView(answer);
+        const noteBlock = parsed.note ? `<div class="text-muted small">Nota: ${sanitizeHtml(parsed.note)}</div>` : '';
         html += `
             <li class="list-group-item d-flex justify-content-between align-items-start">
                 <div class="fw-semibold">${sanitizeHtml(answer.question || 'Domanda')}</div>
                 <div class="text-end">
-                    <div>${sanitizeHtml(answer.answer || '')}</div>
+                    <div>${sanitizeHtml(answer.value_label || parsed.valueLabel)}</div>
+                    ${noteBlock}
                     ${answer.created_at ? `<small class="text-muted">${formatDateTime(answer.created_at)}</small>` : ''}
                 </div>
             </li>
@@ -383,15 +398,8 @@ export function addChecklistQuestionRow(listElement, question = {}, index = 0) {
     const key = question.key || slugifyQuestion(question.text || '', index);
     row.dataset.key = key;
     row.innerHTML = `
-        <div class="col-md-7">
+        <div class="col-md-10">
             <input type="text" class="form-control" value="${question.text || ''}" placeholder="Testo domanda" />
-        </div>
-        <div class="col-md-3">
-            <select class="form-select">
-                <option value="text" ${question.type === 'text' ? 'selected' : ''}>Risposta testuale</option>
-                <option value="boolean" ${question.type === 'boolean' ? 'selected' : ''}>Sì/No</option>
-                <option value="number" ${question.type === 'number' ? 'selected' : ''}>Numero</option>
-            </select>
         </div>
         <div class="col-md-2 text-end">
             <button type="button" class="btn btn-outline-danger btn-sm">
@@ -413,25 +421,28 @@ export function renderChecklistAnswers(listElement, questions = []) {
     }
     currentQuestions.forEach((question, index) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'mb-2';
+        wrapper.className = 'mb-3';
         const inputName = `check_answer_${question.key || slugifyQuestion(question.text || '', index)}`;
         wrapper.dataset.questionKey = question.key || slugifyQuestion(question.text || '', index);
-        let inputField = '';
-        if (question.type === 'boolean') {
-            inputField = `
-                <select class="form-select" name="${inputName}">
-                    <option value="">--</option>
-                    <option value="si">Sì</option>
-                    <option value="no">No</option>
-                </select>`;
-        } else if (question.type === 'number') {
-            inputField = `<input type="number" class="form-control" name="${inputName}" step="any">`;
-        } else {
-            inputField = `<textarea class="form-control" name="${inputName}" rows="2"></textarea>`;
-        }
+        const value = (question.answer || {}).value || null;
+        const note = (question.answer || {}).note || '';
         wrapper.innerHTML = `
             <label class="form-label mb-1">${sanitizeHtml(question.text || 'Domanda')}</label>
-            ${inputField}
+            <div class="d-flex flex-wrap gap-3 mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="${inputName}" value="yes" ${value === 'yes' ? 'checked' : ''}>
+                    <label class="form-check-label">Sì</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="${inputName}" value="no" ${value === 'no' ? 'checked' : ''}>
+                    <label class="form-check-label">No</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="${inputName}" value="" ${value === null ? 'checked' : ''}>
+                    <label class="form-check-label">Non compilato</label>
+                </div>
+            </div>
+            <textarea class="form-control" name="${inputName}_note" rows="2" placeholder="Note opzionali">${note}</textarea>
         `;
         listElement.appendChild(wrapper);
     });

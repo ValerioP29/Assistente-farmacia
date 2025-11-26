@@ -734,25 +734,10 @@ require_once __DIR__ . '/../includes/header.php';
                 />
               </div>
               <div class="col-12">
-                <label class="form-label">Valutazione andamento terapia</label>
-                <textarea
-                  class="form-control"
-                  name="assessment"
-                  rows="3"
-                  required
-                ></textarea>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Esiti e note</label>
-                <textarea class="form-control" name="notes" rows="3"></textarea>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Azioni concordate</label>
-                <textarea
-                  class="form-control"
-                  name="actions"
-                  rows="2"
-                ></textarea>
+                <p class="text-muted mb-0">
+                  Compila le risposte della checklist per ogni domanda con Sì/No e
+                  aggiungi eventuali note.
+                </p>
               </div>
             </div>
           </div>
