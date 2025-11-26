@@ -181,16 +181,20 @@ export function updateSummaryPreview({
     const endDate = dom.therapyForm.querySelector('[name="end_date"]').value;
     const status = dom.therapyForm.querySelector('[name="status"]').value;
 
-    let questionnaireHtml = '<ul class="list-unstyled mb-0">';
+    const questionnaireItems = [];
     Object.entries(questionnaire).forEach(([step, answers]) => {
-        questionnaireHtml += `<li><strong>Step ${step}</strong><ul class="list-unstyled">`;
-        Object.entries(answers).forEach(([question, answer]) => {
-            if (!answer) return;
-            questionnaireHtml += `<li><span class="text-muted">${sanitizeHtml(question)}</span>: ${sanitizeHtml(answer)}</li>`;
+        const answerEntries = Object.entries(answers || {}).filter(([, answer]) => (answer || '').toString().trim() !== '');
+        if (!answerEntries.length) return;
+        let answersHtml = '';
+        answerEntries.forEach(([question, answer]) => {
+            answersHtml += `<li><span class="text-muted">${sanitizeHtml(question)}</span>: ${sanitizeHtml(answer)}</li>`;
         });
-        questionnaireHtml += '</ul></li>';
+        questionnaireItems.push(`<li><strong>Step ${sanitizeHtml(step)}</strong><ul class="list-unstyled">${answersHtml}</ul></li>`);
     });
-    questionnaireHtml += '</ul>';
+
+    const questionnaireHtml = questionnaireItems.length
+        ? `<ul class="list-unstyled mb-0">${questionnaireItems.join('')}</ul>`
+        : '<p class="text-muted mb-0">Nessuna risposta al questionario</p>';
 
     dom.therapySummary.innerHTML = `
         <div class="summary-section">

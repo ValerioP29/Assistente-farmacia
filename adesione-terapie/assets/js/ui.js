@@ -67,15 +67,20 @@ function renderQuestionnaireSummary(questionnaire) {
     if (!questionnaire || typeof questionnaire !== 'object') {
         return '<small class="text-muted">Questionario non disponibile</small>';
     }
-    let html = '<ul class="list-unstyled mb-0 questionnaire-summary">';
-    Object.keys(questionnaire).forEach(stepKey => {
+    const items = Object.keys(questionnaire).reduce((acc, stepKey) => {
         const step = questionnaire[stepKey];
-        if (!step) return;
-        const answered = Object.values(step).filter(Boolean).length;
-        html += `<li><i class="fas fa-circle text-success me-2"></i>Step ${stepKey}: ${answered} risposte</li>`;
-    });
-    html += '</ul>';
-    return html;
+        if (!step) return acc;
+        const answered = Object.values(step).filter(answer => (answer || '').toString().trim() !== '').length;
+        if (!answered) return acc;
+        acc.push(`<li><i class="fas fa-circle text-success me-2"></i>Step ${stepKey}: ${answered} risposte</li>`);
+        return acc;
+    }, []);
+
+    if (!items.length) {
+        return '<small class="text-muted">Nessuna risposta al questionario</small>';
+    }
+
+    return `<ul class="list-unstyled mb-0 questionnaire-summary">${items.join('')}</ul>`;
 }
 
 export function buildChecklistSummaryHtml({ state, therapyId }) {
