@@ -150,6 +150,7 @@ class ColumnBootstrapService
             'therapy' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['therapy_id', 'id_therapy']),
             'title' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['title', 'titolo']),
             'message' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['message', 'messaggio', 'testo']),
+            'type' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['type', 'tipologia', 'tipo']),
             'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['scheduled_at', 'data_promemoria']),
             'channel' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['channel', 'canale']),
             'status' => AdesioneTableResolver::firstAvailableColumn($remindersTable, ['status', 'stato']),

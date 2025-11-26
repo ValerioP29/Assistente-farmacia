@@ -788,7 +788,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <label class="form-label">Terapia associata</label>
                 <select
                   class="form-select"
-                  name="therapy_id"
                   id="reminderTherapySelect"
                   required
                 ></select>
@@ -821,15 +820,6 @@ require_once __DIR__ . '/../includes/header.php';
                   required
                 />
               </div>
-              <div class="col-md-6">
-                <label class="form-label">Ripetizione</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  name="recurrence_rule"
-                  placeholder="Es. Ogni lunedì, ogni 12 ore, ecc."
-                />
-              </div>
               <div class="col-12">
                 <label class="form-label">Messaggio</label>
                 <textarea
@@ -839,7 +829,7 @@ require_once __DIR__ . '/../includes/header.php';
                   required
                 ></textarea>
               </div>
-              <div class="col-12">
+              <div class="col-md-6">
                 <label class="form-label">Canale</label>
                 <select class="form-select" name="channel">
                   <option value="email">Email</option>

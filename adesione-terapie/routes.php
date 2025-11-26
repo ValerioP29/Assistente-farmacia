@@ -167,8 +167,7 @@ try {
                 'type' => $payload['type'] ?? '',
                 'scheduled_at' => $payload['scheduled_at'] ?? '',
                 'channel' => $payload['channel'] ?? '',
-                'status' => $payload['status'] ?? '',
-                'recurrence_rule' => $payload['recurrence_rule'] ?? ''
+                'status' => $payload['status'] ?? ''
             ];
             $reminder = $controller->saveReminder($safePayload);
             echo json_encode(['success' => true, 'reminder' => $reminder]);
