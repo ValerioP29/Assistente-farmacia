@@ -75,6 +75,7 @@ export function buildDomReferences(moduleRoot = document) {
         // associazioni
         checkTherapySelect: scopedQuery('#checkTherapySelect'),
         reminderTherapySelect: scopedQuery('#reminderTherapySelect'),
+        reminderTherapyIdInput: scopedQuery('#reminderTherapyId'),
 
         // bottoni header
         exportReportButton: scopedQuery('#exportReportButton'),
@@ -200,6 +201,14 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
         if (dom.newReminderButton) {
             dom.newReminderButton.addEventListener('click', () => {
                 openReminderModal();
+            });
+        }
+        if (dom.reminderTherapySelect) {
+            dom.reminderTherapySelect.addEventListener('change', () => {
+                const hiddenTherapy = dom.reminderTherapyIdInput || dom.reminderForm?.querySelector('#reminderTherapyId');
+                if (hiddenTherapy) {
+                    hiddenTherapy.value = dom.reminderTherapySelect.value;
+                }
             });
         }
         if (dom.exportReportButton) {
@@ -526,6 +535,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
                 state.reminderSubmitting = true;
                 const submitButton = dom.reminderForm.querySelector('[type="submit"]');
                 submitButton?.setAttribute('disabled', 'disabled');
+                const therapyHidden = dom.reminderTherapyIdInput || dom.reminderForm.querySelector('#reminderTherapyId');
+                if (therapyHidden && dom.reminderTherapySelect) {
+                    therapyHidden.value = dom.reminderTherapySelect.value;
+                }
                 const formData = new FormData(dom.reminderForm);
                 api.saveReminder(formData).then(response => {
                     closeModal(dom.reminderModal);
@@ -778,7 +791,17 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
 
     function openReminderModal(therapyId = null) {
         resetForm(dom.reminderForm);
-        if (therapyId) dom.reminderTherapySelect.value = String(therapyId);
+        const hiddenTherapy = dom.reminderTherapyIdInput || dom.reminderForm?.querySelector('#reminderTherapyId');
+        if (therapyId) {
+            if (dom.reminderTherapySelect) {
+                dom.reminderTherapySelect.value = String(therapyId);
+            }
+            if (hiddenTherapy) {
+                hiddenTherapy.value = String(therapyId);
+            }
+        } else if (hiddenTherapy && dom.reminderTherapySelect) {
+            hiddenTherapy.value = dom.reminderTherapySelect.value;
+        }
         openModal(dom.reminderModal);
     }
 
