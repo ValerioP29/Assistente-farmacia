@@ -463,89 +463,176 @@ export function renderChecklistAnswers(listElement, questions = []) {
 export function renderTherapies({ dom, state, onAction }) {
     if (!dom.therapiesList) return;
 
+    if (dom.therapySearchInput) {
+        dom.therapySearchInput.value = state.therapySearchTerm || '';
+    }
+
     dom.therapiesList.innerHTML = '';
 
     const therapies = Array.isArray(state.therapies) ? state.therapies : [];
+    const searchTerm = (state.therapySearchTerm || '').trim().toLowerCase();
 
-    if (!therapies.length) {
+    let filtered = therapies;
+
+    if (state.selectedPatientId && !searchTerm) {
+        filtered = filtered.filter(
+            item => item.patient_id ? item.patient_id === state.selectedPatientId : true
+        );
+    }
+
+    if (searchTerm) {
+        filtered = filtered.filter(item =>
+            (item.patient_name || '').toLowerCase().includes(searchTerm)
+        );
+    }
+
+    const summaryLabel = dom.therapiesSummary;
+    if (summaryLabel) {
+        const patientCount = new Set(filtered.map(item => item.patient_id)).size;
+        const therapyCount = filtered.length;
+        summaryLabel.textContent = therapyCount
+            ? `${therapyCount} terapie · ${patientCount} pazienti`
+            : 'Nessuna terapia da mostrare';
+    }
+
+    if (!filtered.length) {
         dom.therapiesList.innerHTML = `
             <div class="empty-state text-center py-4">
                 <i class="fas fa-capsules mb-2"></i>
-                <p class="mb-0">Nessuna terapia registrata.</p>
+                <p class="mb-0">Nessuna terapia trovata.</p>
             </div>`;
         return;
     }
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'table-responsive';
-
-    const table = document.createElement('table');
-    table.className = 'table table-sm table-hover mb-0 therapies-table';
-
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>Terapia</th>
-                <th class="text-center">Paziente</th>
-                <th class="text-end">Azioni</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    `;
-
-    const tbody = table.querySelector('tbody');
-
-    therapies.forEach(therapy => {
-        const tr = document.createElement('tr');
-        tr.dataset.therapyId = therapy.id;
-        if (therapy.id === state.selectedTherapyId) {
-            tr.classList.add('table-active');
+    const grouped = filtered.reduce((acc, therapy) => {
+        const patientId = therapy.patient_id || 'unknown';
+        if (!acc[patientId]) {
+            acc[patientId] = {
+                patientId,
+                patientName: therapy.patient_name || 'Paziente sconosciuto',
+                therapies: [],
+            };
         }
+        acc[patientId].therapies.push(therapy);
+        return acc;
+    }, {});
 
-        tr.innerHTML = `
-            <td class="therapy-title align-middle">
-                ${sanitizeHtml(therapy.title || 'Terapia senza titolo')}
-            </td>
-            <td class="text-center align-middle">
-                ${sanitizeHtml(therapy.patient_name || 'Paziente sconosciuto')}
-            </td>
-            <td class="text-end align-middle">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary js-edit-therapy">
-                        <i class="fas fa-pen me-1"></i>Modifica
-                    </button>
-                    <button type="button" class="btn btn-outline-danger js-delete-therapy">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
+    const groups = Object.values(grouped).sort((a, b) =>
+        (a.patientName || '').localeCompare(b.patientName || '')
+    );
+
+    groups.forEach(group => {
+        const isExpanded = !!state.expandedPatients[group.patientId];
+        const visibleTherapies = isExpanded
+            ? group.therapies
+            : group.therapies.slice(0, 3);
+        const hiddenCount = Math.max(group.therapies.length - visibleTherapies.length, 0);
+
+        const card = document.createElement('div');
+        card.className = 'patient-therapies-card border rounded p-3 mb-3';
+
+        const header = document.createElement('div');
+        header.className = 'd-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2';
+        header.innerHTML = `
+            <div>
+                <h5 class="mb-0">${sanitizeHtml(group.patientName)}</h5>
+                <div class="text-muted small">${group.therapies.length} terapie</div>
+            </div>
+            ${group.therapies.length > 3 ? `
+                <button class="btn btn-sm btn-outline-secondary" data-toggle-patient="${group.patientId}">
+                    ${isExpanded ? '<i class="fas fa-chevron-up me-1"></i>Mostra meno terapie' : '<i class="fas fa-chevron-down me-1"></i>Mostra altre terapie'}
+                </button>
+            ` : ''}
         `;
 
-        // Gestisce il clic sulla riga → seleziona terapia
-        tr.addEventListener('click', event => {
-            if (event.target.closest('button')) return;
-            onAction?.(therapy.id);  // Chiamata di onAction quando clicchi sulla riga
+        card.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'd-flex flex-column gap-2';
+
+        visibleTherapies.forEach(therapy => {
+            const item = document.createElement('div');
+            item.className = 'therapy-item border rounded p-3';
+            if (therapy.id === state.selectedTherapyId) {
+                item.classList.add('border-primary', 'shadow-sm');
+            }
+
+            const periodParts = [];
+            if (therapy.start_date) periodParts.push(`Inizio: ${formatDate(therapy.start_date)}`);
+            if (therapy.end_date) periodParts.push(`Fine: ${formatDate(therapy.end_date)}`);
+            const periodText = periodParts.join(' · ');
+
+            const statusBadge = therapy.status
+                ? `<span class="badge bg-primary-subtle text-primary">${sanitizeHtml(statusLabel(therapy.status))}</span>`
+                : '';
+
+            item.innerHTML = `
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="mb-0">${sanitizeHtml(therapy.title || therapy.description || 'Terapia senza titolo')}</h6>
+                            ${statusBadge}
+                        </div>
+                        ${periodText ? `<div class="text-muted small">${periodText}</div>` : ''}
+                        ${therapy.description ? `<div class="small mt-1 text-muted">${sanitizeHtml(therapy.description)}</div>` : ''}
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-action="edit">
+                            <i class="fas fa-pen me-1"></i>Modifica terapia
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-action="delete">
+                            <i class="fas fa-trash me-1"></i>Elimina terapia
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" data-action="open-check">
+                            <i class="fas fa-stethoscope me-1"></i>Aggiungi check periodico
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" data-action="open-reminder">
+                            <i class="fas fa-bell me-1"></i>Imposta promemoria
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-action="open-checklist">
+                            <i class="fas fa-list-check me-1"></i>Configura checklist
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" data-action="open-report">
+                            <i class="fas fa-file-medical me-1"></i>Genera report
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            item.querySelectorAll('button[data-action]').forEach(button => {
+                button.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const action = button.dataset.action;
+                    onAction?.(action, therapy);
+                });
+            });
+
+            item.addEventListener('click', event => {
+                if (event.target.closest('button[data-action]')) return;
+                onAction?.('select', therapy);
+            });
+
+            list.appendChild(item);
         });
 
-        const editBtn = tr.querySelector('.js-edit-therapy');
-        const deleteBtn = tr.querySelector('.js-delete-therapy');
+        if (hiddenCount > 0) {
+            const hiddenNotice = document.createElement('div');
+            hiddenNotice.className = 'text-muted small';
+            hiddenNotice.textContent = `${hiddenCount} terapie nascoste`;
+            list.appendChild(hiddenNotice);
+        }
 
-        // Modifica la terapia
-        editBtn.addEventListener('click', event => {
-            event.stopPropagation();
-            onAction?.('edit', therapy);  // Passa l'azione di modifica
-        });
+        card.appendChild(list);
 
-        // Elimina la terapia
-        deleteBtn.addEventListener('click', event => {
-            event.stopPropagation();
-            onAction?.('delete', therapy);  // Passa l'azione di eliminazione
-        });
+        const toggleButton = card.querySelector('[data-toggle-patient]');
+        if (toggleButton) {
+            toggleButton.addEventListener('click', () => {
+                state.expandedPatients[group.patientId] = !isExpanded;
+                renderTherapies({ dom, state, onAction });
+            });
+        }
 
-        tbody.appendChild(tr);
+        dom.therapiesList.appendChild(card);
     });
-
-    wrapper.appendChild(table);
-    dom.therapiesList.appendChild(wrapper);
 }
 
