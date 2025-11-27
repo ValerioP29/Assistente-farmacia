@@ -55,6 +55,17 @@ export function savePatient(payload) {
     return postAction('save_patient', payload);
 }
 
+export function editPatient(payload) {
+    if (payload.patient_id) {
+        return savePatient(payload);  
+    }
+    return savePatient(payload);
+}
+
+export function deletePatient(patientId) {
+    return postAction('delete_patient', { patient_id: patientId });
+}
+
 export function saveTherapy(payload) {
     return postAction('save_therapy', payload);
 }
@@ -70,6 +81,18 @@ export function saveChecklist(payload) {
 export function saveReminder(payload) {
     return postAction('save_reminder', payload);
 }
+
+export function editReminder(payload) {
+    if (payload.reminder_id) {
+        return saveReminder(payload);  
+    }
+    return saveReminder(payload); 
+}
+
+export function deleteReminder(reminderId) {
+    return postAction('delete_reminder', { reminder_id: reminderId });
+}
+
 
 export function generateReport(payload) {
     return postAction('generate_report', payload);

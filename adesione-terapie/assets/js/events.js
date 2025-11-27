@@ -1,312 +1,451 @@
 // Event bindings and orchestration for Adesione Terapie module.
-import * as api from './api.js';
-import * as ui from './ui.js';
-import * as logic from './logic.js';
-import * as signature from './signature.js';
-import { getState } from './state.js';
-import { formatDate } from './utils.js';
+import * as api from "./api.js";
+import * as ui from "./ui.js";
+import * as logic from "./logic.js";
+import * as signature from "./signature.js";
+import { getState } from "./state.js";
+import { formatDate } from "./utils.js";
 
 export function buildDomReferences(moduleRoot = document) {
-    const scopedQuery = selector =>
-        moduleRoot?.querySelector ? moduleRoot.querySelector(selector) : document.querySelector(selector);
+  const scopedQuery = (selector) =>
+    moduleRoot?.querySelector
+      ? moduleRoot.querySelector(selector)
+      : document.querySelector(selector);
 
-    const scopedQueryAll = selector =>
-        moduleRoot?.querySelectorAll ? moduleRoot.querySelectorAll(selector) : document.querySelectorAll(selector);
+  const scopedQueryAll = (selector) =>
+    moduleRoot?.querySelectorAll
+      ? moduleRoot.querySelectorAll(selector)
+      : document.querySelectorAll(selector);
 
-    return {
-        moduleRoot,
+  return {
+    moduleRoot,
 
-        // liste & container
-        patientsList: scopedQuery('#patientsList'),
-        therapiesContainer: scopedQuery('#therapiesContainer'),
-        patientSummary: scopedQuery('#patientSummary'),
-        timelineContainer: scopedQuery('#timelineContainer'),
-        statElements: scopedQueryAll('.stat-value'),
+    // liste & container
+    patientsList: scopedQuery("#patientsList"),
+    therapiesContainer: scopedQuery("#therapiesContainer"),
+    patientSummary: scopedQuery("#patientSummary"),
+    timelineContainer: scopedQuery("#timelineContainer"),
+    statElements: scopedQueryAll(".stat-value"),
 
-        // form
-        patientForm: scopedQuery('#patientForm'),
-        therapyForm: scopedQuery('#therapyForm'),
-        checkForm: scopedQuery('#checkForm'),
-        reminderForm: scopedQuery('#reminderForm'),
-        reportForm: scopedQuery('#reportForm'),
+    // form
+    patientForm: scopedQuery("#patientForm"),
+    therapyForm: scopedQuery("#therapyForm"),
+    checkForm: scopedQuery("#checkForm"),
+    reminderForm: scopedQuery("#reminderForm"),
+    reportForm: scopedQuery("#reportForm"),
 
-        // modali
-        therapyModal: scopedQuery('#therapyModal'),
-        patientModal: scopedQuery('#patientModal'),
-        checkModal: scopedQuery('#checkModal'),
-        reminderModal: scopedQuery('#reminderModal'),
-        reportModal: scopedQuery('#reportModal'),
+    // modali
+    therapyModal: scopedQuery("#therapyModal"),
+    patientModal: scopedQuery("#patientModal"),
+    checkModal: scopedQuery("#checkModal"),
+    reminderModal: scopedQuery("#reminderModal"),
+    reportModal: scopedQuery("#reportModal"),
 
-        // wizard
-        therapyWizardIndicator: scopedQuery('#therapyWizardIndicator'),
-        therapyWizardSteps: scopedQueryAll('#therapyWizardSteps span'),
-        wizardSteps: scopedQueryAll('.wizard-step'),
-        nextStepButton: scopedQuery('#nextStepButton'),
-        prevStepButton: scopedQuery('#prevStepButton'),
-        submitTherapyButton: scopedQuery('#submitTherapyButton'),
+    // wizard
+    therapyWizardIndicator: scopedQuery("#therapyWizardIndicator"),
+    therapyWizardSteps: scopedQueryAll("#therapyWizardSteps span"),
+    wizardSteps: scopedQueryAll(".wizard-step"),
+    nextStepButton: scopedQuery("#nextStepButton"),
+    prevStepButton: scopedQuery("#prevStepButton"),
+    submitTherapyButton: scopedQuery("#submitTherapyButton"),
 
-        // therapy
-        therapyPatientSelect: scopedQuery('#therapyPatientSelect'),
-        caregiversContainer: scopedQuery('#caregiversContainer'),
-        caregiversTemplate: scopedQuery('.caregiver-row.template'),
-        addCaregiverButton: scopedQuery('#addCaregiverButton'),
+    // therapy
+    therapyPatientSelect: scopedQuery("#therapyPatientSelect"),
+    caregiversContainer: scopedQuery("#caregiversContainer"),
+    caregiversTemplate: scopedQuery(".caregiver-row.template"),
+    addCaregiverButton: scopedQuery("#addCaregiverButton"),
 
-        // timeline
-        timelineFilter: scopedQuery('#timelineFilter'),
+    // timeline
+    timelineFilter: scopedQuery("#timelineFilter"),
 
-        // firma
-        signatureCanvas: scopedQuery('#consentSignaturePad'),
-        saveSignatureButton: scopedQuery('#saveSignatureButton'),
-        clearSignatureButton: scopedQuery('#clearSignatureButton'),
-        signatureTypeSelect: scopedQuery('#signatureType'),
-        signatureCanvasWrapper: scopedQuery('#signatureCanvasWrapper'),
-        digitalSignatureWrapper: scopedQuery('#digitalSignatureWrapper'),
+    // firma
+    signatureCanvas: scopedQuery("#consentSignaturePad"),
+    saveSignatureButton: scopedQuery("#saveSignatureButton"),
+    clearSignatureButton: scopedQuery("#clearSignatureButton"),
+    signatureTypeSelect: scopedQuery("#signatureType"),
+    signatureCanvasWrapper: scopedQuery("#signatureCanvasWrapper"),
+    digitalSignatureWrapper: scopedQuery("#digitalSignatureWrapper"),
 
-        // riepilogo
-        therapySummary: scopedQuery('#therapySummary'),
+    // riepilogo
+    therapySummary: scopedQuery("#therapySummary"),
 
-        // report
-        generatedReportContainer: scopedQuery('#generatedReportContainer'),
-        generatedReportLink: scopedQuery('#generatedReportLink'),
-        generatedReportInfo: scopedQuery('#generatedReportInfo'),
-        copyReportLink: scopedQuery('#copyReportLink'),
-        reportTherapySelect: scopedQuery('#reportTherapySelect'),
+    // report
+    generatedReportContainer: scopedQuery("#generatedReportContainer"),
+    generatedReportLink: scopedQuery("#generatedReportLink"),
+    generatedReportInfo: scopedQuery("#generatedReportInfo"),
+    copyReportLink: scopedQuery("#copyReportLink"),
+    reportTherapySelect: scopedQuery("#reportTherapySelect"),
 
-        // associazioni
-        checkTherapySelect: scopedQuery('#checkTherapySelect'),
-        reminderTherapySelect: scopedQuery('#reminderTherapySelect'),
-        reminderTherapyIdInput: scopedQuery('#reminderTherapyId'),
+    // associazioni
+    checkTherapySelect: scopedQuery("#checkTherapySelect"),
+    reminderTherapySelect: scopedQuery("#reminderTherapySelect"),
+    reminderTherapyIdInput: scopedQuery("#reminderTherapyId"),
 
-        // bottoni header
-        exportReportButton: scopedQuery('#exportReportButton'),
-        newPatientButton: scopedQuery('#newPatientButton'),
-        newTherapyButton: scopedQuery('#newTherapyButton'),
-        newCheckButton: scopedQuery('#newCheckButton'),
-        newReminderButton: scopedQuery('#newReminderButton'),
-        refreshDataButton: scopedQuery('#refreshDataButton'),
+    // bottoni header
+    exportReportButton: scopedQuery("#exportReportButton"),
+    newPatientButton: scopedQuery("#newPatientButton"),
+    newTherapyButton: scopedQuery("#newTherapyButton"),
+    newCheckButton: scopedQuery("#newCheckButton"),
+    newReminderButton: scopedQuery("#newReminderButton"),
+    refreshDataButton: scopedQuery("#refreshDataButton"),
 
-        // inline patient
-        inlinePatientToggle: scopedQuery('#openInlinePatientForm'),
-        inlinePatientForm: scopedQuery('#inlinePatientForm'),
+    // inline patient
+    inlinePatientToggle: scopedQuery("#openInlinePatientForm"),
+    inlinePatientForm: scopedQuery("#inlinePatientForm"),
 
-        // hidden inputs
-        caregiversPayloadInput: scopedQuery('#caregiversPayloadInput'),
-        questionnairePayloadInput: scopedQuery('#questionnairePayloadInput'),
-        signatureImageInput: scopedQuery('#signatureImageInput'),
+    // hidden inputs
+    caregiversPayloadInput: scopedQuery("#caregiversPayloadInput"),
+    questionnairePayloadInput: scopedQuery("#questionnairePayloadInput"),
+    signatureImageInput: scopedQuery("#signatureImageInput"),
 
-        // sezione report
-        generatedReportSection: scopedQuery('#generatedReportSection'),
-    };
+    // sezione report
+    generatedReportSection: scopedQuery("#generatedReportSection"),
+  };
 }
 
 export function initializeEvents({ routesBase, csrfToken, dom }) {
-    api.configureApi({ routesBase, csrfToken });
-    const state = getState();
-    if (state.eventsInitialized) return;
-    state.eventsInitialized = true;
-    const checkFormState = {
-        eventsBound: false,
-        checkModeSelect: null,
-        checklistQuestionsContainer: null,
-        checklistQuestionsList: null,
-        checkAnswersContainer: null,
-        checkAnswersList: null,
-        checkQuestionsPayloadInput: null,
-        checkAnswersPayloadInput: null,
-        currentChecklistQuestions: [],
-    };
+  api.configureApi({ routesBase, csrfToken });
+  const state = getState();
+  if (state.eventsInitialized) return;
+  state.eventsInitialized = true;
+  const checkFormState = {
+    eventsBound: false,
+    checkModeSelect: null,
+    checklistQuestionsContainer: null,
+    checklistQuestionsList: null,
+    checkAnswersContainer: null,
+    checkAnswersList: null,
+    checkQuestionsPayloadInput: null,
+    checkAnswersPayloadInput: null,
+    currentChecklistQuestions: [],
+  };
 
-    function toggleLoading(isLoading) {
-        dom.moduleRoot.classList.toggle('is-loading', isLoading);
+  function toggleLoading(isLoading) {
+    dom.moduleRoot.classList.toggle("is-loading", isLoading);
+  }
+
+  function handleError(error) {
+    if (typeof showAlert === "function") {
+      showAlert(error.message || "Errore inatteso", "danger");
+    } else {
+      alert(error.message || "Errore inatteso");
+    }
+    console.error(error);
+  }
+
+  function openModal(element) {
+    if (!element) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(element);
+    modal.show();
+  }
+
+  function closeModal(element) {
+    if (!element) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(element);
+    modal.hide();
+  }
+
+  function resetForm(form) {
+    if (!form) return;
+    form.reset();
+    form
+      .querySelectorAll('input[type="hidden"]')
+      .forEach((input) => (input.value = ""));
+  }
+
+  function renderAll() {
+    ui.renderStats({ dom, state });
+
+    ui.renderPatients({
+      dom,
+      state,
+      onSelectPatient: (id) => {
+        state.selectedPatientId = id;
+        renderAll();
+      },
+      onEditPatient: handlePatientEdit,
+      onDeletePatient: handlePatientDelete,
+    });
+
+    ui.renderTherapies({
+      dom,
+      state,
+      onAction: handleTherapyAction,
+    });
+
+    ui.renderTimeline({
+      dom,
+      state,
+      onReminderAction: handleReminderAction,
+    });
+
+    ui.populateSelects({ dom, state });
+  }
+
+  function fillPatientForm(patient) {
+      const form = document.getElementById('patientForm');
+      
+      if (form) {
+          form.querySelector('input[name="patient_id"]').value = patient.id || '';
+          form.querySelector('input[name="first_name"]').value = patient.first_name || '';
+          form.querySelector('input[name="last_name"]').value = patient.last_name || '';
+          form.querySelector('input[name="birth_date"]').value = patient.birth_date || '';
+          form.querySelector('input[name="phone"]').value = patient.phone || '';
+          form.querySelector('input[name="email"]').value = patient.email || '';
+          form.querySelector('textarea[name="notes"]').value = patient.notes || '';
+      }
+  }
+
+  function fillReminderForm(reminder) {
+      const form = document.getElementById('reminderForm');
+      
+      if (form) {
+          form.querySelector('input[name="reminder_id"]').value = reminder.id || '';
+          form.querySelector('input[name="therapy_id"]').value = reminder.therapy_id || '';
+          form.querySelector('input[name="title"]').value = reminder.title || '';
+          form.querySelector('textarea[name="message"]').value = reminder.message || '';
+          form.querySelector('select[name="type"]').value = reminder.type || 'one-shot';
+          form.querySelector('input[name="scheduled_at"]').value = reminder.scheduled_at || '';
+          form.querySelector('select[name="channel"]').value = reminder.channel || 'email';
+      }
+  }
+
+  function handlePatientEdit(patient) {
+        fillPatientForm(patient);
+        openModal(dom.patientModal); 
+  }
+
+  function handlePatientDelete(patient) {
+    if (!confirm(`Eliminare il paziente "${patient.full_name || ""}"?`)) {
+      return;
     }
 
-    function handleError(error) {
-        if (typeof showAlert === 'function') {
-            showAlert(error.message || 'Errore inatteso', 'danger');
-        } else {
-            alert(error.message || 'Errore inatteso');
+    api
+      .deletePatient(patient.id)
+      .then(() => {
+        // togli il paziente dallo stato
+        state.patients = state.patients.filter((p) => p.id !== patient.id);
+
+        // se era selezionato, resetta selezione e terapie collegate
+        if (state.selectedPatientId === patient.id) {
+          state.selectedPatientId = null;
+          state.therapies = state.therapies.filter(
+            (t) => t.patient_id !== patient.id
+          );
         }
-        console.error(error);
+
+        renderAll();
+      })
+      .catch((error) => {
+        alert(error.message || "Errore durante l’eliminazione del paziente.");
+      });
+  }
+
+  function handleReminderAction(action, payload) {
+    // payload: { reminderId, therapyId, item }
+
+    if (action === "edit") {
+      const therapyId =
+        payload.therapyId || (payload.item && payload.item.therapy_id) || null;
+      const reminder = payload.item || null;
+
+      fillReminderForm(reminder);
+      openReminderModal(therapyId, reminder);
+      return;
     }
 
-    function openModal(element) {
-        if (!element) return;
-        const modal = bootstrap.Modal.getOrCreateInstance(element);
-        modal.show();
+    if (action === "delete") {
+      if (!confirm("Eliminare il promemoria selezionato?")) return;
+
+      api
+        .deleteReminder(payload.reminderId)
+        .then(() => {
+          state.timeline = (state.timeline || []).filter(
+            (item) => String(item.id) !== String(payload.reminderId)
+          );
+
+          renderAll();
+        })
+        .catch((error) => {
+          alert(
+            error.message || "Errore durante l’eliminazione del promemoria."
+          );
+        });
+    }
+  }
+
+  function loadData() {
+    toggleLoading(true);
+    api
+      .loadInitialData()
+      .then((data) => {
+        if (!data) {
+          throw new Error("Dati iniziali non disponibili. Riprova più tardi.");
+        }
+
+        state.patients = data.patients || [];
+        state.therapies = data.therapies || [];
+        state.checks = data.checks || [];
+        state.reminders = data.reminders || [];
+        state.reports = data.reports || [];
+        state.timeline = data.timeline || [];
+        state.stats = data.stats || {};
+
+        if (!state.selectedPatientId && state.patients.length > 0) {
+          state.selectedPatientId = state.patients[0].id;
+        }
+
+        renderAll();
+      })
+      .catch(handleError)
+      .finally(() => toggleLoading(false));
+  }
+
+  function setupEventListeners() {
+    if (checkFormState.eventsBound) return;
+    checkFormState.eventsBound = true;
+    if (dom.newPatientButton) {
+      dom.newPatientButton.addEventListener("click", () => {
+        resetForm(dom.patientForm);
+        openModal(dom.patientModal);
+      });
+    }
+    if (dom.newTherapyButton) {
+      dom.newTherapyButton.addEventListener("click", () => {
+        prepareTherapyForm();
+        openModal(dom.therapyModal);
+      });
+    }
+    if (dom.newCheckButton) {
+      dom.newCheckButton.addEventListener("click", () => {
+        openCheckModal();
+      });
+    }
+    if (dom.newReminderButton) {
+      dom.newReminderButton.addEventListener("click", () => {
+        openReminderModal();
+      });
+    }
+    if (dom.reminderTherapySelect) {
+      dom.reminderTherapySelect.addEventListener("change", () => {
+        const hiddenTherapy =
+          dom.reminderTherapyIdInput ||
+          dom.reminderForm?.querySelector("#reminderTherapyId");
+        if (hiddenTherapy) {
+          hiddenTherapy.value = dom.reminderTherapySelect.value;
+        }
+      });
+    }
+    if (dom.exportReportButton) {
+      dom.exportReportButton.addEventListener("click", () => {
+        openReportModal();
+      });
+    }
+    if (dom.refreshDataButton) {
+      dom.refreshDataButton.addEventListener("click", loadData);
+    }
+    if (dom.timelineFilter) {
+      dom.timelineFilter.addEventListener("change", () =>
+        ui.renderTimeline({ dom, state })
+      );
+    }
+    if (dom.inlinePatientToggle && dom.inlinePatientForm) {
+      dom.inlinePatientToggle.addEventListener("click", () => {
+        toggleInlinePatientForm(true);
+      });
+    }
+    if (dom.therapyPatientSelect) {
+      dom.therapyPatientSelect.addEventListener("change", () => {
+        const patientIdField = document.getElementById("therapyPatientId");
+        if (patientIdField) {
+          patientIdField.value = dom.therapyPatientSelect.value;
+        }
+        if (dom.inlinePatientForm) {
+          toggleInlinePatientForm(false);
+        }
+      });
+    }
+    if (dom.addCaregiverButton) {
+      dom.addCaregiverButton.addEventListener("click", addCaregiverRow);
+    }
+    if (dom.nextStepButton) {
+      dom.nextStepButton.addEventListener("click", () => {
+        if (!validateCurrentStep()) return;
+        changeTherapyStep(1);
+      });
+    }
+    if (dom.prevStepButton) {
+      dom.prevStepButton.addEventListener("click", () => changeTherapyStep(-1));
+    }
+    if (dom.signatureTypeSelect) {
+      dom.signatureTypeSelect.addEventListener("change", () =>
+        signature.updateSignatureMode({ dom })
+      );
+    }
+    if (dom.saveSignatureButton) {
+      dom.saveSignatureButton.addEventListener("click", () =>
+        signature.saveSignature({ dom, state, showAlert })
+      );
+    }
+    if (dom.clearSignatureButton) {
+      dom.clearSignatureButton.addEventListener("click", () =>
+        signature.clearSignature({ dom, state })
+      );
+    }
+    if (dom.copyReportLink) {
+      dom.copyReportLink.addEventListener("click", () => {
+        navigator.clipboard
+          .writeText(dom.generatedReportLink.value)
+          .then(() => showAlert("Link copiato negli appunti", "success"))
+          .catch(() => showAlert("Impossibile copiare il link", "danger"));
+      });
     }
 
-    function closeModal(element) {
-        if (!element) return;
-        const modal = bootstrap.Modal.getOrCreateInstance(element);
-        modal.hide();
+    setupForms();
+  }
+
+  function ensureCheckFormEnhancements() {
+    if (!dom.checkForm) return;
+
+    if (!checkFormState.checkQuestionsPayloadInput) {
+      checkFormState.checkQuestionsPayloadInput =
+        document.createElement("input");
+      checkFormState.checkQuestionsPayloadInput.type = "hidden";
+      checkFormState.checkQuestionsPayloadInput.name = "questions_payload";
+      dom.checkForm.appendChild(checkFormState.checkQuestionsPayloadInput);
+    }
+    if (!checkFormState.checkAnswersPayloadInput) {
+      checkFormState.checkAnswersPayloadInput = document.createElement("input");
+      checkFormState.checkAnswersPayloadInput.type = "hidden";
+      checkFormState.checkAnswersPayloadInput.name = "answers_payload";
+      dom.checkForm.appendChild(checkFormState.checkAnswersPayloadInput);
     }
 
-    function resetForm(form) {
-        if (!form) return;
-        form.reset();
-        form.querySelectorAll('input[type="hidden"]').forEach(input => input.value = '');
-    }
+    const formBody = dom.checkForm.querySelector(".modal-body");
+    const fieldRow = dom.checkForm.querySelector(".modal-body .row");
 
-    function renderAll() {
-        ui.renderStats({ dom, state });
-        ui.renderPatients({ dom, state, onSelectPatient: id => { state.selectedPatientId = id; renderAll(); } });
-        ui.renderTherapies({ dom, state, onAction: handleTherapyAction });
-        ui.renderTimeline({ dom, state });
-        ui.populateSelects({ dom, state });
-    }
-
-    function loadData() {
-        toggleLoading(true);
-        api.loadInitialData().then(data => {
-            if (!data) {
-                throw new Error('Dati iniziali non disponibili. Riprova più tardi.');
-            }
-
-            state.patients = data.patients || [];
-            state.therapies = data.therapies || [];
-            state.checks = data.checks || [];
-            state.reminders = data.reminders || [];
-            state.reports = data.reports || [];
-            state.timeline = data.timeline || [];
-            state.stats = data.stats || {};
-
-            if (!state.selectedPatientId && state.patients.length > 0) {
-                state.selectedPatientId = state.patients[0].id;
-            }
-
-            renderAll();
-        }).catch(handleError).finally(() => toggleLoading(false));
-    }
-
-    function setupEventListeners() {
-        if (checkFormState.eventsBound) return;
-        checkFormState.eventsBound = true;
-        if (dom.newPatientButton) {
-            dom.newPatientButton.addEventListener('click', () => {
-                resetForm(dom.patientForm);
-                openModal(dom.patientModal);
-            });
-        }
-        if (dom.newTherapyButton) {
-            dom.newTherapyButton.addEventListener('click', () => {
-                prepareTherapyForm();
-                openModal(dom.therapyModal);
-            });
-        }
-        if (dom.newCheckButton) {
-            dom.newCheckButton.addEventListener('click', () => {
-                openCheckModal();
-            });
-        }
-        if (dom.newReminderButton) {
-            dom.newReminderButton.addEventListener('click', () => {
-                openReminderModal();
-            });
-        }
-        if (dom.reminderTherapySelect) {
-            dom.reminderTherapySelect.addEventListener('change', () => {
-                const hiddenTherapy = dom.reminderTherapyIdInput || dom.reminderForm?.querySelector('#reminderTherapyId');
-                if (hiddenTherapy) {
-                    hiddenTherapy.value = dom.reminderTherapySelect.value;
-                }
-            });
-        }
-        if (dom.exportReportButton) {
-            dom.exportReportButton.addEventListener('click', () => {
-                openReportModal();
-            });
-        }
-        if (dom.refreshDataButton) {
-            dom.refreshDataButton.addEventListener('click', loadData);
-        }
-        if (dom.timelineFilter) {
-            dom.timelineFilter.addEventListener('change', () => ui.renderTimeline({ dom, state }));
-        }
-        if (dom.inlinePatientToggle && dom.inlinePatientForm) {
-            dom.inlinePatientToggle.addEventListener('click', () => {
-                toggleInlinePatientForm(true);
-            });
-        }
-        if (dom.therapyPatientSelect) {
-            dom.therapyPatientSelect.addEventListener('change', () => {
-                const patientIdField = document.getElementById('therapyPatientId');
-                if (patientIdField) {
-                    patientIdField.value = dom.therapyPatientSelect.value;
-                }
-                if (dom.inlinePatientForm) {
-                    toggleInlinePatientForm(false);
-                }
-            });
-        }
-        if (dom.addCaregiverButton) {
-            dom.addCaregiverButton.addEventListener('click', addCaregiverRow);
-        }
-        if (dom.nextStepButton) {
-            dom.nextStepButton.addEventListener('click', () => {
-                if (!validateCurrentStep()) return;
-                changeTherapyStep(1);
-            });
-        }
-        if (dom.prevStepButton) {
-            dom.prevStepButton.addEventListener('click', () => changeTherapyStep(-1));
-        }
-        if (dom.signatureTypeSelect) {
-            dom.signatureTypeSelect.addEventListener('change', () => signature.updateSignatureMode({ dom }));
-        }
-        if (dom.saveSignatureButton) {
-            dom.saveSignatureButton.addEventListener('click', () => signature.saveSignature({ dom, state, showAlert }));
-        }
-        if (dom.clearSignatureButton) {
-            dom.clearSignatureButton.addEventListener('click', () => signature.clearSignature({ dom, state }));
-        }
-        if (dom.copyReportLink) {
-            dom.copyReportLink.addEventListener('click', () => {
-                navigator.clipboard.writeText(dom.generatedReportLink.value)
-                    .then(() => showAlert('Link copiato negli appunti', 'success'))
-                    .catch(() => showAlert('Impossibile copiare il link', 'danger'));
-            });
-        }
-
-        setupForms();
-    }
-
-    function ensureCheckFormEnhancements() {
-        if (!dom.checkForm) return;
-
-        if (!checkFormState.checkQuestionsPayloadInput) {
-            checkFormState.checkQuestionsPayloadInput = document.createElement('input');
-            checkFormState.checkQuestionsPayloadInput.type = 'hidden';
-            checkFormState.checkQuestionsPayloadInput.name = 'questions_payload';
-            dom.checkForm.appendChild(checkFormState.checkQuestionsPayloadInput);
-        }
-        if (!checkFormState.checkAnswersPayloadInput) {
-            checkFormState.checkAnswersPayloadInput = document.createElement('input');
-            checkFormState.checkAnswersPayloadInput.type = 'hidden';
-            checkFormState.checkAnswersPayloadInput.name = 'answers_payload';
-            dom.checkForm.appendChild(checkFormState.checkAnswersPayloadInput);
-        }
-
-        const formBody = dom.checkForm.querySelector('.modal-body');
-        const fieldRow = dom.checkForm.querySelector('.modal-body .row');
-
-        if (!checkFormState.checkModeSelect) {
-            const modeWrapper = document.createElement('div');
-            modeWrapper.className = 'mb-3';
-            modeWrapper.innerHTML = `
+    if (!checkFormState.checkModeSelect) {
+      const modeWrapper = document.createElement("div");
+      modeWrapper.className = "mb-3";
+      modeWrapper.innerHTML = `
                 <label class="form-label">Modalità</label>
                 <select class="form-select" id="checkModeSelect">
                     <option value="execution">Registra check</option>
                     <option value="checklist">Configura checklist</option>
                 </select>`;
-            formBody.insertBefore(modeWrapper, fieldRow);
-            checkFormState.checkModeSelect = modeWrapper.querySelector('#checkModeSelect');
-            checkFormState.checkModeSelect.addEventListener('change', () => toggleCheckMode(checkFormState.checkModeSelect.value));
-        }
+      formBody.insertBefore(modeWrapper, fieldRow);
+      checkFormState.checkModeSelect =
+        modeWrapper.querySelector("#checkModeSelect");
+      checkFormState.checkModeSelect.addEventListener("change", () =>
+        toggleCheckMode(checkFormState.checkModeSelect.value)
+      );
+    }
 
-        if (!checkFormState.checklistQuestionsContainer) {
-            checkFormState.checklistQuestionsContainer = document.createElement('div');
-            checkFormState.checklistQuestionsContainer.className = 'mt-3 d-none';
-            checkFormState.checklistQuestionsContainer.innerHTML = `
+    if (!checkFormState.checklistQuestionsContainer) {
+      checkFormState.checklistQuestionsContainer =
+        document.createElement("div");
+      checkFormState.checklistQuestionsContainer.className = "mt-3 d-none";
+      checkFormState.checklistQuestionsContainer.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Domande checklist</h6>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="addChecklistQuestionBtn">
@@ -315,520 +454,795 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
                 </div>
                 <div class="checklist-questions-list"></div>
             `;
-            formBody.appendChild(checkFormState.checklistQuestionsContainer);
-            checkFormState.checklistQuestionsList = checkFormState.checklistQuestionsContainer.querySelector('.checklist-questions-list');
-            const addButton = checkFormState.checklistQuestionsContainer.querySelector('#addChecklistQuestionBtn');
-            addButton.addEventListener('click', () => ui.addChecklistQuestionRow(checkFormState.checklistQuestionsList));
-        }
+      formBody.appendChild(checkFormState.checklistQuestionsContainer);
+      checkFormState.checklistQuestionsList =
+        checkFormState.checklistQuestionsContainer.querySelector(
+          ".checklist-questions-list"
+        );
+      const addButton =
+        checkFormState.checklistQuestionsContainer.querySelector(
+          "#addChecklistQuestionBtn"
+        );
+      addButton.addEventListener("click", () =>
+        ui.addChecklistQuestionRow(checkFormState.checklistQuestionsList)
+      );
+    }
 
-        if (!checkFormState.checkAnswersContainer) {
-            checkFormState.checkAnswersContainer = document.createElement('div');
-            checkFormState.checkAnswersContainer.className = 'mt-3';
-            checkFormState.checkAnswersContainer.innerHTML = `
+    if (!checkFormState.checkAnswersContainer) {
+      checkFormState.checkAnswersContainer = document.createElement("div");
+      checkFormState.checkAnswersContainer.className = "mt-3";
+      checkFormState.checkAnswersContainer.innerHTML = `
                 <h6 class="mb-2">Risposte checklist</h6>
                 <div class="check-answers-list"></div>
             `;
-            formBody.appendChild(checkFormState.checkAnswersContainer);
-            checkFormState.checkAnswersList = checkFormState.checkAnswersContainer.querySelector('.check-answers-list');
-        }
-
-        toggleCheckMode(checkFormState.checkModeSelect ? checkFormState.checkModeSelect.value : 'execution');
+      formBody.appendChild(checkFormState.checkAnswersContainer);
+      checkFormState.checkAnswersList =
+        checkFormState.checkAnswersContainer.querySelector(
+          ".check-answers-list"
+        );
     }
 
-    function toggleCheckMode(mode = 'execution') {
-        if (!dom.checkForm) return;
-        const submitButton = dom.checkForm.querySelector('[type="submit"]');
+    toggleCheckMode(
+      checkFormState.checkModeSelect
+        ? checkFormState.checkModeSelect.value
+        : "execution"
+    );
+  }
 
-        const isChecklist = mode === 'checklist';
+  function toggleCheckMode(mode = "execution") {
+    if (!dom.checkForm) return;
+    const submitButton = dom.checkForm.querySelector('[type="submit"]');
 
-        if (checkFormState.checklistQuestionsContainer) {
-            checkFormState.checklistQuestionsContainer.classList.toggle('d-none', !isChecklist);
-        }
-        if (checkFormState.checkAnswersContainer) {
-            checkFormState.checkAnswersContainer.classList.toggle('d-none', isChecklist);
-        }
-        if (submitButton) {
-            submitButton.innerHTML = isChecklist ? '<i class="fas fa-save me-2"></i>Salva checklist' : '<i class="fas fa-save me-2"></i>Salva check';
-        }
+    const isChecklist = mode === "checklist";
 
-        if (isChecklist) {
-            const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
-            const checklist = logic.getChecklistForTherapy(state.checks, therapyId);
-            ui.renderChecklistQuestions(checkFormState.checklistQuestionsList, checklist?.questions || checkFormState.currentChecklistQuestions || logic.defaultChecklistQuestions);
-        } else if (checkFormState.checkAnswersList) {
-            const latestQuestions = logic.collectChecklistQuestions(checkFormState.checklistQuestionsList);
-            if (latestQuestions.length) {
-                ui.renderChecklistAnswers(checkFormState.checkAnswersList, latestQuestions);
+    if (checkFormState.checklistQuestionsContainer) {
+      checkFormState.checklistQuestionsContainer.classList.toggle(
+        "d-none",
+        !isChecklist
+      );
+    }
+    if (checkFormState.checkAnswersContainer) {
+      checkFormState.checkAnswersContainer.classList.toggle(
+        "d-none",
+        isChecklist
+      );
+    }
+    if (submitButton) {
+      submitButton.innerHTML = isChecklist
+        ? '<i class="fas fa-save me-2"></i>Salva checklist'
+        : '<i class="fas fa-save me-2"></i>Salva check';
+    }
+
+    if (isChecklist) {
+      const therapyId = parseInt(
+        dom.checkTherapySelect?.value || dom.checkTherapyId?.value || "0",
+        10
+      );
+      const checklist = logic.getChecklistForTherapy(state.checks, therapyId);
+      ui.renderChecklistQuestions(
+        checkFormState.checklistQuestionsList,
+        checklist?.questions ||
+          checkFormState.currentChecklistQuestions ||
+          logic.defaultChecklistQuestions
+      );
+    } else if (checkFormState.checkAnswersList) {
+      const latestQuestions = logic.collectChecklistQuestions(
+        checkFormState.checklistQuestionsList
+      );
+      if (latestQuestions.length) {
+        ui.renderChecklistAnswers(
+          checkFormState.checkAnswersList,
+          latestQuestions
+        );
+      } else {
+        ui.renderChecklistAnswers(
+          checkFormState.checkAnswersList,
+          checkFormState.currentChecklistQuestions
+        );
+      }
+    }
+  }
+
+  function renderChecklistAnswers(questions = []) {
+    checkFormState.currentChecklistQuestions =
+      questions && questions.length
+        ? questions
+        : logic.defaultChecklistQuestions;
+    ui.renderChecklistAnswers(
+      checkFormState.checkAnswersList,
+      checkFormState.currentChecklistQuestions
+    );
+  }
+
+  function refreshChecklistUI() {
+    const therapyId = parseInt(
+      dom.checkTherapySelect?.value || dom.checkTherapyId?.value || "0",
+      10
+    );
+    const checklist = logic.getChecklistForTherapy(state.checks, therapyId);
+    if (checklist && Array.isArray(checklist.questions)) {
+      ui.renderChecklistQuestions(
+        checkFormState.checklistQuestionsList,
+        checklist.questions
+      );
+      renderChecklistAnswers(checklist.questions);
+    } else {
+      ui.renderChecklistQuestions(
+        checkFormState.checklistQuestionsList,
+        logic.defaultChecklistQuestions
+      );
+      renderChecklistAnswers(logic.defaultChecklistQuestions);
+    }
+  }
+
+  function setupForms() {
+    if (dom.patientForm) {
+      dom.patientForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (state.patientSubmitting) return;
+        state.patientSubmitting = true;
+        const submitButton = dom.patientForm.querySelector('[type="submit"]');
+        submitButton?.setAttribute("disabled", "disabled");
+        const formData = new FormData(dom.patientForm);
+        api
+          .savePatient(formData)
+          .then((response) => {
+            closeModal(dom.patientModal);
+            showAlert("Paziente salvato con successo", "success");
+            const patientIndex = state.patients.findIndex(
+              (p) => p.id === response.patient.id
+            );
+            if (patientIndex >= 0) {
+              state.patients[patientIndex] = response.patient;
             } else {
-                ui.renderChecklistAnswers(checkFormState.checkAnswersList, checkFormState.currentChecklistQuestions);
+              state.patients.push(response.patient);
             }
-        }
+            state.selectedPatientId = response.patient.id;
+            renderAll();
+          })
+          .catch(handleError)
+          .finally(() => {
+            state.patientSubmitting = false;
+            submitButton?.removeAttribute("disabled");
+          });
+      });
     }
 
-    function renderChecklistAnswers(questions = []) {
-        checkFormState.currentChecklistQuestions = questions && questions.length ? questions : logic.defaultChecklistQuestions;
-        ui.renderChecklistAnswers(checkFormState.checkAnswersList, checkFormState.currentChecklistQuestions);
-    }
+    if (dom.therapyForm) {
+      dom.therapyForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (state.therapySubmitting) return;
 
-    function refreshChecklistUI() {
-        const therapyId = parseInt(dom.checkTherapySelect?.value || dom.checkTherapyId?.value || '0', 10);
-        const checklist = logic.getChecklistForTherapy(state.checks, therapyId);
-        if (checklist && Array.isArray(checklist.questions)) {
-            ui.renderChecklistQuestions(checkFormState.checklistQuestionsList, checklist.questions);
-            renderChecklistAnswers(checklist.questions);
-        } else {
-            ui.renderChecklistQuestions(checkFormState.checklistQuestionsList, logic.defaultChecklistQuestions);
-            renderChecklistAnswers(logic.defaultChecklistQuestions);
-        }
-    }
+        state.therapySubmitting = true;
+        dom.submitTherapyButton?.setAttribute("disabled", "disabled");
 
-    function setupForms() {
-        if (dom.patientForm) {
-            dom.patientForm.addEventListener('submit', event => {
-                event.preventDefault();
-                if (state.patientSubmitting) return;
-                state.patientSubmitting = true;
-                const submitButton = dom.patientForm.querySelector('[type="submit"]');
-                submitButton?.setAttribute('disabled', 'disabled');
-                const formData = new FormData(dom.patientForm);
-                api.savePatient(formData).then(response => {
-                    closeModal(dom.patientModal);
-                    showAlert('Paziente salvato con successo', 'success');
-                    const patientIndex = state.patients.findIndex(p => p.id === response.patient.id);
-                    if (patientIndex >= 0) {
-                        state.patients[patientIndex] = response.patient;
-                    } else {
-                        state.patients.push(response.patient);
-                    }
-                    state.selectedPatientId = response.patient.id;
-                    renderAll();
-                }).catch(handleError).finally(() => {
-                    state.patientSubmitting = false;
-                    submitButton?.removeAttribute('disabled');
-                });
-            });
-        }
-
-        if (dom.therapyForm) {
-            dom.therapyForm.addEventListener('submit', event => {
-                event.preventDefault();
-                if (state.therapySubmitting) return;
-
-                state.therapySubmitting = true;
-                dom.submitTherapyButton?.setAttribute('disabled', 'disabled');
-
-                const questionnaire = logic.prepareQuestionnairePayload(
-                    dom.therapyForm,
-                    dom.questionnairePayloadInput
-                );
-                const caregivers = logic.prepareCaregiversPayload(
-                    dom.caregiversContainer,
-                    dom.caregiversPayloadInput
-                );
-                updateSummaryPreview();
-
-                signature.captureSignatureImage({ dom, state });
-                logic.updateHiddenConsentFields({ dom, state });
-
-                const formData = new FormData(dom.therapyForm);
-                formData.set('questionnaire_payload', JSON.stringify(questionnaire));
-                formData.set('caregivers_payload', JSON.stringify(caregivers));
-
-                api.saveTherapy(formData)
-                    .then(response => {
-                        closeModal(dom.therapyModal);
-                        showAlert('Terapia salvata con successo', 'success');
-                        upsertTherapy(response.therapy);
-                        state.selectedPatientId = response.therapy.patient_id;
-                        renderAll();
-                    })
-                    .catch(handleError)
-                    .finally(() => {
-                        state.therapySubmitting = false;
-                        dom.submitTherapyButton?.removeAttribute('disabled');
-                    });
-            });
-        }
-
-        if (dom.checkForm) {
-            ensureCheckFormEnhancements();
-            if (dom.checkTherapySelect) {
-                dom.checkTherapySelect.addEventListener('change', refreshChecklistUI);
-            }
-            dom.checkForm.addEventListener('submit', event => {
-                event.preventDefault();
-                if (state.checkSubmitting) return;
-                state.checkSubmitting = true;
-                const submitButton = dom.checkForm.querySelector('[type="submit"]');
-                submitButton?.setAttribute('disabled', 'disabled');
-
-                const therapyHidden = dom.checkForm.querySelector('#checkTherapyId');
-                if (therapyHidden && dom.checkTherapySelect) {
-                    therapyHidden.value = dom.checkTherapySelect.value;
-                }
-
-                const formData = new FormData(dom.checkForm);
-                if (!formData.get('scheduled_at')) {
-                    formData.set('scheduled_at', new Date().toISOString().slice(0, 16));
-                }
-
-                if (checkFormState.checkModeSelect?.value === 'checklist') {
-                    const questions = logic.prepareChecklistPayload(checkFormState.checklistQuestionsList, checkFormState.checkQuestionsPayloadInput);
-                    if (!questions.length) {
-                        showAlert('Aggiungi almeno una domanda alla checklist.', 'warning');
-                        state.checkSubmitting = false;
-                        submitButton?.removeAttribute('disabled');
-                        return;
-                    }
-                    if (checkFormState.checkAnswersPayloadInput) {
-                        checkFormState.checkAnswersPayloadInput.value = '';
-                    }
-                    api.saveChecklist(formData).then(response => {
-                        const existing = logic.getChecklistForTherapy(state.checks, response.check.therapy_id);
-                        if (existing) {
-                            Object.assign(existing, response.check);
-                        } else {
-                            state.checks.push(response.check);
-                        }
-                        showAlert('Checklist salvata', 'success');
-                        loadData();
-                        closeModal(dom.checkModal);
-                    }).catch(handleError).finally(() => {
-                        state.checkSubmitting = false;
-                        submitButton?.removeAttribute('disabled');
-                    });
-                } else {
-                    const answers = logic.prepareCheckExecutionPayload(dom.checkForm, checkFormState.checkAnswersList, checkFormState.checkAnswersPayloadInput);
-                    const hasResponse = Object.values(answers || {}).some(answer => {
-                        if (!answer || typeof answer !== 'object') return false;
-                        const valueProvided = answer.value === 'yes' || answer.value === 'no';
-                        return valueProvided || (answer.note || '').trim() !== '';
-                    });
-                    if (!hasResponse) {
-                        showAlert('Compila almeno una risposta della checklist.', 'warning');
-                        state.checkSubmitting = false;
-                        submitButton?.removeAttribute('disabled');
-                        return;
-                    }
-                    api.saveCheck(formData).then(response => {
-                        const existingIndex = state.checks.findIndex(item => item.id === response.check.id);
-                        if (existingIndex >= 0) {
-                            state.checks[existingIndex] = response.check;
-                        } else {
-                            state.checks.push(response.check);
-                        }
-                        showAlert('Check periodico salvato', 'success');
-                        loadData();
-                        closeModal(dom.checkModal);
-                    }).catch(handleError).finally(() => {
-                        state.checkSubmitting = false;
-                        submitButton?.removeAttribute('disabled');
-                    });
-                }
-            });
-        }
-
-        if (dom.reminderForm) {
-            dom.reminderForm.addEventListener('submit', event => {
-                event.preventDefault();
-                if (state.reminderSubmitting) return;
-                state.reminderSubmitting = true;
-                const submitButton = dom.reminderForm.querySelector('[type="submit"]');
-                submitButton?.setAttribute('disabled', 'disabled');
-                const therapyHidden = dom.reminderTherapyIdInput || dom.reminderForm.querySelector('#reminderTherapyId');
-                if (therapyHidden && dom.reminderTherapySelect) {
-                    therapyHidden.value = dom.reminderTherapySelect.value;
-                }
-                const formData = new FormData(dom.reminderForm);
-                api.saveReminder(formData).then(response => {
-                    closeModal(dom.reminderModal);
-                    showAlert('Promemoria salvato', 'success');
-                    const index = state.reminders.findIndex(item => item.id === response.reminder.id);
-                    if (index >= 0) {
-                        state.reminders[index] = response.reminder;
-                    } else {
-                        state.reminders.push(response.reminder);
-                    }
-                    loadData();
-                }).catch(handleError).finally(() => {
-                    state.reminderSubmitting = false;
-                    submitButton?.removeAttribute('disabled');
-                });
-            });
-        }
-
-        if (dom.reportForm) {
-            dom.reportForm.addEventListener('submit', event => {
-                event.preventDefault();
-                if (state.reportGenerating) return;
-                state.reportGenerating = true;
-                const submitButton = dom.reportForm.querySelector('[type="submit"]');
-                submitButton?.setAttribute('disabled', 'disabled');
-                const formData = new FormData(dom.reportForm);
-                api.generateReport(formData).then(response => {
-                    dom.generatedReportContainer.classList.remove('d-none');
-                    dom.generatedReportLink.value = response.report.url;
-                    dom.generatedReportInfo.textContent = response.report.valid_until ? `Valido fino al ${formatDate(response.report.valid_until)}` : 'Validità illimitata';
-                    showAlert('Report generato con successo', 'success');
-                    loadData();
-                }).catch(handleError).finally(() => {
-                    state.reportGenerating = false;
-                    submitButton?.removeAttribute('disabled');
-                });
-            });
-        }
-    }
-
-    function prepareTherapyForm() {
-        resetForm(dom.therapyForm);
-        state.currentTherapyStep = 1;
-        updateWizardUI();
-
-        if (dom.signatureImageInput) dom.signatureImageInput.value = '';
-        if (dom.questionnairePayloadInput) dom.questionnairePayloadInput.value = '';
-        if (dom.caregiversPayloadInput) dom.caregiversPayloadInput.value = '';
-
-        toggleInlinePatientForm(false);
-        clearCaregivers();
-        addCaregiverRow();
-
-        signature.initializeSignaturePad({ dom, state });
-        signature.updateSignatureMode({ dom });
-
-        state.signaturePadDirty = false;
-
-        if (state.selectedPatientId) {
-            dom.therapyPatientSelect.value = String(state.selectedPatientId);
-            const patientIdField = document.getElementById('therapyPatientId');
-            if (patientIdField) {
-                patientIdField.value = String(state.selectedPatientId);
-            }
-        }
-
-        logic.prepareQuestionnairePayload(dom.therapyForm, dom.questionnairePayloadInput);
-    }
-
-
-    function toggleInlinePatientForm(show) {
-        if (!dom.inlinePatientForm) return;
-
-        if (show) {
-            dom.inlinePatientForm.classList.add('show');
-            dom.inlinePatientForm.style.display = 'block';
-            if (dom.therapyPatientSelect) {
-                dom.therapyPatientSelect.value = '';
-                dom.therapyPatientSelect.setAttribute('disabled', 'disabled');
-            }
-            const patientIdField = document.getElementById('therapyPatientId');
-            if (patientIdField) {
-                patientIdField.value = '';
-            }
-            dom.inlinePatientForm.querySelectorAll('input, textarea')
-                .forEach(field => field.value = '');
-            dom.inlinePatientToggle?.setAttribute('aria-expanded', 'true');
-        } else {
-            dom.inlinePatientForm.classList.remove('show');
-            dom.inlinePatientForm.style.display = '';
-            dom.therapyPatientSelect?.removeAttribute('disabled');
-            dom.inlinePatientToggle?.setAttribute('aria-expanded', 'false');
-        }
-    }
-
-    function addCaregiverRow() {
-        if (!dom.caregiversContainer || !dom.caregiversTemplate) return;
-        const clone = dom.caregiversTemplate.cloneNode(true);
-        clone.classList.remove('template', 'd-none');
-        const removeButton = clone.querySelector('.remove-caregiver');
-        if (removeButton) {
-            const cleanRemoveButton = removeButton.cloneNode(true);
-            cleanRemoveButton.onclick = () => clone.remove();
-            removeButton.replaceWith(cleanRemoveButton);
-        }
-        const roleField = clone.querySelector('[data-field="role"]');
-        if (roleField && !roleField.value) {
-            roleField.value = 'caregiver';
-        }
-        dom.caregiversContainer.appendChild(clone);
-    }
-
-    function clearCaregivers() {
-        if (!dom.caregiversContainer) return;
-        dom.caregiversContainer.querySelectorAll('.caregiver-row:not(.template)').forEach(row => row.remove());
-    }
-
-    function changeTherapyStep(direction) {
-        const nextStep = state.currentTherapyStep + direction;
-        const minStep = 1;
-        const maxStep = dom.wizardSteps.length;
-
-        if (nextStep < minStep || nextStep > maxStep) {
-            return;
-        }
-
-        state.currentTherapyStep = nextStep;
-        updateWizardUI();
-
-        if (state.currentTherapyStep === maxStep) {
-            updateSummaryPreview();
-        }
-    }
-
-    function validateCurrentStep() {
-        const stepElement = Array.from(dom.wizardSteps).find(step => parseInt(step.dataset.step, 10) === state.currentTherapyStep);
-        if (!stepElement) return true;
-
-        if (state.currentTherapyStep === 1) {
-            const hasExistingPatient = dom.therapyPatientSelect && dom.therapyPatientSelect.value;
-            const inlineFirstName = dom.therapyForm.querySelector('[name="inline_first_name"]').value.trim();
-            const inlineLastName = dom.therapyForm.querySelector('[name="inline_last_name"]').value.trim();
-            if (!hasExistingPatient && !inlineFirstName && !inlineLastName) {
-                showAlert('Seleziona un paziente esistente o compila i dati del nuovo paziente.', 'warning');
-                return false;
-            }
-        }
-
-        const formElements = dom.therapyForm.querySelectorAll(`.wizard-step[data-step="${state.currentTherapyStep}"] input[required], .wizard-step[data-step="${state.currentTherapyStep}"] textarea[required], .wizard-step[data-step="${state.currentTherapyStep}"] select[required]`);
-        for (const element of formElements) {
-            if (!element.value) {
-                element.classList.add('is-invalid');
-                element.addEventListener('input', () => element.classList.remove('is-invalid'), { once: true });
-                showAlert('Completa tutti i campi obbligatori prima di proseguire', 'warning');
-                return false;
-            }
-        }
-        return true;
-    }
-
-    function updateWizardUI() {
-        dom.wizardSteps.forEach(step => {
-            const stepNumber = parseInt(step.dataset.step, 10);
-            step.classList.toggle('active', stepNumber === state.currentTherapyStep);
-            step.classList.toggle('completed', stepNumber < state.currentTherapyStep);
-        });
-
-        dom.therapyWizardSteps.forEach(indicator => {
-            const stepNumber = parseInt(indicator.dataset.step, 10);
-            indicator.classList.toggle('active', stepNumber === state.currentTherapyStep);
-            indicator.classList.toggle('completed', stepNumber < state.currentTherapyStep);
-        });
-
-        dom.wizardSteps.forEach(step => {
-            const stepNumber = parseInt(step.dataset.step, 10);
-            const content = document.querySelector(`.wizard-step[data-step="${stepNumber}"]`);
-            if (content) {
-                content.classList.toggle('active', stepNumber === state.currentTherapyStep);
-            }
-        });
-
-        const progress = ((state.currentTherapyStep - 1) / (dom.wizardSteps.length - 1)) * 100;
-        if (dom.therapyWizardIndicator) {
-            dom.therapyWizardIndicator.style.width = `${progress}%`;
-        }
-
-        if (dom.prevStepButton) {
-            dom.prevStepButton.disabled = state.currentTherapyStep === 1;
-        }
-        if (dom.nextStepButton) {
-            dom.nextStepButton.classList.toggle(
-                'd-none',
-                state.currentTherapyStep === dom.wizardSteps.length
-            );
-        }
-        if (dom.submitTherapyButton) {
-            dom.submitTherapyButton.classList.toggle(
-                'd-none',
-                state.currentTherapyStep !== dom.wizardSteps.length
-            );
-        }
-
-        updateSummaryPreview();
-    }
-
-    function updateSummaryPreview() {
-        const caregivers = logic.prepareCaregiversPayload(
-            dom.caregiversContainer,
-            dom.caregiversPayloadInput
-        );
         const questionnaire = logic.prepareQuestionnairePayload(
-            dom.therapyForm,
-            dom.questionnairePayloadInput
+          dom.therapyForm,
+          dom.questionnairePayloadInput
         );
-        logic.updateSummaryPreview({
-            dom,
-            state,
-            caregivers,
-            questionnaire,
-        });
+        const caregivers = logic.prepareCaregiversPayload(
+          dom.caregiversContainer,
+          dom.caregiversPayloadInput
+        );
+        updateSummaryPreview();
+
+        signature.captureSignatureImage({ dom, state });
+        logic.updateHiddenConsentFields({ dom, state });
+
+        const formData = new FormData(dom.therapyForm);
+        formData.set("questionnaire_payload", JSON.stringify(questionnaire));
+        formData.set("caregivers_payload", JSON.stringify(caregivers));
+
+        api
+          .saveTherapy(formData)
+          .then((response) => {
+            closeModal(dom.therapyModal);
+            showAlert("Terapia salvata con successo", "success");
+            upsertTherapy(response.therapy);
+            state.selectedPatientId = response.therapy.patient_id;
+            renderAll();
+          })
+          .catch(handleError)
+          .finally(() => {
+            state.therapySubmitting = false;
+            dom.submitTherapyButton?.removeAttribute("disabled");
+          });
+      });
     }
 
+    if (dom.checkForm) {
+      ensureCheckFormEnhancements();
+      if (dom.checkTherapySelect) {
+        dom.checkTherapySelect.addEventListener("change", refreshChecklistUI);
+      }
+      dom.checkForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (state.checkSubmitting) return;
+        state.checkSubmitting = true;
+        const submitButton = dom.checkForm.querySelector('[type="submit"]');
+        submitButton?.setAttribute("disabled", "disabled");
 
-    function upsertTherapy(therapy) {
-        const index = state.therapies.findIndex(item => item.id === therapy.id);
-        if (index >= 0) {
-            state.therapies[index] = therapy;
+        const therapyHidden = dom.checkForm.querySelector("#checkTherapyId");
+        if (therapyHidden && dom.checkTherapySelect) {
+          therapyHidden.value = dom.checkTherapySelect.value;
+        }
+
+        const formData = new FormData(dom.checkForm);
+        if (!formData.get("scheduled_at")) {
+          formData.set("scheduled_at", new Date().toISOString().slice(0, 16));
+        }
+
+        if (checkFormState.checkModeSelect?.value === "checklist") {
+          const questions = logic.prepareChecklistPayload(
+            checkFormState.checklistQuestionsList,
+            checkFormState.checkQuestionsPayloadInput
+          );
+          if (!questions.length) {
+            showAlert("Aggiungi almeno una domanda alla checklist.", "warning");
+            state.checkSubmitting = false;
+            submitButton?.removeAttribute("disabled");
+            return;
+          }
+          if (checkFormState.checkAnswersPayloadInput) {
+            checkFormState.checkAnswersPayloadInput.value = "";
+          }
+          api
+            .saveChecklist(formData)
+            .then((response) => {
+              const existing = logic.getChecklistForTherapy(
+                state.checks,
+                response.check.therapy_id
+              );
+              if (existing) {
+                Object.assign(existing, response.check);
+              } else {
+                state.checks.push(response.check);
+              }
+              showAlert("Checklist salvata", "success");
+              loadData();
+              closeModal(dom.checkModal);
+            })
+            .catch(handleError)
+            .finally(() => {
+              state.checkSubmitting = false;
+              submitButton?.removeAttribute("disabled");
+            });
         } else {
-            state.therapies.push(therapy);
+          const answers = logic.prepareCheckExecutionPayload(
+            dom.checkForm,
+            checkFormState.checkAnswersList,
+            checkFormState.checkAnswersPayloadInput
+          );
+          const hasResponse = Object.values(answers || {}).some((answer) => {
+            if (!answer || typeof answer !== "object") return false;
+            const valueProvided =
+              answer.value === "yes" || answer.value === "no";
+            return valueProvided || (answer.note || "").trim() !== "";
+          });
+          if (!hasResponse) {
+            showAlert(
+              "Compila almeno una risposta della checklist.",
+              "warning"
+            );
+            state.checkSubmitting = false;
+            submitButton?.removeAttribute("disabled");
+            return;
+          }
+          api
+            .saveCheck(formData)
+            .then((response) => {
+              const existingIndex = state.checks.findIndex(
+                (item) => item.id === response.check.id
+              );
+              if (existingIndex >= 0) {
+                state.checks[existingIndex] = response.check;
+              } else {
+                state.checks.push(response.check);
+              }
+              showAlert("Check periodico salvato", "success");
+              loadData();
+              closeModal(dom.checkModal);
+            })
+            .catch(handleError)
+            .finally(() => {
+              state.checkSubmitting = false;
+              submitButton?.removeAttribute("disabled");
+            });
         }
+      });
     }
 
-    function openCheckModal(therapyId = null, mode = 'execution') {
-        resetForm(dom.checkForm);
-        ensureCheckFormEnhancements();
-        if (therapyId) {
-            dom.checkTherapySelect.value = String(therapyId);
-            const hiddenTherapy = dom.checkForm.querySelector('#checkTherapyId');
-            if (hiddenTherapy) {
-                hiddenTherapy.value = String(therapyId);
+    if (dom.reminderForm) {
+      dom.reminderForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (state.reminderSubmitting) return;
+        state.reminderSubmitting = true;
+        const submitButton = dom.reminderForm.querySelector('[type="submit"]');
+        submitButton?.setAttribute("disabled", "disabled");
+        const therapyHidden =
+          dom.reminderTherapyIdInput ||
+          dom.reminderForm.querySelector("#reminderTherapyId");
+        if (therapyHidden && dom.reminderTherapySelect) {
+          therapyHidden.value = dom.reminderTherapySelect.value;
+        }
+        const formData = new FormData(dom.reminderForm);
+        api
+          .saveReminder(formData)
+          .then((response) => {
+            closeModal(dom.reminderModal);
+            showAlert("Promemoria salvato", "success");
+            const index = state.reminders.findIndex(
+              (item) => item.id === response.reminder.id
+            );
+            if (index >= 0) {
+              state.reminders[index] = response.reminder;
+            } else {
+              state.reminders.push(response.reminder);
             }
-        }
-        if (checkFormState.checkModeSelect) {
-            checkFormState.checkModeSelect.value = mode;
-            toggleCheckMode(mode);
-        }
-        refreshChecklistUI();
-        openModal(dom.checkModal);
+            loadData();
+          })
+          .catch(handleError)
+          .finally(() => {
+            state.reminderSubmitting = false;
+            submitButton?.removeAttribute("disabled");
+          });
+      });
     }
 
-    function openReminderModal(therapyId = null) {
-        resetForm(dom.reminderForm);
-        const hiddenTherapy = dom.reminderTherapyIdInput || dom.reminderForm?.querySelector('#reminderTherapyId');
-        if (therapyId) {
-            if (dom.reminderTherapySelect) {
-                dom.reminderTherapySelect.value = String(therapyId);
-            }
-            if (hiddenTherapy) {
-                hiddenTherapy.value = String(therapyId);
-            }
-        } else if (hiddenTherapy && dom.reminderTherapySelect) {
-            hiddenTherapy.value = dom.reminderTherapySelect.value;
-        }
-        openModal(dom.reminderModal);
+    if (dom.reportForm) {
+      dom.reportForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (state.reportGenerating) return;
+        state.reportGenerating = true;
+        const submitButton = dom.reportForm.querySelector('[type="submit"]');
+        submitButton?.setAttribute("disabled", "disabled");
+        const formData = new FormData(dom.reportForm);
+        api
+          .generateReport(formData)
+          .then((response) => {
+            dom.generatedReportContainer.classList.remove("d-none");
+            dom.generatedReportLink.value = response.report.url;
+            dom.generatedReportInfo.textContent = response.report.valid_until
+              ? `Valido fino al ${formatDate(response.report.valid_until)}`
+              : "Validità illimitata";
+            showAlert("Report generato con successo", "success");
+            loadData();
+          })
+          .catch(handleError)
+          .finally(() => {
+            state.reportGenerating = false;
+            submitButton?.removeAttribute("disabled");
+          });
+      });
+    }
+  }
+
+  function prepareTherapyForm() {
+    resetForm(dom.therapyForm);
+    state.currentTherapyStep = 1;
+    updateWizardUI();
+
+    if (dom.signatureImageInput) dom.signatureImageInput.value = "";
+    if (dom.questionnairePayloadInput) dom.questionnairePayloadInput.value = "";
+    if (dom.caregiversPayloadInput) dom.caregiversPayloadInput.value = "";
+
+    toggleInlinePatientForm(false);
+    clearCaregivers();
+    addCaregiverRow();
+
+    signature.initializeSignaturePad({ dom, state });
+    signature.updateSignatureMode({ dom });
+
+    state.signaturePadDirty = false;
+
+    if (state.selectedPatientId) {
+      dom.therapyPatientSelect.value = String(state.selectedPatientId);
+      const patientIdField = document.getElementById("therapyPatientId");
+      if (patientIdField) {
+        patientIdField.value = String(state.selectedPatientId);
+      }
     }
 
-    function openReportModal(therapyId = null) {
-        resetForm(dom.reportForm);
-        dom.generatedReportContainer.classList.add('d-none');
-        if (therapyId) dom.reportTherapySelect.value = String(therapyId);
-        openModal(dom.reportModal);
+    logic.prepareQuestionnairePayload(
+      dom.therapyForm,
+      dom.questionnairePayloadInput
+    );
+  }
+
+  function toggleInlinePatientForm(show) {
+    if (!dom.inlinePatientForm) return;
+
+    if (show) {
+      dom.inlinePatientForm.classList.add("show");
+      dom.inlinePatientForm.style.display = "block";
+      if (dom.therapyPatientSelect) {
+        dom.therapyPatientSelect.value = "";
+        dom.therapyPatientSelect.setAttribute("disabled", "disabled");
+      }
+      const patientIdField = document.getElementById("therapyPatientId");
+      if (patientIdField) {
+        patientIdField.value = "";
+      }
+      dom.inlinePatientForm
+        .querySelectorAll("input, textarea")
+        .forEach((field) => (field.value = ""));
+      dom.inlinePatientToggle?.setAttribute("aria-expanded", "true");
+    } else {
+      dom.inlinePatientForm.classList.remove("show");
+      dom.inlinePatientForm.style.display = "";
+      dom.therapyPatientSelect?.removeAttribute("disabled");
+      dom.inlinePatientToggle?.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function addCaregiverRow() {
+    if (!dom.caregiversContainer || !dom.caregiversTemplate) return;
+    const clone = dom.caregiversTemplate.cloneNode(true);
+    clone.classList.remove("template", "d-none");
+    const removeButton = clone.querySelector(".remove-caregiver");
+    if (removeButton) {
+      const cleanRemoveButton = removeButton.cloneNode(true);
+      cleanRemoveButton.onclick = () => clone.remove();
+      removeButton.replaceWith(cleanRemoveButton);
+    }
+    const roleField = clone.querySelector('[data-field="role"]');
+    if (roleField && !roleField.value) {
+      roleField.value = "caregiver";
+    }
+    dom.caregiversContainer.appendChild(clone);
+  }
+
+  function clearCaregivers() {
+    if (!dom.caregiversContainer) return;
+    dom.caregiversContainer
+      .querySelectorAll(".caregiver-row:not(.template)")
+      .forEach((row) => row.remove());
+  }
+
+  function changeTherapyStep(direction) {
+    const nextStep = state.currentTherapyStep + direction;
+    const minStep = 1;
+    const maxStep = dom.wizardSteps.length;
+
+    if (nextStep < minStep || nextStep > maxStep) {
+      return;
     }
 
-    function handleTherapyAction(action, therapyId) {
-        switch (action) {
-            case 'open-check':
-                openCheckModal(therapyId);
-                break;
-            case 'open-checklist':
-                openCheckModal(therapyId, 'checklist');
-                break;
-            case 'open-reminder':
-                openReminderModal(therapyId);
-                break;
-            case 'open-report':
-                openReportModal(therapyId);
-                break;
-        }
+    state.currentTherapyStep = nextStep;
+    updateWizardUI();
+
+    if (state.currentTherapyStep === maxStep) {
+      updateSummaryPreview();
+    }
+  }
+
+  function validateCurrentStep() {
+    const stepElement = Array.from(dom.wizardSteps).find(
+      (step) => parseInt(step.dataset.step, 10) === state.currentTherapyStep
+    );
+    if (!stepElement) return true;
+
+    if (state.currentTherapyStep === 1) {
+      const hasExistingPatient =
+        dom.therapyPatientSelect && dom.therapyPatientSelect.value;
+      const inlineFirstName = dom.therapyForm
+        .querySelector('[name="inline_first_name"]')
+        .value.trim();
+      const inlineLastName = dom.therapyForm
+        .querySelector('[name="inline_last_name"]')
+        .value.trim();
+      if (!hasExistingPatient && !inlineFirstName && !inlineLastName) {
+        showAlert(
+          "Seleziona un paziente esistente o compila i dati del nuovo paziente.",
+          "warning"
+        );
+        return false;
+      }
     }
 
-    loadData();
-    setupEventListeners();
+    const formElements = dom.therapyForm.querySelectorAll(
+      `.wizard-step[data-step="${state.currentTherapyStep}"] input[required], .wizard-step[data-step="${state.currentTherapyStep}"] textarea[required], .wizard-step[data-step="${state.currentTherapyStep}"] select[required]`
+    );
+    for (const element of formElements) {
+      if (!element.value) {
+        element.classList.add("is-invalid");
+        element.addEventListener(
+          "input",
+          () => element.classList.remove("is-invalid"),
+          { once: true }
+        );
+        showAlert(
+          "Completa tutti i campi obbligatori prima di proseguire",
+          "warning"
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateWizardUI() {
+    dom.wizardSteps.forEach((step) => {
+      const stepNumber = parseInt(step.dataset.step, 10);
+      step.classList.toggle("active", stepNumber === state.currentTherapyStep);
+      step.classList.toggle("completed", stepNumber < state.currentTherapyStep);
+    });
+
+    dom.therapyWizardSteps.forEach((indicator) => {
+      const stepNumber = parseInt(indicator.dataset.step, 10);
+      indicator.classList.toggle(
+        "active",
+        stepNumber === state.currentTherapyStep
+      );
+      indicator.classList.toggle(
+        "completed",
+        stepNumber < state.currentTherapyStep
+      );
+    });
+
+    dom.wizardSteps.forEach((step) => {
+      const stepNumber = parseInt(step.dataset.step, 10);
+      const content = document.querySelector(
+        `.wizard-step[data-step="${stepNumber}"]`
+      );
+      if (content) {
+        content.classList.toggle(
+          "active",
+          stepNumber === state.currentTherapyStep
+        );
+      }
+    });
+
+    const progress =
+      ((state.currentTherapyStep - 1) / (dom.wizardSteps.length - 1)) * 100;
+    if (dom.therapyWizardIndicator) {
+      dom.therapyWizardIndicator.style.width = `${progress}%`;
+    }
+
+    if (dom.prevStepButton) {
+      dom.prevStepButton.disabled = state.currentTherapyStep === 1;
+    }
+    if (dom.nextStepButton) {
+      dom.nextStepButton.classList.toggle(
+        "d-none",
+        state.currentTherapyStep === dom.wizardSteps.length
+      );
+    }
+    if (dom.submitTherapyButton) {
+      dom.submitTherapyButton.classList.toggle(
+        "d-none",
+        state.currentTherapyStep !== dom.wizardSteps.length
+      );
+    }
+
+    updateSummaryPreview();
+  }
+
+  function updateSummaryPreview() {
+    const caregivers = logic.prepareCaregiversPayload(
+      dom.caregiversContainer,
+      dom.caregiversPayloadInput
+    );
+    const questionnaire = logic.prepareQuestionnairePayload(
+      dom.therapyForm,
+      dom.questionnairePayloadInput
+    );
+    logic.updateSummaryPreview({
+      dom,
+      state,
+      caregivers,
+      questionnaire,
+    });
+  }
+
+  function upsertTherapy(therapy) {
+    const index = state.therapies.findIndex((item) => item.id === therapy.id);
+    if (index >= 0) {
+      state.therapies[index] = therapy;
+    } else {
+      state.therapies.push(therapy);
+    }
+  }
+
+  function openPatientModal(patient = null) {
+    if (!dom.patientForm) {
+      console.warn("dom.patientForm non è definito");
+      return;
+    }
+
+    // Pulisci il form
+    resetForm(dom.patientForm);
+
+    // Titolo modale: Nuovo / Modifica paziente
+    const titleSpan = document.querySelector("#patientModalLabel span");
+    if (titleSpan) {
+      titleSpan.textContent = patient ? "Modifica Paziente" : "Nuovo Paziente";
+    }
+
+    const form = dom.patientForm;
+
+    // Hidden ID
+    const idInput =
+      form.querySelector("#patientId") ||
+      form.querySelector('input[name="patient_id"]');
+    if (idInput) {
+      idInput.value = patient ? patient.id ?? "" : "";
+    }
+
+    // Nome / Cognome
+    const firstNameInput = form.querySelector('input[name="first_name"]');
+    const lastNameInput = form.querySelector('input[name="last_name"]');
+
+    if (patient) {
+      const firstName = patient.first_name ?? "";
+      const lastName = patient.last_name ?? "";
+
+      if (firstNameInput) {
+        firstNameInput.value =
+          firstName ||
+          (patient.full_name ? patient.full_name.split(" ")[0] : "");
+      }
+      if (lastNameInput) {
+        lastNameInput.value =
+          lastName ||
+          (patient.full_name
+            ? patient.full_name.split(" ").slice(1).join(" ")
+            : "");
+      }
+    }
+
+    // Data di nascita
+    const birthInput = form.querySelector('input[name="birth_date"]');
+    if (birthInput) {
+      birthInput.value =
+        patient && patient.birth_date ? patient.birth_date : "";
+    }
+
+    // Telefono
+    const phoneInput = form.querySelector('input[name="phone"]');
+    if (phoneInput) {
+      phoneInput.value = patient && patient.phone ? patient.phone : "";
+    }
+
+    // Email
+    const emailInput = form.querySelector('input[name="email"]');
+    if (emailInput) {
+      emailInput.value = patient && patient.email ? patient.email : "";
+    }
+
+    // Note
+    const notesInput = form.querySelector('textarea[name="notes"]');
+    if (notesInput) {
+      notesInput.value = patient && patient.notes ? patient.notes : "";
+    }
+
+    // Apri il modale
+    openModal(dom.patientModal);
+  }
+
+  function openCheckModal(therapyId = null, mode = "execution") {
+    resetForm(dom.checkForm);
+    ensureCheckFormEnhancements();
+    if (therapyId) {
+      dom.checkTherapySelect.value = String(therapyId);
+      const hiddenTherapy = dom.checkForm.querySelector("#checkTherapyId");
+      if (hiddenTherapy) {
+        hiddenTherapy.value = String(therapyId);
+      }
+    }
+    if (checkFormState.checkModeSelect) {
+      checkFormState.checkModeSelect.value = mode;
+      toggleCheckMode(mode);
+    }
+    refreshChecklistUI();
+    openModal(dom.checkModal);
+  }
+
+  function openReminderModal(therapyId = null, reminder = null) {
+    if (!dom.reminderForm) {
+      console.warn("dom.reminderForm non è definito");
+      return;
+    }
+
+    resetForm(dom.reminderForm);
+
+    const form = dom.reminderForm;
+    const hiddenTherapy =
+      dom.reminderTherapyIdInput || form.querySelector("#reminderTherapyId");
+    const selectTherapy =
+      dom.reminderTherapySelect ||
+      document.getElementById("reminderTherapySelect");
+
+    // Titolo: sempre "Promemoria terapia", se vuoi puoi differenziare Nuovo/Modifica
+    const titleEl = document.getElementById("reminderModalLabel");
+    if (titleEl) {
+      titleEl.textContent = reminder
+        ? "Modifica promemoria"
+        : "Promemoria terapia";
+    }
+
+    // Imposto terapia di riferimento
+    const effectiveTherapyId =
+      therapyId || (reminder && reminder.therapy_id) || "";
+
+    if (selectTherapy) {
+      selectTherapy.value = effectiveTherapyId
+        ? String(effectiveTherapyId)
+        : "";
+    }
+    if (hiddenTherapy) {
+      hiddenTherapy.value = effectiveTherapyId
+        ? String(effectiveTherapyId)
+        : "";
+    }
+
+    // Se c'è un reminder → modalità modifica: precompilo
+    const reminderIdInput =
+      form.querySelector("#reminderId") ||
+      form.querySelector('input[name="reminder_id"]');
+    if (reminderIdInput) {
+      reminderIdInput.value = reminder && reminder.id ? reminder.id : "";
+    }
+
+    const titleInput = form.querySelector('input[name="title"]');
+    if (titleInput) {
+      titleInput.value = reminder && reminder.title ? reminder.title : "";
+    }
+
+    const messageInput = form.querySelector('textarea[name="message"]');
+    if (messageInput) {
+      messageInput.value = reminder && reminder.message ? reminder.message : "";
+    }
+
+    const typeInput = form.querySelector('select[name="type"]');
+    if (typeInput) {
+      typeInput.value =
+        reminder && reminder.type
+          ? reminder.type
+          : typeInput.value || "one-shot";
+    }
+
+    const scheduledInput = form.querySelector('input[name="scheduled_at"]');
+    if (scheduledInput) {
+      scheduledInput.value =
+        reminder && reminder.scheduled_at ? reminder.scheduled_at : "";
+    }
+
+    const channelInput = form.querySelector('select[name="channel"]');
+    if (channelInput) {
+      channelInput.value =
+        reminder && reminder.channel
+          ? reminder.channel
+          : channelInput.value || "email";
+    }
+
+    openModal(dom.reminderModal);
+  }
+
+  function openReportModal(therapyId = null) {
+    resetForm(dom.reportForm);
+    dom.generatedReportContainer.classList.add("d-none");
+    if (therapyId) dom.reportTherapySelect.value = String(therapyId);
+    openModal(dom.reportModal);
+  }
+
+  function handleTherapyAction(action, therapyId) {
+    switch (action) {
+      case "open-check":
+        openCheckModal(therapyId);
+        break;
+      case "open-checklist":
+        openCheckModal(therapyId, "checklist");
+        break;
+      case "open-reminder":
+        openReminderModal(therapyId);
+        break;
+      case "open-report":
+        openReportModal(therapyId);
+        break;
+    }
+  }
+
+  loadData();
+  setupEventListeners();
 }

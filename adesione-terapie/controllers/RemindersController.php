@@ -210,4 +210,18 @@ class RemindersController
     {
         call_user_func($this->verifyTherapyOwnershipCallback, $therapyId);
     }
+
+    public function deleteReminder(int $reminderId): bool
+    {
+        // Verifica che il promemoria esista
+        $reminder = $this->reminderRepository->find($reminderId, $this->reminderCols, $this->pharmacyId);
+        if (!$reminder) {
+            throw new RuntimeException('Promemoria non trovato.');
+        }
+
+        // Elimina il promemoria dal DB
+        $this->reminderRepository->delete($reminderId);
+        return true;
+    }
+
 }

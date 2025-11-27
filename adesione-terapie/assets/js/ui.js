@@ -23,109 +23,6 @@ export function renderStats({ dom, state }) {
     });
 }
 
-export function renderPatients({ dom, state, onSelectPatient }) {
-    if (!dom.patientsList) return;
-    dom.patientsList.innerHTML = '';
-
-    const patients = Array.isArray(state.patients) ? state.patients : [];
-
-    if (!patients.length) {
-        dom.patientsList.innerHTML = `
-            <div class="empty-state text-center py-4">
-                <i class="fas fa-user-friends mb-2"></i>
-                <p class="mb-0">Nessun paziente registrato.</p>
-            </div>`;
-        return;
-    }
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'table-responsive';
-
-    const table = document.createElement('table');
-    table.className = 'table table-sm table-hover mb-0 patients-table';
-
-    table.innerHTML = `
-        <thead>
-            <tr>
-                <th>Nome paziente</th>
-                <th>Contatti</th>
-                <th class="text-center">Terapie</th>
-                <th class="text-end">Azioni</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    `;
-
-    const tbody = table.querySelector('tbody');
-
-    patients.forEach(patient => {
-        const tr = document.createElement('tr');
-        tr.dataset.patientId = patient.id;
-        if (patient.id === state.selectedPatientId) {
-            tr.classList.add('table-active');
-        }
-
-        const therapiesCount = countTherapiesForPatient(state.therapies, patient.id);
-
-        tr.innerHTML = `
-            <td class="patient-name align-middle">
-                ${sanitizeHtml(patient.full_name || 'Paziente senza nome')}
-            </td>
-            <td class="patient-contact align-middle">
-                ${patient.phone ? `<div class="small">${sanitizeHtml(patient.phone)}</div>` : ''}
-                ${patient.email ? `<div class="small text-muted">${sanitizeHtml(patient.email)}</div>` : ''}
-            </td>
-            <td class="text-center align-middle">
-                <span class="badge bg-primary">${therapiesCount}</span>
-            </td>
-            <td class="text-end align-middle">
-                <button type="button" class="btn btn-sm btn-outline-primary js-manage-patient">
-                    <i class="fas fa-notes-medical me-1"></i>Gestisci
-                </button>
-            </td>
-        `;
-
-        // click riga → seleziona paziente
-        tr.addEventListener('click', event => {
-            if (event.target.closest('button')) return;
-            onSelectPatient?.(patient.id);
-        });
-
-        // click bottone → seleziona paziente
-        const manageBtn = tr.querySelector('.js-manage-patient');
-        manageBtn.addEventListener('click', event => {
-            event.stopPropagation();
-            onSelectPatient?.(patient.id);
-        });
-
-        tbody.appendChild(tr);
-    });
-
-    wrapper.appendChild(table);
-    dom.patientsList.appendChild(wrapper);
-}
-
-
-function renderQuestionnaireSummary(questionnaire) {
-    if (!questionnaire || typeof questionnaire !== 'object') {
-        return '<small class="text-muted">Questionario non disponibile</small>';
-    }
-    const items = Object.keys(questionnaire).reduce((acc, stepKey) => {
-        const step = questionnaire[stepKey];
-        if (!step) return acc;
-        const answered = Object.values(step).filter(answer => (answer || '').toString().trim() !== '').length;
-        if (!answered) return acc;
-        acc.push(`<li><i class="fas fa-circle text-success me-2"></i>Step ${stepKey}: ${answered} risposte</li>`);
-        return acc;
-    }, []);
-
-    if (!items.length) {
-        return '<small class="text-muted">Nessuna risposta al questionario</small>';
-    }
-
-    return `<ul class="list-unstyled mb-0 questionnaire-summary">${items.join('')}</ul>`;
-}
-
 function formatChecklistAnswerView(answer) {
     const value = answer && typeof answer === 'object' ? answer.value ?? null : null;
     let valueLabel = 'Non compilato';
@@ -246,39 +143,17 @@ export function buildCheckHistoryHtml({ state, therapyId }) {
     return html;
 }
 
-export function renderTherapies({ dom, state, onAction }) {
-    if (!dom.therapiesContainer) return;
-    dom.therapiesContainer.innerHTML = '';
+export function renderPatients({ dom, state, onSelectPatient, onEditPatient, onDeletePatient }) {
+    if (!dom.patientsList) return;
+    dom.patientsList.innerHTML = '';
 
-    if (!state.selectedPatientId) {
-        dom.therapiesContainer.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-prescription-bottle-alt"></i>
-                <p>Seleziona un paziente per visualizzare le terapie.</p>
-            </div>`;
-        if (dom.patientSummary) {
-            dom.patientSummary.textContent = '';
-        }
-        return;
-    }
+    const patients = Array.isArray(state.patients) ? state.patients : [];
 
-    const patient = state.patients.find(p => p.id === state.selectedPatientId);
-    if (patient && dom.patientSummary) {
-        dom.patientSummary.innerHTML = `
-            <strong>${sanitizeHtml(patient.full_name)}</strong><br>
-            <small>${patient.phone ? '📞 ' + sanitizeHtml(patient.phone) : ''}</small>
-        `;
-    }
-
-    const therapies = state.therapies.filter(
-        therapy => therapy.patient_id === state.selectedPatientId
-    );
-
-    if (!therapies.length) {
-        dom.therapiesContainer.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-notes-medical"></i>
-                <p>Nessuna terapia registrata per questo paziente.</p>
+    if (!patients.length) {
+        dom.patientsList.innerHTML = `
+            <div class="empty-state text-center py-4">
+                <i class="fas fa-user-friends mb-2"></i>
+                <p class="mb-0">Nessun paziente registrato.</p>
             </div>`;
         return;
     }
@@ -287,16 +162,14 @@ export function renderTherapies({ dom, state, onAction }) {
     wrapper.className = 'table-responsive';
 
     const table = document.createElement('table');
-    table.className = 'table table-sm align-middle mb-0 therapies-table';
+    table.className = 'table table-sm table-hover mb-0 patients-table';
 
     table.innerHTML = `
         <thead>
             <tr>
-                <th>Terapia</th>
-                <th class="text-center">Stato</th>
-                <th>Periodo</th>
-                <th>Ultimo check</th>
-                <th>Prossimo promemoria</th>
+                <th>Nome paziente</th>
+                <th>Contatti</th>
+                <th class="text-center">Terapie</th>
                 <th class="text-end">Azioni</th>
             </tr>
         </thead>
@@ -305,90 +178,76 @@ export function renderTherapies({ dom, state, onAction }) {
 
     const tbody = table.querySelector('tbody');
 
-    therapies.forEach(therapy => {
-        const lastCheck = therapy.last_check
-            ? formatDateTime(therapy.last_check.scheduled_at)
-            : 'Nessun controllo';
-
-        const upcomingReminder = therapy.upcoming_reminder
-            ? formatDateTime(therapy.upcoming_reminder.scheduled_at)
-            : 'Nessun promemoria';
-
-        const status = therapy.status || 'active';
-        const statusText = statusLabel(status);
-
+    patients.forEach(patient => {
         const tr = document.createElement('tr');
-        tr.dataset.therapyId = therapy.id;
+        tr.dataset.patientId = patient.id;
+        if (patient.id === state.selectedPatientId) {
+            tr.classList.add('table-active');
+        }
+
+        const therapiesCount = countTherapiesForPatient(state.therapies, patient.id);
 
         tr.innerHTML = `
-            <td class="therapy-title">
-                <div class="fw-semibold">
-                    ${sanitizeHtml(therapy.title || therapy.description || 'Terapia senza titolo')}
-                </div>
-                ${therapy.description
-                    ? `<div class="small text-muted">${sanitizeHtml(therapy.description)}</div>`
-                    : ''
-                }
+            <td class="patient-name align-middle">
+                ${sanitizeHtml(patient.full_name || 'Paziente senza nome')}
             </td>
-            <td class="text-center">
-                <span class="badge badge-status status-${sanitizeHtml(status)}">
-                    ${sanitizeHtml(statusText)}
-                </span>
+            <td class="patient-contact align-middle">
+                ${patient.phone ? `<div class="small">${sanitizeHtml(patient.phone)}</div>` : ''}
+                ${patient.email ? `<div class="small text-muted">${sanitizeHtml(patient.email)}</div>` : ''}
             </td>
-            <td>
-                <div class="small">Inizio: ${formatDate(therapy.start_date)}</div>
-                <div class="small text-muted">
-                    Fine: ${therapy.end_date ? formatDate(therapy.end_date) : 'N/A'}
-                </div>
+            <td class="text-center align-middle">
+                <span class="badge bg-primary">${therapiesCount}</span>
             </td>
-            <td>
-                <div class="small">${lastCheck}</div>
-            </td>
-            <td>
-                <div class="small">${upcomingReminder}</div>
-            </td>
-            <td class="text-end">
+            <td class="text-end align-middle">
                 <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary" data-action="open-check" data-therapy="${therapy.id}">
-                        <i class="fas fa-stethoscope"></i>
+                    <button type="button" class="btn btn-outline-primary js-edit-patient">
+                        <i class="fas fa-pen me-1"></i>Modifica
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" data-action="open-checklist" data-therapy="${therapy.id}">
-                        <i class="fas fa-list-check"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-warning" data-action="open-reminder" data-therapy="${therapy.id}">
-                        <i class="fas fa-bell"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-success" data-action="open-report" data-therapy="${therapy.id}">
-                        <i class="fas fa-file-medical"></i>
+                    <button type="button" class="btn btn-outline-danger js-delete-patient">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </td>
         `;
 
-        tr.querySelectorAll('button[data-action]').forEach(button => {
-            button.addEventListener('click', event => {
-                event.stopPropagation();
-                const therapyId = parseInt(button.dataset.therapy, 10);
-                onAction?.(button.dataset.action, therapyId);
-            });
+        // click riga → seleziona paziente
+        tr.addEventListener('click', event => {
+            if (event.target.closest('button')) return;
+            onSelectPatient?.(patient.id);
+        });
+
+        const editBtn = tr.querySelector('.js-edit-patient');
+        const deleteBtn = tr.querySelector('.js-delete-patient');
+
+        editBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            onEditPatient?.(patient);
+        });
+
+        deleteBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            onDeletePatient?.(patient);
         });
 
         tbody.appendChild(tr);
     });
 
     wrapper.appendChild(table);
-    dom.therapiesContainer.appendChild(wrapper);
+    dom.patientsList.appendChild(wrapper);
 }
 
 
-export function renderTimeline({ dom, state }) {
+export function renderTimeline({ dom, state, onReminderAction }) {
     if (!dom.timelineContainer) return;
     dom.timelineContainer.innerHTML = '';
 
     const filter = dom.timelineFilter ? dom.timelineFilter.value : 'upcoming';
     const now = new Date();
 
-    const items = (state.timeline || []).filter(item => {
+    let items = Array.isArray(state.timeline) ? state.timeline : [];
+
+    // filtro per periodo
+    items = items.filter(item => {
         if (!item.scheduled_at) return false;
         const itemDate = new Date(item.scheduled_at);
 
@@ -402,6 +261,13 @@ export function renderTimeline({ dom, state }) {
                 return true;
         }
     });
+
+    // filtro per paziente selezionato, se l’item espone patient_id
+    if (state.selectedPatientId) {
+        items = items.filter(item =>
+            item.patient_id ? item.patient_id === state.selectedPatientId : true
+        );
+    }
 
     if (!items.length) {
         dom.timelineContainer.innerHTML = `
@@ -425,6 +291,7 @@ export function renderTimeline({ dom, state }) {
                 <th>Descrizione</th>
                 <th>Data / ora</th>
                 <th>Dettagli</th>
+                <th class="text-end">Azioni</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -434,6 +301,7 @@ export function renderTimeline({ dom, state }) {
 
     items.forEach(item => {
         const tr = document.createElement('tr');
+
         const typeLabel =
             item.type === 'check'
                 ? 'Check periodico'
@@ -449,12 +317,54 @@ export function renderTimeline({ dom, state }) {
             detailsText = sanitizeHtml(detailsText);
         }
 
+        const actionsCell =
+            item.type === 'reminder'
+                ? `
+                <div class="btn-group btn-group-sm" role="group">
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary js-edit-reminder"
+                        data-reminder-id="${item.id || ''}"
+                        data-therapy-id="${item.therapy_id || ''}"
+                    >
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-outline-danger js-delete-reminder"
+                        data-reminder-id="${item.id || ''}"
+                        data-therapy-id="${item.therapy_id || ''}"
+                    >
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `
+                : '';
+
         tr.innerHTML = `
             <td class="align-middle">${sanitizeHtml(typeLabel)}</td>
             <td class="align-middle">${sanitizeHtml(item.title || '')}</td>
             <td class="align-middle">${formatDateTime(item.scheduled_at)}</td>
             <td class="align-middle timeline-details-cell">${detailsText}</td>
+            <td class="align-middle text-end">${actionsCell}</td>
         `;
+
+        tr.querySelectorAll('.js-edit-reminder, .js-delete-reminder').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const reminderId = button.dataset.reminderId || null;
+                const therapyId = button.dataset.therapyId || null;
+                const action = button.classList.contains('js-edit-reminder')
+                    ? 'edit'
+                    : 'delete';
+
+                onReminderAction?.(action, {
+                    reminderId,
+                    therapyId,
+                    item,
+                });
+            });
+        });
 
         tbody.appendChild(tr);
     });
@@ -462,6 +372,7 @@ export function renderTimeline({ dom, state }) {
     wrapper.appendChild(table);
     dom.timelineContainer.appendChild(wrapper);
 }
+
 
 export function populateSelects({ dom, state }) {
     const patientOptions = state.patients.map(patient => `<option value="${patient.id}">${sanitizeHtml(patient.full_name || 'Paziente')}</option>`).join('');
@@ -548,3 +459,93 @@ export function renderChecklistAnswers(listElement, questions = []) {
         listElement.appendChild(wrapper);
     });
 }
+
+export function renderTherapies({ dom, state, onAction }) {
+    if (!dom.therapiesList) return;
+
+    dom.therapiesList.innerHTML = '';
+
+    const therapies = Array.isArray(state.therapies) ? state.therapies : [];
+
+    if (!therapies.length) {
+        dom.therapiesList.innerHTML = `
+            <div class="empty-state text-center py-4">
+                <i class="fas fa-capsules mb-2"></i>
+                <p class="mb-0">Nessuna terapia registrata.</p>
+            </div>`;
+        return;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
+
+    const table = document.createElement('table');
+    table.className = 'table table-sm table-hover mb-0 therapies-table';
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Terapia</th>
+                <th class="text-center">Paziente</th>
+                <th class="text-end">Azioni</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
+    therapies.forEach(therapy => {
+        const tr = document.createElement('tr');
+        tr.dataset.therapyId = therapy.id;
+        if (therapy.id === state.selectedTherapyId) {
+            tr.classList.add('table-active');
+        }
+
+        tr.innerHTML = `
+            <td class="therapy-title align-middle">
+                ${sanitizeHtml(therapy.title || 'Terapia senza titolo')}
+            </td>
+            <td class="text-center align-middle">
+                ${sanitizeHtml(therapy.patient_name || 'Paziente sconosciuto')}
+            </td>
+            <td class="text-end align-middle">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary js-edit-therapy">
+                        <i class="fas fa-pen me-1"></i>Modifica
+                    </button>
+                    <button type="button" class="btn btn-outline-danger js-delete-therapy">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        // Gestisce il clic sulla riga → seleziona terapia
+        tr.addEventListener('click', event => {
+            if (event.target.closest('button')) return;
+            onAction?.(therapy.id);  // Chiamata di onAction quando clicchi sulla riga
+        });
+
+        const editBtn = tr.querySelector('.js-edit-therapy');
+        const deleteBtn = tr.querySelector('.js-delete-therapy');
+
+        // Modifica la terapia
+        editBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            onAction?.('edit', therapy);  // Passa l'azione di modifica
+        });
+
+        // Elimina la terapia
+        deleteBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            onAction?.('delete', therapy);  // Passa l'azione di eliminazione
+        });
+
+        tbody.appendChild(tr);
+    });
+
+    wrapper.appendChild(table);
+    dom.therapiesList.appendChild(wrapper);
+}
+

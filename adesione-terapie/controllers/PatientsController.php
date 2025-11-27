@@ -115,4 +115,18 @@ class PatientsController
     {
         return call_user_func($this->nowCallback);
     }
+
+    public function deletePatient(int $patientId): bool
+{
+    // Verifica se il paziente esiste
+    $patient = $this->patientRepository->find($patientId, $this->patientCols, $this->pharmacyId);
+    if (!$patient) {
+        throw new RuntimeException('Paziente non trovato.');
+    }
+
+    // Elimina il paziente dal DB
+    $this->patientRepository->delete($patientId);
+    return true;
+}
+
 }

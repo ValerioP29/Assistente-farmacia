@@ -66,7 +66,6 @@ body.adesione-terapie-page,
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 100%;
 }
 
 .module-card-header {
@@ -77,8 +76,6 @@ body.adesione-terapie-page,
 
 .module-card-body {
     padding: 1.5rem 1.75rem;
-    flex: 1;
-    overflow-y: auto;
 }
 
 .empty-state {

@@ -119,78 +119,66 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
       </section>
 
-      <section class="therapies-dashboard mb-5">
-        <div class="row g-4">
-          <div class="col-lg-4">
-            <div class="module-card h-100">
-              <div
-                class="module-card-header d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <h2 class="h5 mb-1">Pazienti</h2>
-                  <p class="text-muted small mb-0">
-                    Seleziona un paziente per gestire le terapie collegate
-                  </p>
-                </div>
-                <button
-                  class="btn btn-sm btn-outline-primary"
-                  id="refreshDataButton"
-                >
-                  <i class="fas fa-rotate"></i>
-                </button>
-              </div>
-              <div class="module-card-body patient-list" id="patientsList">
-                <div class="empty-state">
-                  <i class="fas fa-user-friends"></i>
-                  <p>
-                    Nessun paziente registrato. Aggiungi un nuovo paziente per
-                    iniziare.
-                  </p>
-                </div>
-              </div>
+            <!-- PAZIENTI: sezione a tutta larghezza -->
+      <section class="therapies-dashboard mb-4">
+        <div class="module-card">
+          <div
+            class="module-card-header d-flex justify-content-between align-items-center"
+          >
+            <div>
+              <h2 class="h5 mb-1">Pazienti</h2>
             </div>
+            <button
+              class="btn btn-sm btn-outline-primary"
+              id="refreshDataButton"
+            >
+              <i class="fas fa-rotate"></i>
+            </button>
           </div>
-          <div class="col-lg-8">
-            <div class="module-card h-100">
-              <div class="module-card-header">
-                <div class="d-flex align-items-center justify-content-between">
-                  <div>
-                    <h2 class="h5 mb-1">Terapie e Monitoraggio</h2>
-                    <p class="text-muted small mb-0">
-                      Storico completo delle terapie del paziente selezionato
-                    </p>
-                  </div>
-                  <div
-                    id="patientSummary"
-                    class="text-end small text-muted"
-                  ></div>
-                </div>
-              </div>
-              <div class="module-card-body" id="therapiesContainer">
-                <div class="empty-state">
-                  <i class="fas fa-prescription-bottle-alt"></i>
-                  <p>
-                    Seleziona un paziente per visualizzare le terapie associate.
-                  </p>
-                </div>
-              </div>
+          <div class="module-card-body patient-list" id="patientsList">
+            <div class="empty-state">
+              <i class="fas fa-user-friends"></i>
+              <p>
+                Nessun paziente registrato. Aggiungi un nuovo paziente per
+                iniziare.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="timeline-section">
+      <!-- TERAPIE E MONITORAGGIO: sezione a tutta larghezza -->
+      <section class="therapies-dashboard mb-4">
+        <div class="module-card">
+          <div class="module-card-header">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <h2 class="h5 mb-1">Terapie e Monitoraggio</h2>
+              </div>
+              <div id="patientSummary" class="text-end small text-muted"></div>
+            </div>
+          </div>
+          <div class="module-card-body" id="therapiesContainer">
+            <div class="empty-state">
+              <i class="fas fa-prescription-bottle-alt"></i>
+              <p>
+                Seleziona un paziente per visualizzare le terapie associate.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TIMELINE CONTROLLI E PROMEMORIA: sezione a tutta larghezza -->
+      <section class="timeline-section mb-4">
         <div class="module-card">
           <div
             class="module-card-header d-flex justify-content-between align-items-center"
           >
             <div>
               <h2 class="h5 mb-1">Timeline Controlli e Promemoria</h2>
-              <p class="text-muted small mb-0">
-                Visualizza le attività programmate e lo storico
-              </p>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 align-items-center">
               <select class="form-select form-select-sm" id="timelineFilter">
                 <option value="upcoming">Prossimi 30 giorni</option>
                 <option value="all">Tutte le attività</option>
@@ -199,7 +187,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
           </div>
           <div class="module-card-body">
-            <div id="timelineContainer" class="timeline">
+            <div id="timelineContainer">
               <div class="empty-state">
                 <i class="fas fa-calendar-alt"></i>
                 <p>
@@ -211,6 +199,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
         </div>
       </section>
+
     </main>
   </div>
 
