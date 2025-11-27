@@ -141,6 +141,19 @@ class Database {
         $sql = "DELETE FROM {$table} WHERE {$where}";
         return $this->query($sql, $params)->rowCount();
     }
+
+    public function fetchValue($sql, $params = [])
+{
+    $row = $this->fetchOne($sql, $params);
+
+    if (!$row || !is_array($row)) {
+        return null;
+    }
+
+    $values = array_values($row);
+    return $values[0] ?? null;
+}
+
 }
 
 /**
