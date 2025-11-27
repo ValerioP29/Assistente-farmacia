@@ -23,6 +23,9 @@ export function buildDomReferences(moduleRoot = document) {
     // liste & container
     patientsList: scopedQuery("#patientsList"),
     therapiesContainer: scopedQuery("#therapiesContainer"),
+    therapiesList: scopedQuery("#therapiesList"),
+    therapySearchInput: scopedQuery("#therapySearchInput"),
+    therapiesSummary: scopedQuery("#therapiesSummary"),
     patientSummary: scopedQuery("#patientSummary"),
     timelineContainer: scopedQuery("#timelineContainer"),
     statElements: scopedQueryAll(".stat-value"),
@@ -348,6 +351,12 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
       dom.timelineFilter.addEventListener("change", () =>
         ui.renderTimeline({ dom, state })
       );
+    }
+    if (dom.therapySearchInput) {
+      dom.therapySearchInput.addEventListener("input", (event) => {
+        state.therapySearchTerm = event.target.value || "";
+        ui.renderTherapies({ dom, state, onAction: handleTherapyAction });
+      });
     }
     if (dom.inlinePatientToggle && dom.inlinePatientForm) {
       dom.inlinePatientToggle.addEventListener("click", () => {
@@ -1226,8 +1235,75 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     openModal(dom.reportModal);
   }
 
-  function handleTherapyAction(action, therapyId) {
+  function fillTherapyFormFromData(therapy) {
+    if (!therapy || !dom.therapyForm) return;
+
+    prepareTherapyForm();
+
+    const setFieldValue = (selector, value) => {
+      const field = dom.therapyForm.querySelector(selector);
+      if (field) field.value = value ?? "";
+    };
+
+    setFieldValue('input[name="therapy_id"]', therapy.id || "");
+
+    const patientId = therapy.patient_id || state.selectedPatientId || "";
+    setFieldValue("#therapyPatientId", patientId ? String(patientId) : "");
+    if (dom.therapyPatientSelect) {
+      dom.therapyPatientSelect.value = patientId ? String(patientId) : "";
+    }
+
+    setFieldValue('input[name="therapy_title"]', therapy.title || therapy.name || "");
+    setFieldValue('textarea[name="therapy_description"]', therapy.description || "");
+    setFieldValue('select[name="status"]', therapy.status || "active");
+    setFieldValue('input[name="start_date"]', therapy.start_date || "");
+    setFieldValue('input[name="end_date"]', therapy.end_date || "");
+    setFieldValue('#questionnairePayloadInput', therapy.questionnaire_payload || "");
+    setFieldValue('#caregiversPayloadInput', therapy.caregivers_payload || "");
+    setFieldValue('#signatureImageInput', therapy.signature_image || "");
+  }
+
+  function handleTherapyAction(action, therapyPayload) {
+    const therapy =
+      typeof therapyPayload === "object"
+        ? therapyPayload
+        : state.therapies.find((item) => item.id === therapyPayload);
+    const therapyId = therapy ? therapy.id : therapyPayload;
+
     switch (action) {
+      case "select":
+        state.selectedTherapyId = therapyId || null;
+        if (therapy && therapy.patient_id) {
+          state.selectedPatientId = therapy.patient_id;
+        }
+        renderAll();
+        break;
+      case "edit":
+        if (!therapy) return;
+        if (therapy.patient_id) {
+          state.selectedPatientId = therapy.patient_id;
+        }
+        fillTherapyFormFromData(therapy);
+        openModal(dom.therapyModal);
+        break;
+      case "delete":
+        if (!therapyId) return;
+        if (
+          confirm(
+            `Eliminare la terapia "${therapy?.title || "Senza titolo"}" dalla vista?`
+          )
+        ) {
+          state.therapies = state.therapies.filter((item) => item.id !== therapyId);
+          if (state.selectedTherapyId === therapyId) {
+            state.selectedTherapyId = null;
+          }
+          ui.renderTherapies({ dom, state, onAction: handleTherapyAction });
+          ui.populateSelects({ dom, state });
+          if (typeof showAlert === "function") {
+            showAlert("Terapia rimossa dalla lista", "success");
+          }
+        }
+        break;
       case "open-check":
         openCheckModal(therapyId);
         break;

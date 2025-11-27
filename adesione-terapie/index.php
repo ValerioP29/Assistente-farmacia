@@ -159,11 +159,30 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
           </div>
           <div class="module-card-body" id="therapiesContainer">
-            <div class="empty-state">
-              <i class="fas fa-prescription-bottle-alt"></i>
-              <p>
-                Seleziona un paziente per visualizzare le terapie associate.
-              </p>
+            <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 mb-3">
+              <div class="flex-grow-1">
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                  </span>
+                  <input
+                    type="search"
+                    class="form-control"
+                    id="therapySearchInput"
+                    placeholder="Cerca paziente per nome"
+                    aria-label="Cerca paziente per nome"
+                  />
+                </div>
+              </div>
+              <div class="text-muted small text-end" id="therapiesSummary"></div>
+            </div>
+            <div id="therapiesList">
+              <div class="empty-state">
+                <i class="fas fa-prescription-bottle-alt"></i>
+                <p>
+                  Seleziona un paziente per visualizzare le terapie associate.
+                </p>
+              </div>
             </div>
           </div>
         </div>
