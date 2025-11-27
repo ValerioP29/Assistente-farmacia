@@ -201,7 +201,7 @@ export function renderPatients({ dom, state, onSelectPatient, onEditPatient, onD
             <td class="text-end align-middle">
                 <div class="btn-group btn-group-sm" role="group">
                     <button type="button" class="btn btn-outline-primary js-edit-patient">
-                        <i class="fas fa-pen me-1"></i>Modifica
+                        <i class="fas fa-pen me-1"></i>
                     </button>
                     <button type="button" class="btn btn-outline-danger js-delete-patient">
                         <i class="fas fa-trash"></i>
@@ -536,7 +536,6 @@ export function renderTherapies({ dom, state, onAction }) {
         header.innerHTML = `
             <div>
                 <h5 class="mb-0">${sanitizeHtml(group.patientName)}</h5>
-                <div class="text-muted small">${group.therapies.length} terapie</div>
             </div>
             ${group.therapies.length > 3 ? `
                 <button class="btn btn-sm btn-outline-secondary" data-toggle-patient="${group.patientId}">
@@ -574,26 +573,25 @@ export function renderTherapies({ dom, state, onAction }) {
                             ${statusBadge}
                         </div>
                         ${periodText ? `<div class="text-muted small">${periodText}</div>` : ''}
-                        ${therapy.description ? `<div class="small mt-1 text-muted">${sanitizeHtml(therapy.description)}</div>` : ''}
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-primary btn-sm" data-action="edit">
-                            <i class="fas fa-pen me-1"></i>Modifica terapia
+                            <i class="fas fa-pen me-1"></i>
                         </button>
                         <button type="button" class="btn btn-outline-danger btn-sm" data-action="delete">
-                            <i class="fas fa-trash me-1"></i>Elimina terapia
+                            <i class="fas fa-trash me-1"></i>
                         </button>
                         <button type="button" class="btn btn-outline-success btn-sm" data-action="open-check">
-                            <i class="fas fa-stethoscope me-1"></i>Aggiungi check periodico
+                            <i class="fas fa-stethoscope me-1"></i>
                         </button>
                         <button type="button" class="btn btn-outline-warning btn-sm" data-action="open-reminder">
-                            <i class="fas fa-bell me-1"></i>Imposta promemoria
+                            <i class="fas fa-bell me-1"></i>
                         </button>
                         <button type="button" class="btn btn-outline-secondary btn-sm" data-action="open-checklist">
-                            <i class="fas fa-list-check me-1"></i>Configura checklist
+                            <i class="fas fa-list-check me-1"></i>
                         </button>
                         <button type="button" class="btn btn-outline-info btn-sm" data-action="open-report">
-                            <i class="fas fa-file-medical me-1"></i>Genera report
+                            <i class="fas fa-file-medical me-1"></i>
                         </button>
                     </div>
                 </div>

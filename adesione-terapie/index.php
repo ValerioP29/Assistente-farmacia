@@ -174,7 +174,6 @@ require_once __DIR__ . '/../includes/header.php';
                   />
                 </div>
               </div>
-              <div class="text-muted small text-end" id="therapiesSummary"></div>
             </div>
             <div id="therapiesList">
               <div class="empty-state">
