@@ -27,41 +27,84 @@ export function renderPatients({ dom, state, onSelectPatient }) {
     if (!dom.patientsList) return;
     dom.patientsList.innerHTML = '';
 
-    if (!state.patients.length) {
+    const patients = Array.isArray(state.patients) ? state.patients : [];
+
+    if (!patients.length) {
         dom.patientsList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-user-friends"></i>
-                <p>Nessun paziente registrato.</p>
+            <div class="empty-state text-center py-4">
+                <i class="fas fa-user-friends mb-2"></i>
+                <p class="mb-0">Nessun paziente registrato.</p>
             </div>`;
         return;
     }
 
-    const list = document.createElement('div');
-    list.className = 'list-group patient-items';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
 
-    state.patients.forEach(patient => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'list-group-item list-group-item-action patient-item';
+    const table = document.createElement('table');
+    table.className = 'table table-sm table-hover mb-0 patients-table';
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Nome paziente</th>
+                <th>Contatti</th>
+                <th class="text-center">Terapie</th>
+                <th class="text-end">Azioni</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
+    patients.forEach(patient => {
+        const tr = document.createElement('tr');
+        tr.dataset.patientId = patient.id;
         if (patient.id === state.selectedPatientId) {
-            item.classList.add('active');
+            tr.classList.add('table-active');
         }
-        item.dataset.patientId = patient.id;
-        item.innerHTML = `
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <h6 class="mb-1">${sanitizeHtml(patient.full_name || 'Paziente senza nome')}</h6>
-                    <small class="text-muted d-block">${patient.phone || ''}</small>
-                    <small class="text-muted d-block">${patient.email || ''}</small>
-                </div>
-                <span class="badge bg-primary rounded-pill">${countTherapiesForPatient(state.therapies, patient.id)}</span>
-            </div>`;
-        item.addEventListener('click', () => onSelectPatient?.(patient.id));
-        list.appendChild(item);
+
+        const therapiesCount = countTherapiesForPatient(state.therapies, patient.id);
+
+        tr.innerHTML = `
+            <td class="patient-name align-middle">
+                ${sanitizeHtml(patient.full_name || 'Paziente senza nome')}
+            </td>
+            <td class="patient-contact align-middle">
+                ${patient.phone ? `<div class="small">${sanitizeHtml(patient.phone)}</div>` : ''}
+                ${patient.email ? `<div class="small text-muted">${sanitizeHtml(patient.email)}</div>` : ''}
+            </td>
+            <td class="text-center align-middle">
+                <span class="badge bg-primary">${therapiesCount}</span>
+            </td>
+            <td class="text-end align-middle">
+                <button type="button" class="btn btn-sm btn-outline-primary js-manage-patient">
+                    <i class="fas fa-notes-medical me-1"></i>Gestisci
+                </button>
+            </td>
+        `;
+
+        // click riga → seleziona paziente
+        tr.addEventListener('click', event => {
+            if (event.target.closest('button')) return;
+            onSelectPatient?.(patient.id);
+        });
+
+        // click bottone → seleziona paziente
+        const manageBtn = tr.querySelector('.js-manage-patient');
+        manageBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            onSelectPatient?.(patient.id);
+        });
+
+        tbody.appendChild(tr);
     });
 
-    dom.patientsList.appendChild(list);
+    wrapper.appendChild(table);
+    dom.patientsList.appendChild(wrapper);
 }
+
 
 function renderQuestionnaireSummary(questionnaire) {
     if (!questionnaire || typeof questionnaire !== 'object') {
@@ -213,7 +256,9 @@ export function renderTherapies({ dom, state, onAction }) {
                 <i class="fas fa-prescription-bottle-alt"></i>
                 <p>Seleziona un paziente per visualizzare le terapie.</p>
             </div>`;
-        dom.patientSummary.textContent = '';
+        if (dom.patientSummary) {
+            dom.patientSummary.textContent = '';
+        }
         return;
     }
 
@@ -225,7 +270,9 @@ export function renderTherapies({ dom, state, onAction }) {
         `;
     }
 
-    const therapies = state.therapies.filter(therapy => therapy.patient_id === state.selectedPatientId);
+    const therapies = state.therapies.filter(
+        therapy => therapy.patient_id === state.selectedPatientId
+    );
 
     if (!therapies.length) {
         dom.therapiesContainer.innerHTML = `
@@ -236,79 +283,103 @@ export function renderTherapies({ dom, state, onAction }) {
         return;
     }
 
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
+
+    const table = document.createElement('table');
+    table.className = 'table table-sm align-middle mb-0 therapies-table';
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Terapia</th>
+                <th class="text-center">Stato</th>
+                <th>Periodo</th>
+                <th>Ultimo check</th>
+                <th>Prossimo promemoria</th>
+                <th class="text-end">Azioni</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
     therapies.forEach(therapy => {
-        const card = document.createElement('div');
-        card.className = 'therapy-card';
-        const caregivers = (therapy.caregivers || []).map(c => `<span class="badge bg-light text-dark me-1">${sanitizeHtml(caregiverFullName(c))}</span>`).join(' ');
-        const lastCheck = therapy.last_check ? formatDateTime(therapy.last_check.scheduled_at) : 'Nessun controllo';
-        const upcomingReminder = therapy.upcoming_reminder ? formatDateTime(therapy.upcoming_reminder.scheduled_at) : 'Nessun promemoria';
+        const lastCheck = therapy.last_check
+            ? formatDateTime(therapy.last_check.scheduled_at)
+            : 'Nessun controllo';
 
-        const checklistSummary = buildChecklistSummaryHtml({ state, therapyId: therapy.id });
-        const answersHistory = buildCheckHistoryHtml({ state, therapyId: therapy.id });
-        card.innerHTML = `
-            <div class="therapy-card-header">
-                <div>
-                    <h5>${sanitizeHtml(therapy.title || therapy.description || 'Terapia senza titolo')}</h5>
-                    <p class="text-muted mb-1 small">${sanitizeHtml(therapy.description || '')}</p>
-                    <span class="badge status-${sanitizeHtml(therapy.status || 'active')}">${statusLabel(therapy.status)}</span>
-                </div>
-                <div class="therapy-dates">
-                    <small>Inizio: ${formatDate(therapy.start_date)}</small>
-                    <small>Fine: ${therapy.end_date ? formatDate(therapy.end_date) : 'N/A'}</small>
-                </div>
-            </div>
-            <div class="therapy-card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <h6>Caregiver</h6>
-                        <div>${caregivers || '<small class="text-muted">Nessun caregiver registrato</small>'}</div>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Questionario</h6>
-                        ${renderQuestionnaireSummary(therapy.questionnaire)}
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Ultimo check</h6>
-                        <p class="mb-0">${lastCheck}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Prossimo promemoria</h6>
-                        <p class="mb-0">${upcomingReminder}</p>
-                    </div>
-                    <div class="col-12 mt-2">
-                        ${checklistSummary}
-                        <div class="mt-3">
-                            <h6 class="mb-2">Storico risposte</h6>
-                            ${answersHistory}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="therapy-card-footer">
-                <button class="btn btn-sm btn-outline-primary me-2" data-action="open-check" data-therapy="${therapy.id}">
-                    <i class="fas fa-stethoscope me-1"></i>Nuovo check
-                </button>
-                <button class="btn btn-sm btn-outline-secondary me-2" data-action="open-checklist" data-therapy="${therapy.id}">
-                    <i class="fas fa-list-check me-1"></i>Configura checklist
-                </button>
-                <button class="btn btn-sm btn-outline-warning me-2" data-action="open-reminder" data-therapy="${therapy.id}">
-                    <i class="fas fa-bell me-1"></i>Promemoria
-                </button>
-                <button class="btn btn-sm btn-outline-success" data-action="open-report" data-therapy="${therapy.id}">
-                    <i class="fas fa-file-medical me-1"></i>Genera report
-                </button>
-            </div>`;
+        const upcomingReminder = therapy.upcoming_reminder
+            ? formatDateTime(therapy.upcoming_reminder.scheduled_at)
+            : 'Nessun promemoria';
 
-        card.querySelectorAll('button[data-action]').forEach(button => {
-            button.addEventListener('click', () => {
+        const status = therapy.status || 'active';
+        const statusText = statusLabel(status);
+
+        const tr = document.createElement('tr');
+        tr.dataset.therapyId = therapy.id;
+
+        tr.innerHTML = `
+            <td class="therapy-title">
+                <div class="fw-semibold">
+                    ${sanitizeHtml(therapy.title || therapy.description || 'Terapia senza titolo')}
+                </div>
+                ${therapy.description
+                    ? `<div class="small text-muted">${sanitizeHtml(therapy.description)}</div>`
+                    : ''
+                }
+            </td>
+            <td class="text-center">
+                <span class="badge badge-status status-${sanitizeHtml(status)}">
+                    ${sanitizeHtml(statusText)}
+                </span>
+            </td>
+            <td>
+                <div class="small">Inizio: ${formatDate(therapy.start_date)}</div>
+                <div class="small text-muted">
+                    Fine: ${therapy.end_date ? formatDate(therapy.end_date) : 'N/A'}
+                </div>
+            </td>
+            <td>
+                <div class="small">${lastCheck}</div>
+            </td>
+            <td>
+                <div class="small">${upcomingReminder}</div>
+            </td>
+            <td class="text-end">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary" data-action="open-check" data-therapy="${therapy.id}">
+                        <i class="fas fa-stethoscope"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-action="open-checklist" data-therapy="${therapy.id}">
+                        <i class="fas fa-list-check"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" data-action="open-reminder" data-therapy="${therapy.id}">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-success" data-action="open-report" data-therapy="${therapy.id}">
+                        <i class="fas fa-file-medical"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        tr.querySelectorAll('button[data-action]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
                 const therapyId = parseInt(button.dataset.therapy, 10);
                 onAction?.(button.dataset.action, therapyId);
             });
         });
 
-        dom.therapiesContainer.appendChild(card);
+        tbody.appendChild(tr);
     });
+
+    wrapper.appendChild(table);
+    dom.therapiesContainer.appendChild(wrapper);
 }
+
 
 export function renderTimeline({ dom, state }) {
     if (!dom.timelineContainer) return;
@@ -317,9 +388,10 @@ export function renderTimeline({ dom, state }) {
     const filter = dom.timelineFilter ? dom.timelineFilter.value : 'upcoming';
     const now = new Date();
 
-    const items = state.timeline.filter(item => {
+    const items = (state.timeline || []).filter(item => {
         if (!item.scheduled_at) return false;
         const itemDate = new Date(item.scheduled_at);
+
         switch (filter) {
             case 'upcoming':
                 return itemDate >= now && itemDate <= addDays(now, 30);
@@ -340,26 +412,55 @@ export function renderTimeline({ dom, state }) {
         return;
     }
 
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-responsive';
+
+    const table = document.createElement('table');
+    table.className = 'table table-sm mb-0 timeline-table';
+
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Descrizione</th>
+                <th>Data / ora</th>
+                <th>Dettagli</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector('tbody');
+
     items.forEach(item => {
-        const entry = document.createElement('div');
-        entry.className = `timeline-entry timeline-${item.type}`;
-        const hasChecklistAnswers = item.type === 'check' && item.has_answers;
+        const tr = document.createElement('tr');
+        const typeLabel =
+            item.type === 'check'
+                ? 'Check periodico'
+                : (item.type === 'reminder' ? 'Promemoria' : 'Attività');
+
         let detailsText = item.details || '';
         if (item.type === 'check' && item.answers_preview) {
             const preview = sanitizeHtml(item.answers_preview);
-            detailsText = hasChecklistAnswers ? `📝 ${preview}` + (detailsText ? ` – ${sanitizeHtml(detailsText)}` : '') : sanitizeHtml(detailsText);
+            detailsText = item.has_answers
+                ? `📝 ${preview}` + (detailsText ? ` – ${sanitizeHtml(detailsText)}` : '')
+                : sanitizeHtml(detailsText);
         } else {
             detailsText = sanitizeHtml(detailsText);
         }
-        entry.innerHTML = `
-            <div class="timeline-marker"></div>
-            <div class="timeline-content">
-                <h6>${sanitizeHtml(item.title)}</h6>
-                <span class="timeline-date">${formatDateTime(item.scheduled_at)}</span>
-                <p>${detailsText}</p>
-            </div>`;
-        dom.timelineContainer.appendChild(entry);
+
+        tr.innerHTML = `
+            <td class="align-middle">${sanitizeHtml(typeLabel)}</td>
+            <td class="align-middle">${sanitizeHtml(item.title || '')}</td>
+            <td class="align-middle">${formatDateTime(item.scheduled_at)}</td>
+            <td class="align-middle timeline-details-cell">${detailsText}</td>
+        `;
+
+        tbody.appendChild(tr);
     });
+
+    wrapper.appendChild(table);
+    dom.timelineContainer.appendChild(wrapper);
 }
 
 export function populateSelects({ dom, state }) {

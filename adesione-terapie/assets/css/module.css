@@ -81,31 +81,6 @@ body.adesione-terapie-page,
     overflow-y: auto;
 }
 
-.patient-list .patient-item {
-    border: none;
-    margin-bottom: 0.75rem;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: left;
-    background: #f8f9fa;
-    transition: all 0.2s ease-in-out;
-}
-
-.patient-list .patient-item:hover {
-    transform: translateY(-2px);
-    background: #eef2ff;
-}
-
-.patient-list .patient-item.active {
-    background: #0d6efd;
-    color: #fff;
-    box-shadow: 0 12px 30px rgba(13, 110, 253, 0.25);
-}
-
-.patient-list .patient-item.active small {
-    color: rgba(255, 255, 255, 0.9);
-}
-
 .empty-state {
     text-align: center;
     padding: 2.5rem 1rem;
@@ -115,42 +90,6 @@ body.adesione-terapie-page,
 .empty-state i {
     font-size: 2.75rem;
     margin-bottom: 1rem;
-}
-
-.therapy-card {
-    background: #fff;
-    border-radius: 16px;
-    border: 1px solid rgba(13, 110, 253, 0.08);
-    padding: 1.5rem;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.05);
-}
-
-.therapy-card-header {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.therapy-card h5 {
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-}
-
-.therapy-card .therapy-dates small {
-    display: block;
-    color: #6c757d;
-}
-
-.therapy-card-footer {
-    border-top: 1px solid rgba(13, 110, 253, 0.08);
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
 }
 
 .status-active {
@@ -171,61 +110,6 @@ body.adesione-terapie-page,
 .status-suspended {
     background: rgba(255, 193, 7, 0.18);
     color: #ffc107;
-}
-
-.timeline {
-    position: relative;
-    padding-left: 2rem;
-}
-
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 1rem;
-    top: 0.5rem;
-    bottom: 0.5rem;
-    width: 2px;
-    background: rgba(13, 110, 253, 0.2);
-}
-
-.timeline-entry {
-    position: relative;
-    margin-bottom: 1.5rem;
-    padding-left: 1.5rem;
-}
-
-.timeline-marker {
-    position: absolute;
-    left: -0.1rem;
-    top: 0.25rem;
-    width: 0.9rem;
-    height: 0.9rem;
-    border-radius: 50%;
-    background: #0d6efd;
-    box-shadow: 0 0 0 6px rgba(13, 110, 253, 0.12);
-}
-
-.timeline-entry.timeline-reminder .timeline-marker {
-    background: #ffc107;
-    box-shadow: 0 0 0 6px rgba(255, 193, 7, 0.2);
-}
-
-.timeline-content {
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(15, 35, 95, 0.08);
-    border-radius: 14px;
-    padding: 1rem 1.25rem;
-}
-
-.timeline-content h6 {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.timeline-date {
-    font-size: 0.85rem;
-    color: #0d6efd;
-    font-weight: 600;
 }
 
 .signature-pad {
@@ -331,6 +215,57 @@ body.adesione-terapie-page,
     font-size: 0.85rem;
     margin-bottom: 0.35rem;
 }
+
+/* Tabelle pazienti / terapie / timeline */
+
+.patient-list .table {
+    margin-bottom: 0;
+}
+
+.patients-table th,
+.patients-table td,
+.therapies-table th,
+.therapies-table td,
+.timeline-table th,
+.timeline-table td {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+.patients-table .patient-name {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.patients-table .patient-contact .small {
+    display: block;
+}
+
+.therapies-table .therapy-title .small {
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.therapies-table .btn-group .btn {
+    padding-inline: 0.4rem;
+    font-size: 0.75rem;
+}
+
+.badge-status {
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+/* timeline tabellare */
+.timeline-table td.timeline-details-cell {
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 
 @media (max-width: 991px) {
     .page-header .btn {
