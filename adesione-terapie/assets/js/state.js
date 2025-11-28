@@ -1,57 +1,49 @@
-// State management for Adesione Terapie module.
+// State management for the chronic-care wizard of Adesione Terapie.
+
+export const WIZARD_STEPS = [
+  'm1',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+];
+
+const wizardDataTemplate = {
+  m1: {},
+  anamnesi_generale: {},
+  anamnesi_specifica: {},
+  aderenza_base: {},
+  patologia_base: {},
+  patologia_approfondita: {},
+  followup: {},
+  caregiver_block: {},
+  consensi: {},
+};
 
 const state = {
-    patients: [],
-    therapies: [],
-    checks: [],
-    reminders: [],
-    reports: [],
-    timeline: [],
-    stats: {},
-    selectedPatientId: null,
-    selectedTherapyId: null,
-    therapySearchTerm: '',
-    expandedPatients: {},
-    currentTherapyStep: 1,
-    signaturePad: null,
-    signaturePadDirty: false,
-    signaturePadInitialized: false,
-    therapySubmitting: false,
-    patientSubmitting: false,
-    checkSubmitting: false,
-    reminderSubmitting: false,
-    reportGenerating: false,
+  currentStep: 'm1',
+  wizardData: { ...wizardDataTemplate },
+  selectedCondition: null,
+  routesBase: '',
+  csrfToken: '',
+  signaturePad: null,
+  signaturePadDirty: false,
+  signaturePadInitialized: false,
 };
 
 export function getState() {
-    return state;
+  return state;
 }
 
 export function setState(partial) {
-    Object.assign(state, partial);
+  Object.assign(state, partial);
 }
 
-export function resetState() {
-    setState({
-        patients: [],
-        therapies: [],
-        checks: [],
-        reminders: [],
-        reports: [],
-        timeline: [],
-        stats: {},
-        selectedPatientId: null,
-        selectedTherapyId: null,
-        therapySearchTerm: '',
-        expandedPatients: {},
-        currentTherapyStep: 1,
-        signaturePad: null,
-        signaturePadDirty: false,
-        signaturePadInitialized: false,
-        therapySubmitting: false,
-        patientSubmitting: false,
-        checkSubmitting: false,
-        reminderSubmitting: false,
-        reportGenerating: false,
-    });
+export function resetWizardData() {
+  state.wizardData = { ...wizardDataTemplate };
+  state.currentStep = 'm1';
+  state.selectedCondition = null;
 }

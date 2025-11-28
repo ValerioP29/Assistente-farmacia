@@ -6,7 +6,6 @@ use Modules\AdesioneTerapie\Repositories\AssistantRepository;
 use Modules\AdesioneTerapie\Repositories\TherapyRepository;
 use Modules\AdesioneTerapie\Services\ConsentService;
 use Modules\AdesioneTerapie\Services\FormattingService;
-use Modules\AdesioneTerapie\Services\QuestionnaireService;
 use Modules\AdesioneTerapie\Services\TherapyMetadataService;
 use RuntimeException;
 
@@ -16,7 +15,6 @@ class TherapiesController
     private AssistantRepository $assistantRepository;
     private FormattingService $formattingService;
     private TherapyMetadataService $therapyMetadataService;
-    private QuestionnaireService $questionnaireService;
     private ConsentService $consentService;
     private int $pharmacyId;
     private array $therapyCols;
@@ -37,7 +35,6 @@ class TherapiesController
         AssistantRepository $assistantRepository,
         FormattingService $formattingService,
         TherapyMetadataService $therapyMetadataService,
-        QuestionnaireService $questionnaireService,
         ConsentService $consentService,
         int $pharmacyId,
         array $therapyCols,
@@ -57,7 +54,6 @@ class TherapiesController
         $this->assistantRepository = $assistantRepository;
         $this->formattingService = $formattingService;
         $this->therapyMetadataService = $therapyMetadataService;
-        $this->questionnaireService = $questionnaireService;
         $this->consentService = $consentService;
         $this->pharmacyId = $pharmacyId;
         $this->therapyCols = $therapyCols;
@@ -113,14 +109,6 @@ class TherapiesController
             }
         }
 
-        $questionnaire = [];
-        if (!empty($payload['questionnaire_payload'])) {
-            $decoded = json_decode($payload['questionnaire_payload'], true);
-            if (is_array($decoded)) {
-                $questionnaire = $decoded;
-            }
-        }
-
         $therapyData = [];
         if ($this->therapyCols['pharmacy']) {
             $therapyData[$this->therapyCols['pharmacy']] = $this->pharmacyId;
@@ -156,8 +144,7 @@ class TherapiesController
             $therapyData[$this->therapyCols['updated_at']] = $this->now();
         }
 
-        $metadataPayload = $this->therapyMetadataService->buildMetadataPayload($caregivers, $questionnaire, $payload);
-        $this->therapyMetadataService->applyMetadataColumns($therapyData, $metadataPayload, $this->therapyCols);
+        // TODO: CHRONIC_REWRITE - legacy metadata/questionnaire persistence removed.
 
         $filtered = $this->therapyRepository->filterData($therapyData);
 
@@ -171,9 +158,7 @@ class TherapiesController
         }
 
         $this->syncCaregivers($therapyId, $patientId, $caregivers);
-        if ($therapyId && is_array($questionnaire) && !empty($questionnaire)) {
-            $this->questionnaireService->storeQuestionnaire($therapyId, $questionnaire);
-        }
+        // TODO: CHRONIC_REWRITE - legacy single-consent handler; will be replaced.
         $this->consentService->storeConsent($therapyId, $patientId, $payload);
 
         return $this->findTherapy($therapyId);
@@ -189,7 +174,8 @@ class TherapiesController
 
         $formatted = $this->formattingService->formatTherapy($therapy, $this->therapyCols, $this->patientCols, $this->therapyMetadataService);
         $formatted['caregivers'] = $this->listCaregivers($therapyId);
-        $formatted['questionnaire'] = $this->questionnaireService->getQuestionnaire($therapyId);
+        // TODO: CHRONIC_REWRITE - legacy questionnaire retrieval removed.
+        $formatted['questionnaire'] = [];
         $formatted['consent'] = $this->consentService->getConsent($therapyId);
         $formatted['checks'] = $this->listChecks($therapyId);
         $formatted['reminders'] = $this->listReminders($therapyId);
@@ -206,7 +192,8 @@ class TherapiesController
             $formatted = $this->formattingService->formatTherapy($row, $this->therapyCols, $this->patientCols, $this->therapyMetadataService);
             $therapyId = $formatted['id'];
             $formatted['caregivers'] = $this->listCaregivers($therapyId);
-            $formatted['questionnaire'] = $this->questionnaireService->getQuestionnaire($therapyId);
+            // TODO: CHRONIC_REWRITE - legacy questionnaire retrieval removed.
+            $formatted['questionnaire'] = [];
             $formatted['consent'] = $this->consentService->getConsent($therapyId);
             $formatted['checks'] = $this->listChecks($therapyId);
             $formatted['reminders'] = $this->listReminders($therapyId);

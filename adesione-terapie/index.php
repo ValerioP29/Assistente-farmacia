@@ -322,8 +322,8 @@ require_once __DIR__ . '/../includes/header.php';
                 ><span>Nuova Terapia</span>
               </h5>
               <small class="text-muted"
-                >Compila il percorso guidato per registrare la terapia e il
-                questionario iniziale</small
+                >Compila il percorso guidato per registrare la terapia e i dati
+                essenziali</small
               >
             </div>
             <button
@@ -343,327 +343,1309 @@ require_once __DIR__ . '/../includes/header.php';
             />
             <input
               type="hidden"
-              name="questionnaire_payload"
-              id="questionnairePayloadInput"
-            />
-            <input
-              type="hidden"
               name="caregivers_payload"
               id="caregiversPayloadInput"
             />
 
-            <div class="wizard-progress">
-              <div class="wizard-progress-bar">
-                <div
-                  class="wizard-progress-indicator"
-                  id="therapyWizardIndicator"
-                ></div>
+              <div class="wizard-progress">
+                <div class="wizard-progress-bar">
+                  <div
+                    class="wizard-progress-indicator"
+                    id="therapyWizardIndicator"
+                  ></div>
+                </div>
+                <div class="wizard-steps" id="therapyWizardSteps">
+                  <span data-step-indicator="m1" class="active">M1</span>
+                  <span data-step-indicator="1">Anamnesi generale</span>
+                  <span data-step-indicator="2">Presa in carico</span>
+                  <span data-step-indicator="3">Aderenza base</span>
+                  <span data-step-indicator="4">Patologia base</span>
+                  <span data-step-indicator="5">Patologia approfondita</span>
+                  <span data-step-indicator="6">Follow-up & Caregiver</span>
+                  <span data-step-indicator="7">Consensi</span>
+                </div>
               </div>
-              <div class="wizard-steps" id="therapyWizardSteps">
-                <span data-step="1" class="active">Paziente</span>
-                <span data-step="2">Dettagli Terapia</span>
-                <span data-step="3">Questionario Stile di Vita</span>
-                <span data-step="4">Questionario Monitoraggio</span>
-                <span data-step="5">Consenso</span>
-                <span data-step="6">Riepilogo</span>
-              </div>
-            </div>
 
             <div class="wizard-content">
-              <!-- Step 1: Paziente -->
-              <section class="wizard-step active" data-step="1">
+              <!-- Step M1: Contesto e riferimenti -->
+              <section class="wizard-step" data-step="m1">
                 <div class="row g-3">
-                  <div class="col-lg-6">
-                    <label class="form-label">Seleziona Paziente</label>
-                    <select
-                      class="form-select"
-                      id="therapyPatientSelect"
-                      name="existing_patient"
-                    >
-                      <option value="">-- Seleziona paziente --</option>
-                    </select>
-                  </div>
-                  <div class="col-lg-6">
-                    <label class="form-label"
-                      >Oppure crea un nuovo paziente</label
-                    >
-                    <div class="d-grid">
-                      <button
-                        type="button"
-                        class="btn btn-outline-primary"
-                        id="openInlinePatientForm"
-                      >
-                        <i class="fas fa-user-plus me-2"></i>Compila dati
-                        paziente
-                      </button>
-                    </div>
-                  </div>
-                  <div class="col-12 collapse" id="inlinePatientForm">
-                    <div class="border rounded p-3 bg-light">
-                      <h6 class="fw-semibold mb-3">Nuovo paziente</h6>
-                      <div class="row g-3">
-                        <div class="col-md-6">
-                          <label class="form-label">Nome</label>
-                          <input
-                            type="text"
-                            class="form-control"
-                            name="inline_first_name"
-                          />
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label">Cognome</label>
-                          <input
-                            type="text"
-                            class="form-control"
-                            name="inline_last_name"
-                          />
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label">Data di nascita</label>
-                          <input
-                            type="date"
-                            class="form-control"
-                            name="inline_birth_date"
-                          />
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label">Telefono</label>
-                          <input
-                            type="tel"
-                            class="form-control"
-                            name="inline_phone"
-                          />
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label">Email</label>
-                          <input
-                            type="email"
-                            class="form-control"
-                            name="inline_email"
-                          />
-                        </div>
-                        <div class="col-12">
-                          <label class="form-label">Note</label>
-                          <textarea
-                            class="form-control"
-                            name="inline_notes"
-                            rows="2"
-                          ></textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Step 2: Dettagli Terapia -->
-              <section class="wizard-step" data-step="2">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Titolo terapia</label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      name="therapy_title"
-                      required
-                      placeholder="Es. Terapia ipertensione"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Descrizione terapia</label>
-                    <textarea
-                      class="form-control"
-                      name="therapy_description"
-                      rows="3"
-                      required
-                      placeholder="Es. Piano farmacologico, obiettivi, farmaci coinvolti..."
-                    ></textarea>
+                  <div class="col-md-4">
+                    <label class="form-label">Di quanti membri si compone la sua famiglia?</label>
+                    <input type="number" class="form-control" name="family_members_count" min="0" />
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label">Stato</label>
-                    <select class="form-select" name="status">
-                      <option value="active">Attiva</option>
-                      <option value="planned">Pianificata</option>
-                      <option value="completed">Completata</option>
-                      <option value="suspended">Sospesa</option>
-                    </select>
+                    <label class="form-label">La famiglia può contare in caso di necessità sull'aiuto personale di persone non conviventi?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="support_non_cohabiting" value="si" id="supportYes" />
+                        <label class="form-check-label" for="supportYes">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="support_non_cohabiting" value="no" id="supportNo" />
+                        <label class="form-check-label" for="supportNo">No</label>
+                      </div>
+                    </div>
                   </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Data inizio</label>
-                    <input
-                      type="date"
-                      class="form-control"
-                      name="start_date"
-                      required
-                    />
+                  <div class="col-md-4">
+                    <label class="form-label">Qual è il suo titolo di studio?</label>
+                    <input type="text" class="form-control" name="education_level" />
                   </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Data fine (stimata)</label>
-                    <input type="date" class="form-control" name="end_date" />
+                  <div class="col-md-4">
+                    <label class="form-label">C'è un caregiver che si occupa di lei quando non può essere presente un familiare?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="has_caregiver" value="si" id="hasCaregiverYes" />
+                        <label class="form-check-label" for="hasCaregiverYes">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="has_caregiver" value="no" id="hasCaregiverNo" />
+                        <label class="form-check-label" for="hasCaregiverNo">No</label>
+                      </div>
+                    </div>
                   </div>
                   <div class="col-12">
-                    <label class="form-label">Caregiver e familiari</label>
-                    <div id="caregiversContainer" class="caregivers-container">
-                      <div class="caregiver-row template d-none">
-                        <div class="row g-2 align-items-end">
-                          <div class="col-md-4">
-                            <label class="form-label">Nome</label>
-                            <input
-                              type="text"
-                              class="form-control"
-                              data-field="name"
-                            />
-                          </div>
-                          <div class="col-md-3">
-                            <label class="form-label">Ruolo</label>
-                            <select class="form-select" data-field="role">
-                              <option value="caregiver">Caregiver</option>
-                              <option value="familiare">Familiare</option>
-                            </select>
-                          </div>
-                          <div class="col-md-3">
-                            <label class="form-label">Telefono</label>
-                            <input
-                              type="tel"
-                              class="form-control"
-                              data-field="phone"
-                            />
-                          </div>
-                          <div class="col-md-2">
-                            <button
-                              type="button"
-                              class="btn btn-outline-danger w-100 remove-caregiver"
-                            >
-                              <i class="fas fa-times"></i>
-                            </button>
-                          </div>
+                    <div class="border rounded p-3 bg-light">
+                      <h6 class="fw-semibold mb-3">Dati anagrafici del paziente</h6>
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Nome e cognome</label>
+                          <input type="text" class="form-control" name="patient_name" />
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Data di nascita</label>
+                          <input type="date" class="form-control" name="patient_birth_date" />
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Telefono</label>
+                          <input type="tel" class="form-control" name="patient_phone" />
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Email</label>
+                          <input type="email" class="form-control" name="patient_email" />
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary btn-sm mt-3"
-                      id="addCaregiverButton"
-                    >
-                      <i class="fas fa-user-plus me-1"></i>Aggiungi caregiver
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Steps 3-4: Questionario (DB steps 2 e 4) -->
-              <?php
-                        $questionnaireSteps = [
-                            [
-                                'ui_step' => 3,
-                                'db_step' => 2,
-                                'title' => 'Stile di Vita',
-                                'questions' => [
-                                    'alimentazione' => 'Com\'è l\'alimentazione abituale?',
-                                    'attivita' => 'Svolge attività fisica regolare?',
-                                    'riposo' => 'Qualità del sonno e riposo?'
-                                ]
-                            ],
-                            [
-                                'ui_step' => 4,
-                                'db_step' => 4,
-                                'title' => 'Monitoraggio',
-                                'questions' => [
-                                    'parametri' => 'Vengono monitorati parametri clinici? Quali?',
-                                    'visite' => 'Frequenza delle visite mediche di controllo?',
-                                    'autonomia' => 'Livello di autonomia nella gestione della terapia?'
-                                ]
-                            ],
-                        ];
-                        foreach ($questionnaireSteps as $stepData): ?>
-              <section class="wizard-step" data-step="<?= $stepData['ui_step'] ?>" data-db-step="<?= $stepData['db_step'] ?>">
-                <h6 class="fw-semibold mb-3">
-                  <i class="fas fa-list-check me-2 text-primary"></i
-                  ><?= htmlspecialchars($stepData['title']) ?>
-                </h6>
-                <?php foreach ($stepData['questions'] as $key =>
-                $label): ?>
-                <div class="mb-3">
-                  <label class="form-label"
-                    ><?= htmlspecialchars($label) ?></label
-                  >
-                  <textarea
-                    class="form-control questionnaire-input"
-                    data-question="<?= htmlspecialchars($key) ?>"
-                    rows="2"
-                  ></textarea>
-                </div>
-                <?php endforeach; ?>
-              </section>
-              <?php endforeach; ?>
-
-              <!-- Step 5: Consenso -->
-              <section class="wizard-step" data-step="5">
-                <div class="row g-4">
-                  <div class="col-lg-6">
-                    <label class="form-label">Tipologia di firma</label>
-                    <select
-                      class="form-select"
-                      name="signature_type"
-                      id="signatureType"
-                    >
-                      <option value="graphical">Firma grafica</option>
-                      <option value="digital">Firma digitale semplice</option>
-                    </select>
-                  </div>
-                  <div class="col-12" id="signatureCanvasWrapper">
-                    <label class="form-label"
-                      >Firma grafica del paziente / caregiver</label
-                    >
-                    <div class="signature-pad">
-                      <canvas id="consentSignaturePad"></canvas>
-                    </div>
-                    <div class="d-flex gap-2 mt-2">
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        id="clearSignatureButton"
-                      >
-                        <i class="fas fa-eraser me-1"></i>Pulisci firma
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline-primary btn-sm"
-                        id="saveSignatureButton"
-                      >
-                        <i class="fas fa-save me-1"></i>Salva firma
-                      </button>
-                    </div>
-                    <small class="text-muted d-block mt-2"
-                      >La firma verrà salvata con timestamp, indirizzo IP e
-                      associata alla terapia.</small
-                    >
-                  </div>
-                  <div class="col-lg-6 d-none" id="digitalSignatureWrapper">
-                    <label class="form-label">Firma digitale semplice</label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      name="digital_signature"
-                      placeholder="Inserisci nome e cognome del firmatario"
-                    />
                   </div>
                   <div class="col-12">
-                    <label class="form-label">Note consenso informato</label>
-                    <textarea
-                      class="form-control"
-                      name="consent_notes"
-                      rows="3"
-                      placeholder="Note aggiuntive o condizioni specifiche"
-                    ></textarea>
+                    <div class="border rounded p-3">
+                      <h6 class="fw-semibold mb-3">Dati anagrafici del Caregiver</h6>
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Nome e cognome</label>
+                          <input type="text" class="form-control" name="caregiver_name" />
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Relazione</label>
+                          <input type="text" class="form-control" name="caregiver_relation" />
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Telefono</label>
+                          <input type="tel" class="form-control" name="caregiver_phone" />
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Email</label>
+                          <input type="email" class="form-control" name="caregiver_email" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Dati anagrafici dei familiari</label>
+                    <textarea class="form-control" name="family_contacts" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Riferimenti del medico curante</label>
+                    <input type="text" class="form-control" name="doctor_reference" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Riferimenti dello specialista</label>
+                    <input type="text" class="form-control" name="specialist_reference" />
                   </div>
                 </div>
               </section>
 
-              <!-- Step 6: Riepilogo -->
-              <section class="wizard-step" data-step="6">
-                <div class="summary-preview" id="therapySummary"></div>
+              <!-- Step 1: Anamnesi generale -->
+              <section class="wizard-step d-none" data-step="1">
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label class="form-label">Età</label>
+                    <input type="number" class="form-control" name="eta" min="0" />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Sesso</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sesso" value="M" id="sessoM" />
+                        <label class="form-check-label" for="sessoM">M</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sesso" value="F" id="sessoF" />
+                        <label class="form-check-label" for="sessoF">F</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Se donna, specificare</label>
+                    <div class="d-flex flex-wrap gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="stato_fertilita_donna" value="eta_fertile" id="fertile" />
+                        <label class="form-check-label" for="fertile">Età fertile</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="stato_fertilita_donna" value="menopausa" id="menopausa" />
+                        <label class="form-check-label" for="menopausa">Menopausa</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Come valuta in generale il suo stato di salute?</label>
+                    <select class="form-select" name="stato_salute_generale">
+                      <option value="">-- Seleziona --</option>
+                      <option value="buono">Buono</option>
+                      <option value="discreto">Discreto</option>
+                      <option value="scarso">Scarso</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">È fumatore o ex fumatore?</label>
+                    <select class="form-select" name="fumatore_status">
+                      <option value="">-- Seleziona --</option>
+                      <option value="no">No</option>
+                      <option value="ex">Ex</option>
+                      <option value="si">Sì (sigarette/giorno)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Sigarette/giorno</label>
+                    <input type="number" class="form-control" name="sigarette_per_giorno" min="0" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Pratica attività fisica regolare (almeno 30 minuti al giorno)?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="attivita_fisica_regolare" value="si" id="attFisSi" />
+                        <label class="form-check-label" for="attFisSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="attivita_fisica_regolare" value="no" id="attFisNo" />
+                        <label class="form-check-label" for="attFisNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Segue una dieta particolare o controlla sale, zuccheri o grassi?</label>
+                    <select class="form-select" name="dieta_controllata">
+                      <option value="">-- Seleziona --</option>
+                      <option value="si">Sì</option>
+                      <option value="no">No</option>
+                      <option value="a_volte">A volte</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Assume farmaci in modo continuativo?</label>
+                    <select class="form-select" name="farmaci_continuativi">
+                      <option value="">-- Seleziona --</option>
+                      <option value="no">No</option>
+                      <option value="1-2">Sì 1–2</option>
+                      <option value="3-5">Sì 3–5</option>
+                      <option value=">5">Sì >5</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha difficoltà a ricordare o gestire la terapia?</label>
+                    <select class="form-select" name="difficolta_gestione_terapia">
+                      <option value="">-- Seleziona --</option>
+                      <option value="no">No</option>
+                      <option value="talvolta">Talvolta</option>
+                      <option value="spesso">Spesso</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Patologie diagnosticate:</label>
+                    <div class="row row-cols-2 row-cols-md-3 g-2">
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologie_diagnosticate[]" value="diabete" id="diagDiabete" />
+                          <label class="form-check-label" for="diagDiabete">Diabete</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologie_diagnosticate[]" value="ipertensione" id="diagIpertensione" />
+                          <label class="form-check-label" for="diagIpertensione">Ipertensione</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologie_diagnosticate[]" value="bpco" id="diagBpco" />
+                          <label class="form-check-label" for="diagBpco">BPCO</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologie_diagnosticate[]" value="dislipidemie" id="diagDisli" />
+                          <label class="form-check-label" for="diagDisli">Dislipemie</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologie_diagnosticate[]" value="altro" id="diagAltro" />
+                          <label class="form-check-label" for="diagAltro">Altro</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <input type="text" class="form-control" name="patologie_altro" placeholder="Altro (specificare)" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Familiarità per infarto, ictus, diabete o colesterolo alto?</label>
+                    <select class="form-select" name="familiarita_cardiometabolica">
+                      <option value="">-- Seleziona --</option>
+                      <option value="si">Sì</option>
+                      <option value="no">No</option>
+                      <option value="non_so">Non so</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha un familiare o caregiver che la aiuta nella gestione quotidiana?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="ha_caregiver_quotidiano" value="si" id="careDailySi" />
+                        <label class="form-check-label" for="careDailySi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="ha_caregiver_quotidiano" value="no" id="careDailyNo" />
+                        <label class="form-check-label" for="careDailyNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Peso (kg)</label>
+                    <input type="number" class="form-control" step="0.1" name="peso" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Altezza (cm)</label>
+                    <input type="number" class="form-control" step="0.1" name="altezza" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">BMI</label>
+                    <input type="number" class="form-control" step="0.1" name="bmi" />
+                  </div>
+                </div>
               </section>
+
+              <!-- Step 2: Scheda anagrafica e presa in carico -->
+              <section class="wizard-step d-none" data-step="2">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Nome e Cognome</label>
+                    <input type="text" class="form-control" name="nome_cognome" />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Data di nascita</label>
+                    <input type="date" class="form-control" name="data_nascita" />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Sesso</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sesso" value="M" id="pcSessoM" />
+                        <label class="form-check-label" for="pcSessoM">M</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sesso" value="F" id="pcSessoF" />
+                        <label class="form-check-label" for="pcSessoF">F</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Telefono</label>
+                    <input type="tel" class="form-control" name="telefono" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Caregiver (facoltativo)</label>
+                    <input type="text" class="form-control" name="caregiver_nome" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Patologia seguita:</label>
+                    <div class="row row-cols-2 row-cols-md-3 g-2">
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologia_segnalata[]" value="diabete" id="patSegDiabete" />
+                          <label class="form-check-label" for="patSegDiabete">Diabete</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologia_segnalata[]" value="bpco" id="patSegBpco" />
+                          <label class="form-check-label" for="patSegBpco">BPCO</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologia_segnalata[]" value="ipertensione" id="patSegIpertensione" />
+                          <label class="form-check-label" for="patSegIpertensione">Ipertensione</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologia_segnalata[]" value="dislipidemia" id="patSegDisli" />
+                          <label class="form-check-label" for="patSegDisli">Dislipidemia</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="patologia_segnalata[]" value="altro" id="patSegAltro" />
+                          <label class="form-check-label" for="patSegAltro">Altro</label>
+                        </div>
+                      </div>
+                      <div class="col">
+                        <input type="text" class="form-control" name="patologia_segnalata_altro" placeholder="Altro (specificare)" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Note iniziali</label>
+                    <textarea class="form-control" name="note_iniziali" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <h6 class="fw-semibold">Domande operative</h6>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">È mai stato allergico a farmaci, lattice, frutta o verdura, lattosio, frutta secca?</label>
+                    <textarea class="form-control" name="allergie_varie" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Assume farmaci per terapie particolari?</label>
+                    <textarea class="form-control" name="farmaci_terapie_particolari" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">C'è qualcuno che la aiuta nella corretta assunzione dei farmaci e negli orari stabiliti?</label>
+                    <textarea class="form-control" name="aiuto_assunzione_farmaci" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Nell'ultimo mese ha modificato o aumentato i dosaggi di farmaci abituali?</label>
+                    <textarea class="form-control" name="modifica_dosaggi_ultimo_mese" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Se sì lo ha fatto di sua iniziativa senza consultare un medico?</label>
+                    <textarea class="form-control" name="modifica_dosaggi_per_iniziativa" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ogni quanto tempo si reca dal suo medico per farsi visitare?</label>
+                    <input type="text" class="form-control" name="frequenza_visite_medico" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ha avuto accesso al pronto soccorso nell'ultimo anno?</label>
+                    <input type="text" class="form-control" name="accesso_pronto_soccorso" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Che tipo di farmaci assume?</label>
+                    <textarea class="form-control" name="tipo_farmaci_assunti" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Si dimentica mai di prendere i farmaci?</label>
+                    <input type="text" class="form-control" name="dimenticanze_farmaci" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Se si, li assume ad orari differenti da quello stabilito o non li assume per niente il giorno in cui se ne è dimenticato?</label>
+                    <input type="text" class="form-control" name="comportamento_dopo_dimenticanza" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ci sono state occasioni in cui non li ha presi intenzionalmente?</label>
+                    <input type="text" class="form-control" name="non_assunzioni_intenzionali" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ha mai diminuito le dosi dei farmaci o smesso di prenderli intenzionalmente senza dirlo al suo medico?</label>
+                    <input type="text" class="form-control" name="riduzione_dosi_senza_medico" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Se si, per quale motivo? (Perché si sentiva peggio o perché si sentiva meglio dopo un periodo di terapia?)</label>
+                    <textarea class="form-control" name="motivo_riduzione_dosi" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Assume integratori? Terapie omeopatiche o fitoterapiche?</label>
+                    <input type="text" class="form-control" name="assunzione_integratori" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Se si quali ?</label>
+                    <input type="text" class="form-control" name="tipologia_integratori" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Con quale frequenza ?</label>
+                    <input type="text" class="form-control" name="frequenza_integratori" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Utilizza device per la terapia farmacologica della BPCO?</label>
+                    <input type="text" class="form-control" name="usa_device_bpco" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Sa qual è il modo corretto di utilizzare il device?</label>
+                    <input type="text" class="form-control" name="conoscenza_uso_device" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha mai avuto problemi nell'utilizzo del device?</label>
+                    <input type="text" class="form-control" name="problemi_device" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Usa il sistema per l'auto misurazione della pressione?</label>
+                    <input type="text" class="form-control" name="usa_automisurazione_pressione" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Se si sa come usare il sistema</label>
+                    <input type="text" class="form-control" name="conoscenza_uso_sistema_pressione" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Con quanta frequenza entra in farmacia per misurarsi la pressione?</label>
+                    <input type="text" class="form-control" name="frequenza_pressione_in_farmacia" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha mai misurato la glicemia?</label>
+                    <input type="text" class="form-control" name="ha_misurato_glicemia" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha mai avuto reazioni allergiche a qualche farmaco o integratore?</label>
+                    <input type="text" class="form-control" name="reazioni_allergiche_farmaci_integratori" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ha mai effettuato un elettrocardiogramma?</label>
+                    <input type="text" class="form-control" name="eseguito_ecg" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Un HOLTER cardiaco?</label>
+                    <input type="text" class="form-control" name="eseguito_holter_cardiaco" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Un holter pressorio?</label>
+                    <input type="text" class="form-control" name="eseguito_holter_pressorio" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Le è stato mai somministrato il vaccino antinfluenzale?</label>
+                    <input type="text" class="form-control" name="vaccino_antinfluenzale" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Se si lo effettua ogni anno?</label>
+                    <input type="text" class="form-control" name="vaccino_antinfluenzale_annuale" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Le è stato mai somministrato qualche altro tipo di vaccino?</label>
+                    <input type="text" class="form-control" name="altri_vaccini" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Se si quale?</label>
+                    <input type="text" class="form-control" name="quali_altri_vaccini" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ha mai avuto una reazione allergica a qualche vaccino?</label>
+                    <input type="text" class="form-control" name="reazioni_allergiche_vaccini" />
+                  </div>
+                </div>
+              </section>
+
+              <!-- Step 3: Questionario di aderenza base -->
+              <section class="wizard-step d-none" data-step="3">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Terapie in corso (principi attivi):</label>
+                    <textarea class="form-control" name="terapie_in_corso" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Dispositivo utilizzato (es. inalatore, glucometro, sfigmomanometro):</label>
+                    <input type="text" class="form-control" name="dispositivo_utilizzato" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Dimentica di assumere le dosi?</label>
+                    <select class="form-select" name="dimentica_dosi">
+                      <option value="">-- Seleziona --</option>
+                      <option value="mai">Mai</option>
+                      <option value="talvolta">Talvolta</option>
+                      <option value="spesso">Spesso</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Interrompe la terapia quando si sente meglio?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="interrompe_quando_sta_meglio" value="si" id="interrompeSi" />
+                        <label class="form-check-label" for="interrompeSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="interrompe_quando_sta_meglio" value="no" id="interrompeNo" />
+                        <label class="form-check-label" for="interrompeNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Riduce le dosi senza consultare il medico/farmacista?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="riduce_dosi_senza_consulto" value="si" id="riduceSi" />
+                        <label class="form-check-label" for="riduceSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="riduce_dosi_senza_consulto" value="no" id="riduceNo" />
+                        <label class="form-check-label" for="riduceNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Sa utilizzare correttamente i dispositivi per il controllo della sua terapia?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sa_usare_dispositivi_controllo" value="si" id="usaDispSi" />
+                        <label class="form-check-label" for="usaDispSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="sa_usare_dispositivi_controllo" value="no" id="usaDispNo" />
+                        <label class="form-check-label" for="usaDispNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Esegue automisurazioni periodiche?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="esegue_automisurazioni" value="si" id="autoMisSi" />
+                        <label class="form-check-label" for="autoMisSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="esegue_automisurazioni" value="no" id="autoMisNo" />
+                        <label class="form-check-label" for="autoMisNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ultimo controllo (data):</label>
+                    <input type="date" class="form-control" name="data_ultimo_controllo" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Accessi al Pronto Soccorso o ricoveri nell’ultimo anno:</label>
+                    <select class="form-select" name="accessi_ps_ultimo_anno">
+                      <option value="">-- Seleziona --</option>
+                      <option value="nessuno">Nessuno</option>
+                      <option value="1">1</option>
+                      <option value=">1">>1</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Reazioni avverse note ai farmaci?</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="reazioni_avverse_farmaci" value="si" id="reazSi" />
+                        <label class="form-check-label" for="reazSi">Sì</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="reazioni_avverse_farmaci" value="no" id="reazNo" />
+                        <label class="form-check-label" for="reazNo">No</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Note aggiuntive:</label>
+                    <textarea class="form-control" name="note_aderenza" rows="2"></textarea>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Step 4: Questionari specifici per patologia - Base -->
+              <section class="wizard-step d-none" data-step="4">
+                <div class="mb-3">
+                  <label class="form-label">Seleziona patologia</label>
+                  <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="patologia_selezionata" value="diabete" id="patBaseDiabete" />
+                      <label class="form-check-label" for="patBaseDiabete">Diabete</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="patologia_selezionata" value="bpco" id="patBaseBpco" />
+                      <label class="form-check-label" for="patBaseBpco">BPCO</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="patologia_selezionata" value="ipertensione" id="patBaseIpertensione" />
+                      <label class="form-check-label" for="patBaseIpertensione">Ipertensione</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="patologia_selezionata" value="dislipidemia" id="patBaseDisli" />
+                      <label class="form-check-label" for="patBaseDisli">Dislipidemia</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="patologia_selezionata" value="altro" id="patBaseAltro" />
+                      <label class="form-check-label" for="patBaseAltro">Altro</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="diabete">
+                  <h6 class="fw-semibold">Diabete – Questionario Base</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Misura regolarmente la glicemia?</label>
+                      <select class="form-select" name="misura_glicemia">
+                        <option value="">-- Seleziona --</option>
+                        <option value="tutti_i_giorni">Tutti i giorni</option>
+                        <option value="qualche_volta">Qualche volta</option>
+                        <option value="raramente">Raramente</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ultimo valore glicemico (se noto):</label>
+                      <input type="text" class="form-control" name="ultimo_valore_glicemico" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha eseguito l’emoglobina glicata (HbA1c) negli ultimi 6 mesi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="hbA1c_ultimi_6_mesi" value="si" id="hba1cSi" />
+                          <label class="form-check-label" for="hba1cSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="hbA1c_ultimi_6_mesi" value="no" id="hba1cNo" />
+                          <label class="form-check-label" for="hba1cNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Segue una dieta specifica per il diabete?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dieta_specifica_diabete" value="si" id="dietaDiabSi" />
+                          <label class="form-check-label" for="dietaDiabSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dieta_specifica_diabete" value="no" id="dietaDiabNo" />
+                          <label class="form-check-label" for="dietaDiabNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Svolge attività fisica regolare?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_diabete" value="si" id="attFisDiabSi" />
+                          <label class="form-check-label" for="attFisDiabSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_diabete" value="no" id="attFisDiabNo" />
+                          <label class="form-check-label" for="attFisDiabNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Assume regolarmente i farmaci prescritti (compresse o insulina)?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="assunzione_regolare_farmaci_diabete" value="si" id="assFarmDiabSi" />
+                          <label class="form-check-label" for="assFarmDiabSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="assunzione_regolare_farmaci_diabete" value="no" id="assFarmDiabNo" />
+                          <label class="form-check-label" for="assFarmDiabNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="bpco">
+                  <h6 class="fw-semibold">BPCO – Questionario Base</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Le manca il fiato quando cammina in piano o sale una rampa di scale?</label>
+                      <select class="form-select" name="dispnea_sforzo">
+                        <option value="">-- Seleziona --</option>
+                        <option value="mai">Mai</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="spesso">Spesso</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Tossisce o espelle muco durante la giornata?</label>
+                      <select class="form-select" name="tosse_muco">
+                        <option value="">-- Seleziona --</option>
+                        <option value="no">No</option>
+                        <option value="saltuariamente">Saltuariamente</option>
+                        <option value="frequentemente">Frequentemente</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha limitazioni nelle attività quotidiane a causa del respiro?</label>
+                      <select class="form-select" name="limitazioni_attivita_respiro">
+                        <option value="">-- Seleziona --</option>
+                        <option value="no">No</option>
+                        <option value="qualche_volta">Qualche volta</option>
+                        <option value="spesso">Spesso</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Dorme bene la notte?</label>
+                      <select class="form-select" name="sonno_buono">
+                        <option value="">-- Seleziona --</option>
+                        <option value="si">Sì</option>
+                        <option value="no_respiro">No (a causa del respiro)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Si sente spesso stanco o senza energia?</label>
+                      <select class="form-select" name="stanchezza_frequente">
+                        <option value="">-- Seleziona --</option>
+                        <option value="mai">Mai</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="spesso">Spesso</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Utilizza regolarmente il suo inalatore?</label>
+                      <select class="form-select" name="uso_regolare_inalatore">
+                        <option value="">-- Seleziona --</option>
+                        <option value="sempre">Sempre</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="raramente">Raramente</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="ipertensione">
+                  <h6 class="fw-semibold">Ipertensione / Rischio cardiovascolare – Base</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Ha mai avuto la pressione alta?</label>
+                      <select class="form-select" name="ha_avuto_pressione_alta">
+                        <option value="">-- Seleziona --</option>
+                        <option value="no">No</option>
+                        <option value="si">Sì</option>
+                        <option value="non_so">Non so</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Misura regolarmente la pressione arteriosa?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="misura_pressione_regolare" value="si" id="misPressSi" />
+                          <label class="form-check-label" for="misPressSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="misura_pressione_regolare" value="no" id="misPressNo" />
+                          <label class="form-check-label" for="misPressNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Assume farmaci antipertensivi?</label>
+                      <select class="form-select" name="assume_antipertensivi">
+                        <option value="">-- Seleziona --</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                        <option value="non_regolarmente">Non regolarmente</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Riduce il consumo di sale e cibi salati?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="riduce_sale" value="si" id="riduceSaleSi" />
+                          <label class="form-check-label" for="riduceSaleSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="riduce_sale" value="no" id="riduceSaleNo" />
+                          <label class="form-check-label" for="riduceSaleNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Svolge attività fisica moderata?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_moderata" value="si" id="attFisModSi" />
+                          <label class="form-check-label" for="attFisModSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_moderata" value="no" id="attFisModNo" />
+                          <label class="form-check-label" for="attFisModNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha mai avuto dolore al petto, palpitazioni o svenimenti?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dolore_petto_palpitazioni_svenimenti" value="si" id="dolorePettoSi" />
+                          <label class="form-check-label" for="dolorePettoSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dolore_petto_palpitazioni_svenimenti" value="no" id="dolorePettoNo" />
+                          <label class="form-check-label" for="dolorePettoNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="dislipidemia">
+                  <h6 class="fw-semibold">Dislipidemia / Colesterolo – Base</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Ha mai controllato il colesterolo o i trigliceridi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controllo_colesterolo_trigliceridi" value="si" id="collSi" />
+                          <label class="form-check-label" for="collSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controllo_colesterolo_trigliceridi" value="no" id="collNo" />
+                          <label class="form-check-label" for="collNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Segue una dieta povera di grassi saturi e zuccheri?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dieta_povera_grassi_zuccheri" value="si" id="dietaGrassiSi" />
+                          <label class="form-check-label" for="dietaGrassiSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="dieta_povera_grassi_zuccheri" value="no" id="dietaGrassiNo" />
+                          <label class="form-check-label" for="dietaGrassiNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha casi in famiglia di colesterolo alto, infarto o ictus precoce?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="familiarita_colesterolo_alto" value="si" id="famColSi" />
+                          <label class="form-check-label" for="famColSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="familiarita_colesterolo_alto" value="no" id="famColNo" />
+                          <label class="form-check-label" for="famColNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Fa attività fisica regolare?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_regolare_disli" value="si" id="attFisDisliSi" />
+                          <label class="form-check-label" for="attFisDisliSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="attivita_fisica_regolare_disli" value="no" id="attFisDisliNo" />
+                          <label class="form-check-label" for="attFisDisliNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha eseguito un controllo lipidico negli ultimi 12 mesi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controllo_lipidico_12_mesi" value="si" id="lipidicoSi" />
+                          <label class="form-check-label" for="lipidicoSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controllo_lipidico_12_mesi" value="no" id="lipidicoNo" />
+                          <label class="form-check-label" for="lipidicoNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="altro">
+                  <h6 class="fw-semibold">Altra patologia – Base</h6>
+                  <textarea class="form-control" name="altro_base_notes" rows="4" placeholder="Note sulla patologia"></textarea>
+                </div>
+              </section>
+
+              <!-- Step 5: Questionari specifici per patologia - Approfondito -->
+              <section class="wizard-step d-none" data-step="5">
+                <div class="d-none" data-condition-block="diabete">
+                  <h6 class="fw-semibold">Diabete – Questionario Approfondito</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Ha avuto episodi di ipoglicemia (tremori, sudore, confusione)?</label>
+                      <select class="form-select" name="episodi_ipoglicemia">
+                        <option value="">-- Seleziona --</option>
+                        <option value="mai">Mai</option>
+                        <option value="talvolta">Talvolta</option>
+                        <option value="spesso">Spesso</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Controlla la glicemia prima dei pasti o a orari fissi?</label>
+                      <select class="form-select" name="controllo_glicemia_orari">
+                        <option value="">-- Seleziona --</option>
+                        <option value="sempre">Sempre</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="mai">Mai</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Conserva correttamente l’insulina?</label>
+                      <select class="form-select" name="conservazione_insulina">
+                        <option value="">-- Seleziona --</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                        <option value="non_uso_insulina">Non uso insulina</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Effettua controlli periodici da diabetologo / oculista / podologo?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controlli_periodici_specialisti" value="si" id="controlliSpecSi" />
+                          <label class="form-check-label" for="controlliSpecSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="controlli_periodici_specialisti" value="no" id="controlliSpecNo" />
+                          <label class="form-check-label" for="controlliSpecNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha difficoltà a rispettare orari e dosaggi della terapia?</label>
+                      <select class="form-select" name="difficolta_rispettare_terapia">
+                        <option value="">-- Seleziona --</option>
+                        <option value="no">No</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="si">Sì</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha formicolii o ferite che guariscono lentamente?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="formicolii_ferite_lente" value="si" id="feriteLenteSi" />
+                          <label class="form-check-label" for="feriteLenteSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="formicolii_ferite_lente" value="no" id="feriteLenteNo" />
+                          <label class="form-check-label" for="feriteLenteNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="bpco">
+                  <h6 class="fw-semibold">BPCO – Questionario Approfondito</h6>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label">Dispnea (scala mMRC):</label>
+                      <select class="form-select" name="dispnea_mmrc">
+                        <option value="">-- Seleziona --</option>
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Quante riacutizzazioni ha avuto nell’ultimo anno?</label>
+                      <select class="form-select" name="riacutizzazioni_ultimo_anno">
+                        <option value="">-- Seleziona --</option>
+                        <option value="nessuna">Nessuna</option>
+                        <option value="1">1</option>
+                        <option value=">=2">≥2</option>
+                        <option value="ricovero_ospedaliero">Ricovero ospedaliero</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">È in grado di usare correttamente il dispositivo inalatorio?</label>
+                      <select class="form-select" name="usa_correttamente_dispositivo_inalatorio">
+                        <option value="">-- Seleziona --</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                        <option value="da_verificare">Da verificare</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha effetti collaterali (tosse post-inalazione, secchezza, tremori)?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_inalatori" value="si" id="collInalSi" />
+                          <label class="form-check-label" for="collInalSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_inalatori" value="no" id="collInalNo" />
+                          <label class="form-check-label" for="collInalNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Ha fatto una spirometria negli ultimi 12 mesi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="spirometria_12_mesi" value="si" id="spiroSi" />
+                          <label class="form-check-label" for="spiroSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="spirometria_12_mesi" value="no" id="spiroNo" />
+                          <label class="form-check-label" for="spiroNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">FEV1 (se disponibile dopo spirometria indica il volume espiatorio forzato nel 1 secondo)</label>
+                      <input type="text" class="form-control" name="fev1_percentuale" />
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="ipertensione">
+                  <h6 class="fw-semibold">Ipertensione – Questionario Approfondito</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Ultimi valori pressori medi: _______ / _______ mmHg</label>
+                      <input type="text" class="form-control" name="ultimi_valori_pressori" />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha episodi di gonfiore a gambe o caviglie?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="gonfiore_gambe_caviglie" value="si" id="gonfioreSi" />
+                          <label class="form-check-label" for="gonfioreSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="gonfiore_gambe_caviglie" value="no" id="gonfioreNo" />
+                          <label class="form-check-label" for="gonfioreNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha familiarità per ictus o infarto precoce?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="familiarita_ictus_infarto_precoce" value="si" id="famIctusSi" />
+                          <label class="form-check-label" for="famIctusSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="familiarita_ictus_infarto_precoce" value="no" id="famIctusNo" />
+                          <label class="form-check-label" for="famIctusNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Assume regolarmente la terapia antipertensiva?</label>
+                      <select class="form-select" name="aderenza_terapia_antipertensiva">
+                        <option value="">-- Seleziona --</option>
+                        <option value="sempre">Sempre</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ha effettuato ECG o telecardiologia negli ultimi 12 mesi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="ecg_telecardiologia_12_mesi" value="si" id="ecgSi" />
+                          <label class="form-check-label" for="ecgSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="ecg_telecardiologia_12_mesi" value="no" id="ecgNo" />
+                          <label class="form-check-label" for="ecgNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Presenta effetti collaterali dai farmaci (capogiri, tosse, stanchezza)?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_antipertensivi" value="si" id="collAntiSi" />
+                          <label class="form-check-label" for="collAntiSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_antipertensivi" value="no" id="collAntiNo" />
+                          <label class="form-check-label" for="collAntiNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="dislipidemia">
+                  <h6 class="fw-semibold">Dislipidemia – Questionario Approfondito</h6>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Valori recenti (se disponibili): Colesterolo Totale, LDL, HDL, Trigliceridi</label>
+                      <div class="row g-2">
+                        <div class="col-md-6">
+                          <input type="text" class="form-control" name="col_totale" placeholder="Colesterolo Totale" />
+                        </div>
+                        <div class="col-md-6">
+                          <input type="text" class="form-control" name="ldl" placeholder="LDL" />
+                        </div>
+                        <div class="col-md-6">
+                          <input type="text" class="form-control" name="hdl" placeholder="HDL" />
+                        </div>
+                        <div class="col-md-6">
+                          <input type="text" class="form-control" name="trigliceridi" placeholder="Trigliceridi" />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Diagnosi di ipercolesterolemia familiare?</label>
+                      <select class="form-select" name="ipercolesterolemia_familiare">
+                        <option value="">-- Seleziona --</option>
+                        <option value="si">Sì</option>
+                        <option value="no">No</option>
+                        <option value="in_valutazione">In valutazione</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Presenza di xantomi, arco corneale o xantelasmi?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="presenza_xantomi_arco_xantelasmi" value="si" id="xantomiSi" />
+                          <label class="form-check-label" for="xantomiSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="presenza_xantomi_arco_xantelasmi" value="no" id="xantomiNo" />
+                          <label class="form-check-label" for="xantomiNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Assunzione regolare del farmaco?</label>
+                      <select class="form-select" name="assunzione_regolare_farmaco_lipidico">
+                        <option value="">-- Seleziona --</option>
+                        <option value="sempre">Sempre</option>
+                        <option value="a_volte">A volte</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Effetti collaterali da statine (dolori muscolari, stanchezza)?</label>
+                      <div class="d-flex gap-3">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_statine" value="si" id="collStatineSi" />
+                          <label class="form-check-label" for="collStatineSi">Sì</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="effetti_collaterali_statine" value="no" id="collStatineNo" />
+                          <label class="form-check-label" for="collStatineNo">No</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Ultimo controllo medico e follow-up: ___ / ___ / ____</label>
+                      <input type="text" class="form-control" name="ultimo_controllo_medico_followup" />
+                    </div>
+                  </div>
+                </div>
+                <div class="d-none" data-condition-block="altro">
+                  <h6 class="fw-semibold">Altra patologia – Approfondito</h6>
+                  <textarea class="form-control" name="altro_approfondito_notes" rows="4" placeholder="Note sulla patologia"></textarea>
+                </div>
+              </section>
+
+              <!-- Step 6: Note farmacista, follow-up e caregiver -->
+              <section class="wizard-step d-none" data-step="6">
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label class="form-label">Punteggio di rischio / aderenza:</label>
+                    <input type="number" class="form-control" name="risk_score" />
+                  </div>
+                  <div class="col-md-9">
+                    <label class="form-label">Criticità rilevate:</label>
+                    <textarea class="form-control" name="criticita_rilevate" rows="2"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Educazione sanitaria / interventi proposti:</label>
+                    <textarea class="form-control" name="educazione_sanitaria" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Follow-up programmato: ___ / ___ / ____</label>
+                    <input type="date" class="form-control" name="followup_programmato" />
+                  </div>
+                </div>
+                <hr />
+                <div class="row g-3 mt-2">
+                  <div class="col-12">
+                    <h6 class="fw-semibold">Per il Caregiver</h6>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">È soddisfatto del questionario che le è stato sottoposto?</label>
+                    <textarea class="form-control" name="caregiver_soddisfazione_questionario" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Ha qualche altra informazione che secondo lei può essere utile al Farmacista per migliorare il monitoraggio dell’assistito?</label>
+                    <textarea class="form-control" name="caregiver_altre_informazioni" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">È interessato a ricevere un REPORT mensile sullo stato di salute del suo Familiare tramite mail o whatsapp?</label>
+                    <textarea class="form-control" name="caregiver_interesse_report" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">È favorevole a rilasciare presso questa Farmacia l’autorizzazione ad interagire direttamente con il medico curante del suo familiare?</label>
+                    <textarea class="form-control" name="caregiver_autorizza_interazione_medico" rows="2"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">È favorevole ad autorizzare questa Farmacia al ritiro di ricette mediche e referti medici presso lo Studio Medico del suo familiare?</label>
+                    <textarea class="form-control" name="caregiver_autorizza_ritiro_referti" rows="2"></textarea>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Step 7: Consenso informato e firme -->
+              <section class="wizard-step d-none" data-step="7">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="consenso_gdpr_cura" id="consensoGdprCura" />
+                      <label class="form-check-label" for="consensoGdprCura">Acconsento al trattamento dei dati personali ai sensi del Regolamento UE 679/2016 (GDPR) per finalità di cura, monitoraggio e follow-up.</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="consenso_contatto" id="consensoContatto" />
+                      <label class="form-check-label" for="consensoContatto">Acconsento a essere contattato dalla farmacia (WhatsApp / Email / Telefono) per promemoria e aggiornamenti terapeutici.</label>
+                    </div>
+                    <label class="form-label mt-2">Canale di contatto preferito</label>
+                    <input type="text" class="form-control" name="canale_contatto_preferito" />
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="consenso_dati_anonimi" id="consensoDatiAnonimi" />
+                      <label class="form-check-label" for="consensoDatiAnonimi">Acconsento in forma facoltativa all’uso anonimo dei miei dati per fini statistici e di miglioramento del servizio.</label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="border rounded p-3">
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Firma paziente/caregiver</label>
+                          <div class="mb-2">
+                            <select class="form-select" id="signatureType">
+                              <option value="graphical">Firma grafica</option>
+                              <option value="digital">Firma digitale</option>
+                            </select>
+                          </div>
+                          <div id="signatureCanvasWrapper" class="signature-wrapper border rounded p-2 mb-2">
+                            <canvas id="consentSignaturePad" height="180"></canvas>
+                          </div>
+                          <div id="digitalSignatureWrapper" class="d-none mb-2">
+                            <input type="text" class="form-control" name="digital_signature" placeholder="Inserisci nome e cognome per firma digitale" />
+                          </div>
+                          <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="clearSignatureButton">Cancella firma</button>
+                            <button type="button" class="btn btn-outline-primary" id="saveSignatureButton">Salva firma</button>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Data</label>
+                          <input type="date" class="form-control" name="data_firma" />
+                          <label class="form-label mt-3">Firma farmacista</label>
+                          <input type="text" class="form-control" name="firma_farmacista" />
+                          <label class="form-label mt-3">Luogo</label>
+                          <input type="text" class="form-control" name="luogo_firma" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
               <div class="wizard-controls d-flex justify-content-between mt-4">
                 <button
                   type="button"

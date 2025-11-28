@@ -61,9 +61,6 @@ CREATE TABLE jta_therapies (
     status ENUM('active','planned','completed','suspended') NOT NULL DEFAULT 'active',
     start_date DATE NULL,
     end_date DATE NULL,
-    metadata JSON NULL,
-    questionnaire JSON NULL,
-    caregivers JSON NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_therapy_pharma FOREIGN KEY (pharmacy_id) REFERENCES jta_pharmas(id) ON DELETE CASCADE,
@@ -79,6 +76,9 @@ CREATE TABLE jta_therapy_assistant (
     therapy_id INT UNSIGNED NOT NULL,
     assistant_id INT UNSIGNED NOT NULL,
     role ENUM('caregiver','familiare') NOT NULL,
+    preferences_json JSON NULL,
+    consents_json JSON NULL,
+    contact_channel VARCHAR(20) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_ta_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
     CONSTRAINT fk_ta_assistant FOREIGN KEY (assistant_id) REFERENCES jta_assistants(id) ON DELETE CASCADE,
@@ -95,44 +95,62 @@ CREATE TABLE jta_therapy_consents (
     signed_at DATETIME NOT NULL,
     ip_address VARCHAR(45) NULL,
     signature_image LONGBLOB NULL,
+    scopes_json JSON NULL,
+    signer_role VARCHAR(20) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_tc_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
     INDEX idx_tc_therapy (therapy_id),
     INDEX idx_tc_signer (signer_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/* QUESTIONARIO */
-CREATE TABLE jta_therapy_questionnaire (
+/* CRONICO: PRESA IN CARICO */
+CREATE TABLE jta_therapy_chronic_care (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     therapy_id INT UNSIGNED NOT NULL,
-    question VARCHAR(255) NOT NULL,
-    answer TEXT NULL,
+    primary_condition VARCHAR(50) NOT NULL,
+    care_context JSON NULL,
+    general_anamnesis JSON NULL,
+    detailed_intake JSON NULL,
+    adherence_base JSON NULL,
+    risk_score INT NULL,
+    flags JSON NULL,
+    notes_initial TEXT NULL,
+    follow_up_date DATE NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tq_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
-    INDEX idx_tq_therapy (therapy_id)
+    CONSTRAINT fk_tcc_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
+    INDEX idx_tcc_therapy (therapy_id),
+    INDEX idx_tcc_condition (primary_condition)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/* CHECK PERIODICI */
-CREATE TABLE jta_therapy_checks (
+/* QUESTIONARI PER PATOLOGIA */
+CREATE TABLE jta_therapy_condition_surveys (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     therapy_id INT UNSIGNED NOT NULL,
-    scheduled_at DATETIME NOT NULL,
-    notes JSON NULL,
+    condition VARCHAR(50) NOT NULL,
+    level ENUM('base','approfondito') NOT NULL,
+    answers JSON NULL,
+    compiled_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tc2_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
-    INDEX idx_tc2_therapy (therapy_id),
-    INDEX idx_tc2_date (scheduled_at)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_tcs_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
+    INDEX idx_tcs_therapy (therapy_id),
+    INDEX idx_tcs_condition (condition, level)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/* RISPOSTE AI CHECK */
-CREATE TABLE jta_therapy_check_answers (
+/* FOLLOW-UP CLINICI */
+CREATE TABLE jta_therapy_followups (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    check_id INT UNSIGNED NOT NULL,
-    question VARCHAR(255) NOT NULL,
-    answer TEXT NULL,
+    therapy_id INT UNSIGNED NOT NULL,
+    risk_score INT NULL,
+    pharmacist_notes TEXT NULL,
+    education_notes TEXT NULL,
+    snapshot JSON NULL,
+    follow_up_date DATE NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tca_check FOREIGN KEY (check_id) REFERENCES jta_therapy_checks(id) ON DELETE CASCADE
+    CONSTRAINT fk_tf_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
+    INDEX idx_tf_therapy (therapy_id),
+    INDEX idx_tf_followup (follow_up_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* REPORTS */
