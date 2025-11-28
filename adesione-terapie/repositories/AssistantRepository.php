@@ -42,6 +42,41 @@ class AssistantRepository
         db()->insert($this->assistantPivotTable, AdesioneTableResolver::filterData($this->assistantPivotTable, $data));
     }
 
+    public function upsertPivot(int $therapyId, int $assistantId, array $data): void
+    {
+        if (!$this->assistantPivotCols['therapy'] || !$this->assistantPivotCols['assistant']) {
+            return;
+        }
+
+        $therapyColumn = $this->assistantPivotCols['therapy'];
+        $assistantColumn = $this->assistantPivotCols['assistant'];
+        $idColumn = $this->assistantPivotCols['id'];
+
+        $existing = db_fetch_one(
+            "SELECT `{$idColumn}` FROM `{$this->assistantPivotTable}` WHERE `{$therapyColumn}` = ? AND `{$assistantColumn}` = ? LIMIT 1",
+            [$therapyId, $assistantId]
+        );
+
+        $payload = $data;
+        $payload[$therapyColumn] = $therapyId;
+        $payload[$assistantColumn] = $assistantId;
+
+        $filtered = AdesioneTableResolver::filterData($this->assistantPivotTable, $payload);
+
+        if ($existing) {
+            unset($filtered[$therapyColumn], $filtered[$assistantColumn]);
+            db()->update(
+                $this->assistantPivotTable,
+                $filtered,
+                "`{$therapyColumn}` = ? AND `{$assistantColumn}` = ?",
+                [$therapyId, $assistantId]
+            );
+            return;
+        }
+
+        db()->insert($this->assistantPivotTable, $filtered);
+    }
+
     public function listByTherapy(int $therapyId, ?int $pharmacyId): array
     {
         if (!$this->assistantPivotCols['therapy'] || !$this->assistantPivotCols['assistant']) {

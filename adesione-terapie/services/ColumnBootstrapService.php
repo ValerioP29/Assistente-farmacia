@@ -12,9 +12,6 @@ class ColumnBootstrapService
         string $assistantsTable,
         string $assistantPivotTable,
         string $consentsTable,
-        string $questionnairesTable,
-        string $checksTable,
-        string $checkAnswersTable,
         string $remindersTable,
         string $reportsTable
     ): array {
@@ -24,9 +21,6 @@ class ColumnBootstrapService
             'assistantCols' => $this->resolveAssistantColumns($assistantsTable),
             'assistantPivotCols' => $this->resolveAssistantPivotColumns($assistantPivotTable),
             'consentCols' => $this->resolveConsentColumns($consentsTable),
-            'questionnaireCols' => $this->resolveQuestionnaireColumns($questionnairesTable),
-            'checkCols' => $this->resolveCheckColumns($checksTable),
-            'checkAnswerCols' => $this->resolveCheckAnswerColumns($checkAnswersTable),
             'reminderCols' => $this->resolveReminderColumns($remindersTable),
             'reportCols' => $this->resolveReportColumns($reportsTable),
         ];
@@ -59,9 +53,6 @@ class ColumnBootstrapService
             'status' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['status', 'stato']),
             'start_date' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['start_date', 'data_inizio', 'inizio']),
             'end_date' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['end_date', 'data_fine', 'fine']),
-            'metadata' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['metadata', 'extra_data', 'payload', 'data', 'details_json']),
-            'questionnaire' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['questionnaire', 'questionario', 'questionnaire_data', 'questionario_data']),
-            'caregivers' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['caregivers', 'caregiver_json', 'assistenti']),
             'updated_at' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['updated_at']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($therapiesTable, ['created_at'])
         ];
@@ -88,6 +79,9 @@ class ColumnBootstrapService
             'therapy' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['therapy_id']),
             'assistant' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['assistant_id']),
             'role' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['role']),
+            'contact_channel' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['contact_channel']),
+            'preferences_json' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['preferences_json']),
+            'consents_json' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['consents_json']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($assistantPivotTable, ['created_at']),
         ];
     }
@@ -104,42 +98,6 @@ class ColumnBootstrapService
             'ip' => AdesioneTableResolver::firstAvailableColumn($consentsTable, ['ip_address', 'ip']),
             'signed_at' => AdesioneTableResolver::firstAvailableColumn($consentsTable, ['signed_at']),
             'created_at' => AdesioneTableResolver::firstAvailableColumn($consentsTable, ['created_at'])
-        ];
-    }
-
-    private function resolveQuestionnaireColumns(string $questionnairesTable): array
-    {
-        return [
-            'id' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['id', 'questionnaire_id']),
-            'therapy' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['therapy_id', 'id_therapy']),
-            'question' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['question']),
-            'answer' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['answer']),
-            'created_at' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['created_at']),
-            'updated_at' => AdesioneTableResolver::firstAvailableColumn($questionnairesTable, ['updated_at'])
-        ];
-    }
-
-    private function resolveCheckColumns(string $checksTable): array
-    {
-        return [
-            'id' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['id', 'check_id', 'id_check']),
-            'therapy' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['therapy_id', 'id_therapy']),
-            'scheduled_at' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['scheduled_at', 'check_date', 'data_controllo', 'data_visita']),
-            'notes' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['notes']),
-            'questions_payload' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['questions_payload', 'questions_json']),
-            'answers_payload' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['answers_payload', 'answers_json']),
-            'created_at' => AdesioneTableResolver::firstAvailableColumn($checksTable, ['created_at'])
-        ];
-    }
-
-    private function resolveCheckAnswerColumns(string $checkAnswersTable): array
-    {
-        return [
-            'id' => AdesioneTableResolver::firstAvailableColumn($checkAnswersTable, ['id', 'answer_id', 'id_answer']),
-            'check' => AdesioneTableResolver::firstAvailableColumn($checkAnswersTable, ['check_id', 'id_check']),
-            'question' => AdesioneTableResolver::firstAvailableColumn($checkAnswersTable, ['question', 'question_key']),
-            'answer' => AdesioneTableResolver::firstAvailableColumn($checkAnswersTable, ['answer', 'value']),
-            'created_at' => AdesioneTableResolver::firstAvailableColumn($checkAnswersTable, ['created_at']),
         ];
     }
 

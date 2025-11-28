@@ -2,107 +2,76 @@
 
 namespace Modules\AdesioneTerapie\Services;
 
-use AdesioneTableResolver;
-use RuntimeException;
-use Modules\AdesioneTerapie\Repositories\ConsentRepository;
-
 class ConsentService
 {
-    private ConsentRepository $consentRepository;
-    private array $consentCols;
-    private $cleanCallback;
-    private $nowCallback;
+    private string $table = 'jta_therapy_consents';
 
-    public function __construct(ConsentRepository $consentRepository, array $consentCols, callable $cleanCallback, callable $nowCallback)
+    public function save($therapyId, array $payload): array
     {
-        $this->consentRepository = $consentRepository;
-        $this->consentCols = $consentCols;
-        $this->cleanCallback = $cleanCallback;
-        $this->nowCallback = $nowCallback;
+        $data = [
+            'therapy_id' => $therapyId,
+            'signer_name' => $this->cleanString($payload['signer_name'] ?? ''),
+            'signer_relation' => $this->cleanString($payload['signer_relation'] ?? 'patient'),
+            'signer_role' => $this->cleanString($payload['signer_role'] ?? ''),
+            'consent_text' => $this->cleanString($payload['consent_text'] ?? 'Consenso informato registrato'),
+            'scopes_json' => $this->encodeJson($payload['scopes'] ?? ($payload['scopes_json'] ?? [])),
+            'ip_address' => $this->cleanString($payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? '')),
+            'signed_at' => $payload['signed_at'] ?? date('Y-m-d H:i:s'),
+        ];
+
+        $signatureBinary = $this->normalizeSignatureImage($payload['signature_image'] ?? null);
+        if ($signatureBinary !== null) {
+            $data['signature_image'] = $signatureBinary;
+        }
+
+        if (!empty($payload['created_at'])) {
+            $data['created_at'] = $payload['created_at'];
+        }
+
+        db()->insert($this->table, $data);
+
+        return $this->latest($therapyId);
     }
 
-    public function storeConsent(int $therapyId, int $patientId, array $payload): void
+    public function list($therapyId): array
     {
-        if (!$this->consentCols['therapy']) {
-            return;
-        }
-
-        $existing = $this->consentRepository->findLatestByTherapy($therapyId);
-
-        $data = [];
-        $data[$this->consentCols['therapy']] = $therapyId;
-
-        if ($this->consentCols['signer_name']) {
-            $data[$this->consentCols['signer_name']] = $this->clean($payload['signer_name'] ?? '');
-        }
-        if ($this->consentCols['signer_relation']) {
-            $data[$this->consentCols['signer_relation']] = $this->clean($payload['signer_relation'] ?? 'patient');
-        }
-        if ($this->consentCols['consent_text']) {
-            $text = $payload['consent_text'] ?? '';
-            $data[$this->consentCols['consent_text']] = $this->clean($text !== '' ? $text : 'Consenso informato registrato');
-        }
-        if ($this->consentCols['signature_image'] && !empty($payload['signature_image'])) {
-            $signatureBinary = $this->normalizeSignatureImage($payload['signature_image']);
-            if ($signatureBinary !== null) {
-                $data[$this->consentCols['signature_image']] = $signatureBinary;
-            }
-        }
-        if ($this->consentCols['ip']) {
-            $data[$this->consentCols['ip']] = $this->clean($payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
-        }
-        if ($this->consentCols['signed_at']) {
-            $data[$this->consentCols['signed_at']] = $payload['signed_at'] ?? $this->now();
-        }
-        if ($this->consentCols['created_at'] && !$existing) {
-            $data[$this->consentCols['created_at']] = $this->now();
-        }
-
-        $filtered = $this->consentRepository->filterData($data);
-
-        if ($existing) {
-            $existingId = $existing[$this->consentCols['id']] ?? $existing['id'] ?? null;
-            if ($existingId) {
-                $this->consentRepository->update((int)$existingId, $filtered, $this->consentCols['id']);
-            }
-        } else {
-            $this->consentRepository->insert($filtered);
-        }
+        $sql = "SELECT * FROM {$this->table} WHERE therapy_id = ? ORDER BY signed_at DESC, id DESC";
+        $rows = db_fetch_all($sql, [$therapyId]);
+        return array_map(fn($row) => $this->format($row), $rows ?: []);
     }
 
-    public function getConsent(int $therapyId): array
+    private function latest($therapyId): array
     {
-        if (!$this->consentCols['therapy']) {
-            return [];
-        }
-        $row = $this->consentRepository->findLatestByTherapy($therapyId);
-        if (!$row) {
-            return [];
-        }
-
-        return $this->formatConsent($row);
+        $sql = "SELECT * FROM {$this->table} WHERE therapy_id = ? ORDER BY signed_at DESC, id DESC LIMIT 1";
+        $row = db_fetch_one($sql, [$therapyId]);
+        return $row ? $this->format($row) : [];
     }
 
-    public function formatConsent(array $consent): array
+    private function format(array $row): array
     {
         return [
-            'signer_name' => $this->consentCols['signer_name'] ? ($consent[$this->consentCols['signer_name']] ?? '') : '',
-            'signer_relation' => $this->consentCols['signer_relation'] ? ($consent[$this->consentCols['signer_relation']] ?? '') : '',
-            'consent_text' => $this->consentCols['consent_text'] ? ($consent[$this->consentCols['consent_text']] ?? '') : '',
-            'signature_image' => $this->consentCols['signature_image'] ? $this->buildSignatureDataUrl($consent[$this->consentCols['signature_image']] ?? '') : '',
-            'ip_address' => $this->consentCols['ip'] ? ($consent[$this->consentCols['ip']] ?? '') : '',
-            'signed_at' => $this->consentCols['signed_at'] ? ($consent[$this->consentCols['signed_at']] ?? '') : '',
+            'id' => (int)($row['id'] ?? 0),
+            'therapy_id' => (int)($row['therapy_id'] ?? 0),
+            'signer_name' => $row['signer_name'] ?? '',
+            'signer_relation' => $row['signer_relation'] ?? '',
+            'signer_role' => $row['signer_role'] ?? '',
+            'consent_text' => $row['consent_text'] ?? '',
+            'scopes' => $this->decodeJson($row['scopes_json'] ?? null),
+            'signature_image' => $this->buildSignatureDataUrl($row['signature_image'] ?? null),
+            'ip_address' => $row['ip_address'] ?? '',
+            'signed_at' => $row['signed_at'] ?? null,
+            'created_at' => $row['created_at'] ?? null,
         ];
     }
 
-    private function normalizeSignatureImage(?string $raw): ?string
+    private function normalizeSignatureImage($raw): ?string
     {
         if (!$raw) {
             return null;
         }
 
-        $clean = trim($raw);
-        if (str_contains($clean, ',')) {
+        $clean = trim((string)$raw);
+        if (strpos($clean, ',') !== false) {
             [$maybeMeta, $maybeData] = explode(',', $clean, 2);
             if (str_starts_with($maybeMeta, 'data:image')) {
                 $clean = $maybeData;
@@ -111,18 +80,18 @@ class ConsentService
 
         $binary = base64_decode($clean, true);
         if ($binary === false || $binary === '') {
-            throw new RuntimeException('Formato della firma non valido.');
+            return null;
         }
 
         $info = @getimagesizefromstring($binary);
         if ($info === false) {
-            throw new RuntimeException('La firma non è un\'immagine valida.');
+            return null;
         }
 
         return $binary;
     }
 
-    private function buildSignatureDataUrl(?string $stored): string
+    private function buildSignatureDataUrl($stored): string
     {
         if (!$stored) {
             return '';
@@ -137,13 +106,26 @@ class ConsentService
         return 'data:' . $mime . ';base64,' . base64_encode($stored);
     }
 
-    private function clean(?string $value): string
+    private function encodeJson($value): ?string
     {
-        return call_user_func($this->cleanCallback, $value);
+        if ($value === null) {
+            return null;
+        }
+        return json_encode($value);
     }
 
-    private function now(): string
+    private function decodeJson($value): array
     {
-        return call_user_func($this->nowCallback);
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function cleanString(?string $value): string
+    {
+        return trim((string)($value ?? ''));
     }
 }

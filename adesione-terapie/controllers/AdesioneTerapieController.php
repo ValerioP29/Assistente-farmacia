@@ -3,28 +3,23 @@ require_once __DIR__ . '/../models/TableResolver.php';
 require_once __DIR__ . '/../repositories/PatientRepository.php';
 require_once __DIR__ . '/../repositories/TherapyRepository.php';
 require_once __DIR__ . '/../repositories/AssistantRepository.php';
-require_once __DIR__ . '/../repositories/ConsentRepository.php';
-require_once __DIR__ . '/../repositories/QuestionnaireRepository.php';
-require_once __DIR__ . '/../repositories/CheckRepository.php';
-require_once __DIR__ . '/../repositories/CheckAnswerRepository.php';
-require_once __DIR__ . '/../repositories/ReminderRepository.php';
-require_once __DIR__ . '/../repositories/ReportRepository.php';
-require_once __DIR__ . '/../services/FormattingService.php';
-require_once __DIR__ . '/../services/TherapyMetadataService.php';
-require_once __DIR__ . '/../services/QuestionnaireService.php';
-require_once __DIR__ . '/../services/ConsentService.php';
-require_once __DIR__ . '/../services/ChecklistService.php';
-require_once __DIR__ . '/../services/CheckAnswerService.php';
-require_once __DIR__ . '/../services/ReportService.php';
-require_once __DIR__ . '/../services/TimelineService.php';
-require_once __DIR__ . '/../services/ReminderService.php';
 require_once __DIR__ . '/../services/ColumnBootstrapService.php';
 require_once __DIR__ . '/../services/ValidationService.php';
-require_once __DIR__ . '/PatientsController.php';
-require_once __DIR__ . '/TherapiesController.php';
-require_once __DIR__ . '/ChecksController.php';
-require_once __DIR__ . '/RemindersController.php';
-require_once __DIR__ . '/ReportsController.php';
+require_once __DIR__ . '/../services/ChronicCareService.php';
+require_once __DIR__ . '/../services/ConditionSurveyService.php';
+require_once __DIR__ . '/../services/FollowupService.php';
+require_once __DIR__ . '/../services/ConsentService.php';
+
+use Modules\AdesioneTerapie\Repositories\AssistantRepository;
+use Modules\AdesioneTerapie\Repositories\PatientRepository;
+use Modules\AdesioneTerapie\Repositories\TherapyRepository;
+use Modules\AdesioneTerapie\Services\ChronicCareService;
+use Modules\AdesioneTerapie\Services\ColumnBootstrapService;
+use Modules\AdesioneTerapie\Services\ConditionSurveyService;
+use Modules\AdesioneTerapie\Services\ConsentService;
+use Modules\AdesioneTerapie\Services\FollowupService;
+use Modules\AdesioneTerapie\Services\ValidationService;
+use RuntimeException;
 
 class AdesioneTerapieController
 {
@@ -35,9 +30,6 @@ class AdesioneTerapieController
     private string $assistantsTable;
     private string $assistantPivotTable;
     private string $consentsTable;
-    private string $questionnairesTable;
-    private string $checksTable;
-    private string $checkAnswersTable;
     private string $remindersTable;
     private string $reportsTable;
 
@@ -46,68 +38,229 @@ class AdesioneTerapieController
     private array $assistantCols = [];
     private array $assistantPivotCols = [];
     private array $consentCols = [];
-    private array $questionnaireCols = [];
-    private array $checkCols = [];
-    private array $checkAnswerCols = [];
-    private array $reminderCols = [];
-    private array $reportCols = [];
 
-    private \Modules\AdesioneTerapie\Controllers\PatientsController $patientsController;
-    private \Modules\AdesioneTerapie\Controllers\TherapiesController $therapiesController;
-    private \Modules\AdesioneTerapie\Controllers\ChecksController $checksController;
-    private \Modules\AdesioneTerapie\Controllers\RemindersController $remindersController;
-    private \Modules\AdesioneTerapie\Controllers\ReportsController $reportsController;
-    private \Modules\AdesioneTerapie\Services\QuestionnaireService $questionnaireService;
-    private \Modules\AdesioneTerapie\Services\ConsentService $consentService;
-    private \Modules\AdesioneTerapie\Services\FormattingService $formattingService;
-    private \Modules\AdesioneTerapie\Services\ReportService $reportService;
-    private \Modules\AdesioneTerapie\Services\TimelineService $timelineService;
-    private \Modules\AdesioneTerapie\Services\ValidationService $validationService;
+    private TherapyRepository $therapyRepository;
+    private PatientRepository $patientRepository;
+    private AssistantRepository $assistantRepository;
+
+    private ValidationService $validationService;
+    private ChronicCareService $chronicCareService;
+    private ConditionSurveyService $conditionSurveyService;
+    private FollowupService $followupService;
+    private ConsentService $consentService;
 
     public function __construct(int $pharmacyId)
     {
         $this->pharmacyId = $pharmacyId;
 
-        // Tabelle
-        $this->patientsTable        = 'jta_patients';
-        $this->therapiesTable       = 'jta_therapies';
-        $this->assistantsTable      = 'jta_assistants';
-        $this->assistantPivotTable  = 'jta_therapy_assistant';
-        $this->consentsTable        = 'jta_therapy_consents';
-        $this->questionnairesTable  = 'jta_therapy_questionnaire';
-        $this->checksTable          = 'jta_therapy_checks';
-        $this->checkAnswersTable    = 'jta_therapy_check_answers';
-        $this->remindersTable       = 'jta_therapy_reminders';
-        $this->reportsTable         = 'jta_therapy_reports';
+        $this->patientsTable = 'jta_patients';
+        $this->therapiesTable = 'jta_therapies';
+        $this->assistantsTable = 'jta_assistants';
+        $this->assistantPivotTable = 'jta_therapy_assistant';
+        $this->consentsTable = 'jta_therapy_consents';
+        $this->remindersTable = 'jta_therapy_reminders';
+        $this->reportsTable = 'jta_therapy_reports';
 
         $this->bootstrapColumns();
 
-        // Servizi base
-        $this->validationService   = new \Modules\AdesioneTerapie\Services\ValidationService();
-        $this->formattingService   = new \Modules\AdesioneTerapie\Services\FormattingService();
-        $this->reportService       = new \Modules\AdesioneTerapie\Services\ReportService();
-        $this->timelineService     = new \Modules\AdesioneTerapie\Services\TimelineService();
-        $this->questionnaireService = $this->makeQuestionnaireService();
-        $this->consentService       = $this->makeConsentService();
+        $this->validationService = new ValidationService();
+        $this->chronicCareService = new ChronicCareService();
+        $this->conditionSurveyService = new ConditionSurveyService();
+        $this->followupService = new FollowupService();
+        $this->consentService = new ConsentService();
 
-        $this->patientsController   = $this->makePatientsController();
-        $this->therapiesController  = $this->makeTherapiesController();
-        $this->checksController     = $this->makeChecksController();
-        $this->remindersController  = $this->makeRemindersController();
-        $this->reportsController    = $this->makeReportsController();
+        $this->patientRepository = new PatientRepository($this->patientsTable, $this->patientCols);
+        $this->therapyRepository = new TherapyRepository(
+            $this->therapiesTable,
+            $this->therapyCols,
+            $this->patientsTable,
+            $this->patientCols
+        );
+        $this->assistantRepository = new AssistantRepository(
+            $this->assistantsTable,
+            $this->assistantCols,
+            $this->assistantPivotTable,
+            $this->assistantPivotCols
+        );
+    }
+
+    public function saveChronicM1(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $data = $this->chronicCareService->saveInitial($therapyId, [
+            'primary_condition' => $payload['primary_condition'] ?? '',
+            'care_context' => $payload['care_context'] ?? [],
+            'general_anamnesis' => $payload['general_anamnesis'] ?? [],
+            'detailed_intake' => $payload['detailed_intake'] ?? [],
+            'adherence_base' => $payload['adherence_base'] ?? [],
+            'risk_score' => $payload['risk_score'] ?? null,
+            'flags' => $payload['flags'] ?? [],
+            'notes_initial' => $payload['notes_initial'] ?? '',
+            'follow_up_date' => $payload['follow_up_date'] ?? null,
+        ]);
+
+        return ['chronic_care' => $data];
+    }
+
+    public function saveAnamnesiGenerale(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $data = $this->chronicCareService->update($therapyId, [
+            'general_anamnesis' => $payload['general_anamnesis'] ?? [],
+        ]);
+
+        return ['chronic_care' => $data];
+    }
+
+    public function saveAnamnesiSpecifica(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $data = $this->chronicCareService->update($therapyId, [
+            'detailed_intake' => $payload['detailed_intake'] ?? [],
+            'primary_condition' => $payload['primary_condition'] ?? null,
+        ]);
+
+        return ['chronic_care' => $data];
+    }
+
+    public function saveAderenzaBase(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $data = $this->chronicCareService->update($therapyId, [
+            'adherence_base' => $payload['adherence_base'] ?? [],
+            'risk_score' => $payload['risk_score'] ?? null,
+            'flags' => $payload['flags'] ?? null,
+        ]);
+
+        return ['chronic_care' => $data];
+    }
+
+    public function saveConditionBase(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $condition = $this->validationService->clean($payload['condition'] ?? '');
+        if ($condition === '') {
+            throw new RuntimeException('Condizione patologica mancante');
+        }
+
+        $survey = $this->conditionSurveyService->save(
+            $therapyId,
+            $condition,
+            'base',
+            is_array($payload['answers'] ?? null) ? $payload['answers'] : []
+        );
+
+        return ['survey' => $survey];
+    }
+
+    public function saveConditionApprofondita(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $condition = $this->validationService->clean($payload['condition'] ?? '');
+        if ($condition === '') {
+            throw new RuntimeException('Condizione patologica mancante');
+        }
+
+        $survey = $this->conditionSurveyService->save(
+            $therapyId,
+            $condition,
+            'approfondito',
+            is_array($payload['answers'] ?? null) ? $payload['answers'] : []
+        );
+
+        return ['survey' => $survey];
+    }
+
+    public function saveFollowupIniziale(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $followup = $this->followupService->register($therapyId, [
+            'risk_score' => $payload['risk_score'] ?? null,
+            'pharmacist_notes' => $payload['pharmacist_notes'] ?? ($payload['notes_initial'] ?? ''),
+            'education_notes' => $payload['education_notes'] ?? '',
+            'snapshot' => $payload['snapshot'] ?? null,
+            'follow_up_date' => $payload['follow_up_date'] ?? null,
+        ]);
+
+        $chronic = $this->chronicCareService->update($therapyId, [
+            'risk_score' => $payload['risk_score'] ?? null,
+            'flags' => $payload['flags'] ?? null,
+            'notes_initial' => $payload['pharmacist_notes'] ?? ($payload['notes_initial'] ?? ''),
+            'follow_up_date' => $payload['follow_up_date'] ?? null,
+        ]);
+
+        return [
+            'followup' => $followup,
+            'chronic_care' => $chronic,
+        ];
+    }
+
+    public function saveConsensiFirma(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $consent = $this->consentService->save($therapyId, [
+            'signer_name' => $payload['signer_name'] ?? '',
+            'signer_relation' => $payload['signer_relation'] ?? '',
+            'signer_role' => $payload['signer_role'] ?? '',
+            'consent_text' => $payload['consent_text'] ?? '',
+            'scopes' => $payload['scopes'] ?? [],
+            'signature_image' => $payload['signature_image'] ?? null,
+            'ip_address' => $payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''),
+            'signed_at' => $payload['signed_at'] ?? null,
+        ]);
+
+        return ['consent' => $consent];
+    }
+
+    public function saveCaregiverPreferences(array $payload): array
+    {
+        $therapyId = $this->requireTherapyId($payload);
+        $this->verifyTherapyOwnership($therapyId);
+
+        $assistantId = isset($payload['assistant_id']) ? (int)$payload['assistant_id'] : 0;
+        if ($assistantId <= 0) {
+            throw new RuntimeException('assistant_id mancante per le preferenze caregiver');
+        }
+
+        $this->assistantRepository->upsertPivot($therapyId, $assistantId, [
+            'contact_channel' => $this->validationService->clean($payload['contact_channel'] ?? ''),
+            'preferences_json' => $this->encodeJsonField($payload['preferences'] ?? null),
+            'consents_json' => $this->encodeJsonField($payload['consents'] ?? null),
+        ]);
+
+        return [
+            'therapy_id' => $therapyId,
+            'assistant_id' => $assistantId,
+            'contact_channel' => $payload['contact_channel'] ?? '',
+            'preferences' => $payload['preferences'] ?? [],
+            'consents' => $payload['consents'] ?? [],
+        ];
     }
 
     private function bootstrapColumns(): void
     {
-        $columns = (new \Modules\AdesioneTerapie\Services\ColumnBootstrapService())->bootstrap(
+        $columns = (new ColumnBootstrapService())->bootstrap(
             $this->patientsTable,
             $this->therapiesTable,
             $this->assistantsTable,
             $this->assistantPivotTable,
             $this->consentsTable,
-            $this->questionnairesTable,
-            $this->checksTable,
-            $this->checkAnswersTable,
             $this->remindersTable,
             $this->reportsTable
         );
@@ -117,285 +270,31 @@ class AdesioneTerapieController
         $this->assistantCols = $columns['assistantCols'];
         $this->assistantPivotCols = $columns['assistantPivotCols'];
         $this->consentCols = $columns['consentCols'];
-        $this->questionnaireCols = $columns['questionnaireCols'];
-        $this->checkCols = $columns['checkCols'];
-        $this->checkAnswerCols = $columns['checkAnswerCols'];
-        $this->reminderCols = $columns['reminderCols'];
-        $this->reportCols = $columns['reportCols'];
     }
 
-    private function makePatientsController(): \Modules\AdesioneTerapie\Controllers\PatientsController
+    private function requireTherapyId(array $payload): int
     {
-        return new \Modules\AdesioneTerapie\Controllers\PatientsController(
-            new \Modules\AdesioneTerapie\Repositories\PatientRepository($this->patientsTable, $this->patientCols),
-            $this->formattingService,
-            $this->pharmacyId,
-            $this->patientCols,
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now']
-        );
+        $therapyId = isset($payload['therapy_id']) ? (int)$payload['therapy_id'] : 0;
+        if ($therapyId <= 0) {
+            throw new RuntimeException('therapy_id obbligatorio per questa operazione');
+        }
+
+        return $therapyId;
     }
 
-    private function makeChecksController(): \Modules\AdesioneTerapie\Controllers\ChecksController
-    {
-        $checkRepository = new \Modules\AdesioneTerapie\Repositories\CheckRepository(
-            $this->checksTable,
-            $this->checkCols,
-            $this->therapiesTable,
-            $this->therapyCols
-        );
-
-        return new \Modules\AdesioneTerapie\Controllers\ChecksController(
-            $checkRepository,
-
-            new \Modules\AdesioneTerapie\Services\CheckAnswerService(
-                new \Modules\AdesioneTerapie\Repositories\CheckAnswerRepository(
-                    $this->checkAnswersTable,
-                    $this->checkAnswerCols
-                ),
-                $this->checkAnswerCols,
-                [$this->validationService, 'now']
-            ),
-
-            new \Modules\AdesioneTerapie\Services\ChecklistService(
-                $checkRepository,
-                $this->questionnaireService,
-                $this->checkCols
-            ),
-
-            $this->formattingService,
-            $this->questionnaireService,
-            $this->pharmacyId,
-            $this->checkCols,
-            $this->therapyCols,
-
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now'],
-            [$this->therapiesController, 'verifyTherapyOwnership']
-        );
-    }
-
-    private function makeRemindersController(): \Modules\AdesioneTerapie\Controllers\RemindersController
-    {
-        $notificationService = class_exists('\\NotificationService') ? new \NotificationService() : null;
-
-        return new \Modules\AdesioneTerapie\Controllers\RemindersController(
-            new \Modules\AdesioneTerapie\Repositories\ReminderRepository(
-                $this->remindersTable,
-                $this->reminderCols,
-                $this->therapiesTable,
-                $this->therapyCols
-            ),
-            $this->formattingService,
-            new \Modules\AdesioneTerapie\Services\ReminderService($notificationService),
-            $this->pharmacyId,
-            $this->reminderCols,
-            $this->therapyCols,
-
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now'],
-            [$this->therapiesController, 'verifyTherapyOwnership']
-        );
-    }
-
-   private function makeReportsController(): \Modules\AdesioneTerapie\Controllers\ReportsController
-    {
-        return new \Modules\AdesioneTerapie\Controllers\ReportsController(
-            new \Modules\AdesioneTerapie\Repositories\ReportRepository(
-                $this->reportsTable,
-                $this->reportCols
-            ),
-            $this->formattingService,
-            $this->reportService,
-            $this->pharmacyId,
-            $this->reportCols,
-
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now'],
-            [$this->therapiesController, 'verifyTherapyOwnership'],
-            [$this, 'findTherapy'],
-            [$this, 'listChecks']
-        );
-    }
-
-    private function makeTherapiesController(): \Modules\AdesioneTerapie\Controllers\TherapiesController
-    {
-        return new \Modules\AdesioneTerapie\Controllers\TherapiesController(
-            new \Modules\AdesioneTerapie\Repositories\TherapyRepository(
-                $this->therapiesTable,
-                $this->therapyCols,
-                $this->patientsTable,
-                $this->patientCols
-            ),
-            new \Modules\AdesioneTerapie\Repositories\AssistantRepository(
-                $this->assistantsTable,
-                $this->assistantCols,
-                $this->assistantPivotTable,
-                $this->assistantPivotCols
-            ),
-            $this->formattingService,
-            new \Modules\AdesioneTerapie\Services\TherapyMetadataService(),
-            $this->questionnaireService,
-            $this->consentService,
-            $this->pharmacyId,
-            $this->therapyCols,
-            $this->patientCols,
-            $this->assistantCols,
-            $this->assistantPivotCols,
-
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now'],
-            [$this->patientsController, 'savePatient'],
-            [$this, 'listChecks'],
-            [$this, 'listReminders'],
-            [$this, 'listReports'],
-            [$this->timelineService, 'getLastCheck'],
-            [$this->timelineService, 'getUpcomingReminder']
-        );
-    }
-
-    private function makeQuestionnaireService(): \Modules\AdesioneTerapie\Services\QuestionnaireService
-    {
-        return new \Modules\AdesioneTerapie\Services\QuestionnaireService(
-            new \Modules\AdesioneTerapie\Repositories\QuestionnaireRepository($this->questionnairesTable, $this->questionnaireCols),
-            $this->questionnaireCols,
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now']
-        );
-    }
-
-    private function makeConsentService(): \Modules\AdesioneTerapie\Services\ConsentService
-    {
-        return new \Modules\AdesioneTerapie\Services\ConsentService(
-            new \Modules\AdesioneTerapie\Repositories\ConsentRepository($this->consentsTable, $this->consentCols),
-            $this->consentCols,
-            [$this->validationService, 'clean'],
-            [$this->validationService, 'now']
-        );
-    }
-
-    public function getInitialData(): array
-    {
-        $patients = $this->listPatients();
-        $therapies = $this->listTherapies();
-        $checks = $this->listChecks();
-        $reminders = $this->listReminders();
-        $reports = $this->listReports();
-
-        $timeline = $this->timelineService->buildTimeline($checks, $reminders);
-
-        $executionChecks = array_filter($checks, static function ($check) {
-            return ($check['type'] ?? 'execution') !== 'checklist';
-        });
-
-        $stats = [
-            'patients' => count($patients),
-            'therapies' => count($therapies),
-            'checks' => count(array_filter($executionChecks, static function ($check) {
-                return isset($check['scheduled_at']) && strtotime($check['scheduled_at']) >= time();
-            })),
-            'reminders' => count(array_filter($reminders, static function ($reminder) {
-                return isset($reminder['scheduled_at']) && strtotime($reminder['scheduled_at']) >= time();
-            })),
-        ];
-
-        return [
-            'patients' => $patients,
-            'therapies' => $therapies,
-            'checks' => $checks,
-            'reminders' => $reminders,
-            'reports' => $reports,
-            'timeline' => $timeline,
-            'stats' => $stats,
-        ];
-    }
-
-    public function savePatient(array $payload): array
-    {
-        return $this->patientsController->savePatient($payload);
-    }
-
-    public function saveTherapy(array $payload): array
-    {
-        return $this->therapiesController->saveTherapy($payload);
-    }
-
-    public function saveCheck(array $payload): array
-    {
-        return $this->checksController->saveCheck($payload);
-    }
-
-    public function saveChecklist(array $payload): array
-    {
-        return $this->checksController->saveChecklist($payload);
-    }
-
-    public function saveCheckExecution(array $payload): array
-    {
-        return $this->checksController->saveCheckExecution($payload);
-    }
-
-    public function saveReminder(array $payload): array
-    {
-        return $this->remindersController->saveReminder($payload);
-    }
-
-    public function generateReport(array $payload): array
-    {
-        return $this->reportsController->generateReport($payload);
-    }
-
-    /**
-     * Verifica che una terapia appartenga alla farmacia corrente
-     */
     public function verifyTherapyOwnership(int $therapyId): void
     {
-        $this->therapiesController->verifyTherapyOwnership($therapyId);
+        if ($this->therapyCols['pharmacy'] && !$this->therapyRepository->existsForPharmacy($therapyId, $this->pharmacyId)) {
+            throw new RuntimeException('Terapia non trovata o non appartenente alla farmacia corrente');
+        }
     }
 
-    public function findPatient(int $patientId): array
+    private function encodeJsonField($value): ?string
     {
-        return $this->patientsController->findPatient($patientId);
-    }
+        if ($value === null) {
+            return null;
+        }
 
-    public function findTherapy(int $therapyId): array
-    {
-        return $this->therapiesController->findTherapy($therapyId);
+        return json_encode($value);
     }
-
-    public function findCheck(int $checkId): array
-    {
-        return $this->checksController->findCheck($checkId);
-    }
-
-    public function findReminder(int $reminderId): array
-    {
-        return $this->remindersController->findReminder($reminderId);
-    }
-
-    public function listPatients(): array
-    {
-        return $this->patientsController->listPatients();
-    }
-
-    public function listTherapies(): array
-    {
-        return $this->therapiesController->listTherapies();
-    }
-
-    public function listChecks(?int $therapyId = null): array
-    {
-        return $this->checksController->listChecks($therapyId);
-    }
-
-    public function listReminders(?int $therapyId = null): array
-    {
-        return $this->remindersController->listReminders($therapyId);
-    }
-
-    public function listReports(?int $therapyId = null): array
-    {
-        return $this->reportsController->listReports($therapyId);
-    }
-
 }

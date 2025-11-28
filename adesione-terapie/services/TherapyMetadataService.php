@@ -21,47 +21,16 @@ class TherapyMetadataService
 
     public function applyMetadataColumns(array &$therapyData, array $metadataPayload, array $therapyCols): void
     {
-        if ($therapyCols['metadata']) {
-            $therapyData[$therapyCols['metadata']] = json_encode($metadataPayload, JSON_UNESCAPED_UNICODE);
-        }
-        if ($therapyCols['questionnaire']) {
-            $therapyData[$therapyCols['questionnaire']] = json_encode($metadataPayload['questionnaire'], JSON_UNESCAPED_UNICODE);
-        }
-        if ($therapyCols['caregivers']) {
-            $therapyData[$therapyCols['caregivers']] = json_encode($metadataPayload['caregivers'], JSON_UNESCAPED_UNICODE);
-        }
+        // TODO: CHRONIC_REWRITE - legacy therapy JSON columns (metadata/questionnaire/caregivers) are deprecated.
     }
 
     public function extractMetadata(array $therapy, array $therapyCols): array
     {
-        $metadata = [];
-        if ($therapyCols['metadata'] && !empty($therapy[$therapyCols['metadata']])) {
-            $decoded = json_decode($therapy[$therapyCols['metadata']], true);
-            if (is_array($decoded)) {
-                $metadata = $decoded;
-            }
-        }
-
-        $caregivers = $metadata['caregivers'] ?? [];
-        if ($therapyCols['caregivers'] && !empty($therapy[$therapyCols['caregivers']])) {
-            $decoded = json_decode($therapy[$therapyCols['caregivers']], true);
-            if (is_array($decoded)) {
-                $caregivers = $decoded;
-            }
-        }
-
-        $questionnaire = $metadata['questionnaire'] ?? [];
-        if ($therapyCols['questionnaire'] && !empty($therapy[$therapyCols['questionnaire']])) {
-            $decoded = json_decode($therapy[$therapyCols['questionnaire']], true);
-            if (is_array($decoded)) {
-                $questionnaire = $decoded;
-            }
-        }
-
+        // TODO: CHRONIC_REWRITE - legacy metadata extraction disabled; returning empty payloads.
         return [
-            'metadata' => $metadata,
-            'caregivers' => $caregivers,
-            'questionnaire' => $questionnaire,
+            'metadata' => [],
+            'caregivers' => [],
+            'questionnaire' => [],
         ];
     }
 }

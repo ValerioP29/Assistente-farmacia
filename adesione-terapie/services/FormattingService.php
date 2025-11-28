@@ -28,7 +28,12 @@ class FormattingService
 
     public function formatTherapy(array $therapy, array $therapyCols, array $patientCols, TherapyMetadataService $metadataService): array
     {
-        $metadata = $metadataService->extractMetadata($therapy, $therapyCols);
+        // TODO: CHRONIC_REWRITE - legacy metadata/questionnaire fields are deprecated.
+        $metadata = [
+            'metadata' => [],
+            'caregivers' => [],
+            'questionnaire' => [],
+        ];
 
         $patientName = trim(($therapy['patient_first_name'] ?? '') . ' ' . ($therapy['patient_last_name'] ?? ''));
 
@@ -43,6 +48,7 @@ class FormattingService
             'status' => $therapyCols['status'] ? ($therapy[$therapyCols['status']] ?? 'active') : 'active',
             'start_date' => $therapyCols['start_date'] ? ($therapy[$therapyCols['start_date']] ?? null) : null,
             'end_date' => $therapyCols['end_date'] ? ($therapy[$therapyCols['end_date']] ?? null) : null,
+            // Deprecated legacy JSON fields (metadata/questionnaire/caregivers)
             'caregivers' => $metadata['caregivers'],
             'questionnaire' => $metadata['questionnaire'],
             'metadata' => $metadata['metadata'],
@@ -81,6 +87,7 @@ class FormattingService
         if ($questionsPayloadRaw !== '') {
             $decodedQuestions = json_decode($questionsPayloadRaw, true);
             if (is_array($decodedQuestions)) {
+                // TODO: CHRONIC_REWRITE - checklist question formatting is legacy.
                 $questions = $questionnaireService->normalizeChecklistQuestions($decodedQuestions);
             }
         }
@@ -92,6 +99,7 @@ class FormattingService
             $notesText = $decoded['notes'] ?? '';
             $actions = $decoded['actions'] ?? '';
             if (!empty($decoded['questions']) && is_array($decoded['questions'])) {
+                // TODO: CHRONIC_REWRITE - checklist question formatting is legacy.
                 $questions = $questionnaireService->normalizeChecklistQuestions($decoded['questions']);
             }
         } elseif ($rawNotes !== '') {

@@ -56,6 +56,7 @@ class ChecksController
 
     public function saveChecklist(array $payload): array
     {
+        // TODO: CHRONIC_REWRITE - legacy checklist flow slated for removal.
         $checkId = isset($payload['check_id']) && $payload['check_id'] !== '' ? (int)$payload['check_id'] : null;
         $therapyId = isset($payload['therapy_id']) && $payload['therapy_id'] !== '' ? (int)$payload['therapy_id'] : (int)($payload['therapy_reference'] ?? 0);
 

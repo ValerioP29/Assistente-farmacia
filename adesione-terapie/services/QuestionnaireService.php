@@ -23,78 +23,14 @@ class QuestionnaireService
 
     public function storeQuestionnaire(int $therapyId, array $answers): void
     {
-        if (!is_array($answers) || empty($answers)) {
-            return;
-        }
-
-        if (!$this->hasValidColumns()) {
-            return;
-        }
-
-        $this->questionnaireRepository->deleteByTherapy($therapyId);
-
-        foreach ($answers as $step => $stepAnswers) {
-            if (!is_array($stepAnswers)) {
-                continue;
-            }
-
-            $stepKey = $this->clean((string)$step);
-            foreach ($stepAnswers as $questionKey => $answer) {
-                $cleanAnswer = $this->clean($answer ?? '');
-                if ($cleanAnswer === '') {
-                    continue;
-                }
-
-                $questionValue = $stepKey . '|' . $this->clean((string)$questionKey);
-                $row = [
-                    $this->questionnaireCols['therapy'] => $therapyId,
-                    $this->questionnaireCols['question'] => $questionValue,
-                    $this->questionnaireCols['answer'] => $cleanAnswer,
-                ];
-
-                if ($this->questionnaireCols['created_at']) {
-                    $row[$this->questionnaireCols['created_at']] = $this->now();
-                }
-                if ($this->questionnaireCols['updated_at']) {
-                    $row[$this->questionnaireCols['updated_at']] = $this->now();
-                }
-
-                $this->questionnaireRepository->insert(
-                    $this->questionnaireRepository->filterData($row)
-                );
-            }
-        }
+        // TODO: CHRONIC_REWRITE - legacy flat questionnaire persistence has been disabled.
+        // Intentionally left blank to avoid writes on jta_therapy_questionnaire.
     }
 
     public function getQuestionnaire(int $therapyId): array
     {
-        if (!$this->questionnaireCols['therapy']) {
-            return [];
-        }
-        $rows = $this->questionnaireRepository->listByTherapy($therapyId);
-
-        if (!$rows) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($rows as $row) {
-            $questionRaw = $row[$this->questionnaireCols['question']] ?? '';
-            $answerValue = $row[$this->questionnaireCols['answer']] ?? '';
-            $step = '1';
-            $questionKey = $questionRaw;
-
-            if (str_contains($questionRaw, '|')) {
-                [$step, $questionKey] = explode('|', $questionRaw, 2);
-            }
-
-            if (!isset($result[$step])) {
-                $result[$step] = [];
-            }
-            $result[$step][$questionKey] = $answerValue;
-        }
-
-        return $result;
+        // TODO: CHRONIC_REWRITE - legacy flat questionnaire retrieval is deprecated.
+        return [];
     }
 
     private function hasValidColumns(): bool
