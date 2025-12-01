@@ -10,7 +10,11 @@ import * as signature from './signature.js';
 
 export { api, state, utils, ui, events, logic, signature };
 
+let moduleInitialized = false;
+
 export function initializeAdesioneTerapieModule({ routesBase, csrfToken, moduleRoot }) {
+  if (moduleInitialized) return;
+  moduleInitialized = true;
   const dom = ui.buildDomReferences(moduleRoot || document);
   events.initializeEvents({ routesBase, csrfToken, dom });
 }
