@@ -192,14 +192,15 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
   }
 
   if (dom.newTherapyButton && modals.therapy) {
-    dom.newTherapyButton.addEventListener('click', (e) => {
-      e.preventDefault();
-      resetWizardData();
-      ui.showStep(WIZARD_STEPS[0], dom);
-      signature.clearSignature({ dom, state });
-      signature.updateSignatureMode({ dom });
-      modals.therapy.show();
+   dom.newTherapyButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        modals.therapy.show();             
+        resetWizardData();                 
+        ui.showStep(WIZARD_STEPS[0], dom); 
+        signature.clearSignature({ dom, state });
+        signature.updateSignatureMode({ dom });
     });
+
   }
 
   if (dom.newCheckButton && modals.check) {
