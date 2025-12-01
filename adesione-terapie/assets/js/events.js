@@ -3,7 +3,14 @@ import * as api from './api.js';
 import * as ui from './ui.js';
 import * as logic from './logic.js';
 import * as signature from './signature.js';
-import { getState, setState, WIZARD_STEPS } from './state.js';
+import { getState, resetWizardData, setState, WIZARD_STEPS } from './state.js';
+
+function createModalInstance(element) {
+  if (!element || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+    return null;
+  }
+  return new bootstrap.Modal(element);
+}
 
 function getBaseMetadata(dom) {
   return {
@@ -60,6 +67,31 @@ function bindConditionSelectors(dom) {
     input.addEventListener('change', () => handleConditionSelection(dom));
   });
   handleConditionSelection(dom);
+}
+
+function formToJson(form) {
+  const data = {};
+  const formData = new FormData(form);
+  formData.forEach((value, key) => {
+    if (data[key]) {
+      if (!Array.isArray(data[key])) {
+        data[key] = [data[key]];
+      }
+      data[key].push(value);
+    } else {
+      data[key] = value;
+    }
+  });
+  return data;
+}
+
+async function refreshPatients(dom) {
+  try {
+    const response = await api.listPatients();
+    ui.renderPatientsList(dom, response.data || []);
+  } catch (error) {
+    ui.showAlert(error.message || 'Errore nel caricamento dei pazienti', 'danger');
+  }
 }
 
 function navigateTo(stepKey, dom) {
@@ -128,6 +160,69 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
   const state = getState();
   setState({ routesBase, csrfToken });
 
+  const modals = {
+    patient: createModalInstance(dom.patientModal),
+    therapy: createModalInstance(dom.therapyModal),
+    check: createModalInstance(dom.checkModal),
+    reminder: createModalInstance(dom.reminderModal),
+    report: createModalInstance(dom.reportModal),
+  };
+
+  if (dom.newPatientButton && modals.patient) {
+    dom.newPatientButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      modals.patient.show();
+    });
+  }
+
+  if (dom.patientForm) {
+    dom.patientForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = formToJson(dom.patientForm);
+      try {
+        await api.savePatient(payload);
+        ui.showAlert('Paziente salvato con successo', 'success');
+        modals.patient?.hide();
+        dom.patientForm.reset();
+        await refreshPatients(dom);
+      } catch (error) {
+        ui.showAlert(error.message || 'Errore nel salvataggio del paziente', 'danger');
+      }
+    });
+  }
+
+  if (dom.newTherapyButton && modals.therapy) {
+    dom.newTherapyButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetWizardData();
+      ui.showStep(WIZARD_STEPS[0], dom);
+      signature.clearSignature({ dom, state });
+      signature.updateSignatureMode({ dom });
+      modals.therapy.show();
+    });
+  }
+
+  if (dom.newCheckButton && modals.check) {
+    dom.newCheckButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      modals.check.show();
+    });
+  }
+
+  if (dom.newReminderButton && modals.reminder) {
+    dom.newReminderButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      modals.reminder.show();
+    });
+  }
+
+  if (dom.exportReportButton && modals.report) {
+    dom.exportReportButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      modals.report.show();
+    });
+  }
+
   if (dom.prevButton) {
     dom.prevButton.addEventListener('click', (e) => {
       e.preventDefault();
@@ -149,7 +244,29 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     });
   }
 
+  if (dom.clearSignatureButton) {
+    dom.clearSignatureButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      signature.clearSignature({ dom, state });
+    });
+  }
+
+  if (dom.saveSignatureButton) {
+    dom.saveSignatureButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      signature.saveSignature({ dom, state, showAlert: ui.showAlert });
+    });
+  }
+
+  if (dom.signatureTypeSelect) {
+    dom.signatureTypeSelect.addEventListener('change', () => {
+      signature.updateSignatureMode({ dom });
+    });
+    signature.updateSignatureMode({ dom });
+  }
+
   bindConditionSelectors(dom);
   ui.showStep(state.currentStep, dom);
   signature.initializeSignaturePad({ dom, state });
+  refreshPatients(dom);
 }

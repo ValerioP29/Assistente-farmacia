@@ -37,6 +37,18 @@ function postAction(action, payload = {}) {
   });
 }
 
+function getAction(action) {
+  return fetchJSON(`${routesBase}?action=${encodeURIComponent(action)}`);
+}
+
+export function savePatient(payload) {
+  return postAction('save_patient', payload);
+}
+
+export function listPatients() {
+  return getAction('list_patients');
+}
+
 export function saveChronicM1(payload) {
   return postAction('save_chronic_M1', payload);
 }
