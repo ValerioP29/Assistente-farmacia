@@ -127,15 +127,18 @@ CREATE TABLE jta_therapy_chronic_care (
 CREATE TABLE jta_therapy_condition_surveys (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     therapy_id INT UNSIGNED NOT NULL,
-    condition VARCHAR(50) NOT NULL,
+    condition_type VARCHAR(50) NOT NULL,
     level ENUM('base','approfondito') NOT NULL,
     answers JSON NULL,
     compiled_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_tcs_therapy FOREIGN KEY (therapy_id) REFERENCES jta_therapies(id) ON DELETE CASCADE,
+    
+    CONSTRAINT fk_tcs_therapy FOREIGN KEY (therapy_id)
+        REFERENCES jta_therapies(id) ON DELETE CASCADE,
+
     INDEX idx_tcs_therapy (therapy_id),
-    INDEX idx_tcs_condition (condition, level)
+    INDEX idx_tcs_condition (condition_type, level)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* FOLLOW-UP CLINICI */
