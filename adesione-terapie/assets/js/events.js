@@ -69,6 +69,31 @@ function bindConditionSelectors(dom) {
   handleConditionSelection(dom);
 }
 
+function formToJson(form) {
+  const data = {};
+  const formData = new FormData(form);
+  formData.forEach((value, key) => {
+    if (data[key]) {
+      if (!Array.isArray(data[key])) {
+        data[key] = [data[key]];
+      }
+      data[key].push(value);
+    } else {
+      data[key] = value;
+    }
+  });
+  return data;
+}
+
+async function refreshPatients(dom) {
+  try {
+    const response = await api.listPatients();
+    ui.renderPatientsList(dom, response.data || []);
+  } catch (error) {
+    ui.showAlert(error.message || 'Errore nel caricamento dei pazienti', 'danger');
+  }
+}
+
 function navigateTo(stepKey, dom) {
   const state = getState();
   setState({ currentStep: stepKey });
@@ -150,6 +175,22 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     });
   }
 
+  if (dom.patientForm) {
+    dom.patientForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = formToJson(dom.patientForm);
+      try {
+        await api.savePatient(payload);
+        ui.showAlert('Paziente salvato con successo', 'success');
+        modals.patient?.hide();
+        dom.patientForm.reset();
+        await refreshPatients(dom);
+      } catch (error) {
+        ui.showAlert(error.message || 'Errore nel salvataggio del paziente', 'danger');
+      }
+    });
+  }
+
   if (dom.newTherapyButton && modals.therapy) {
     dom.newTherapyButton.addEventListener('click', (e) => {
       e.preventDefault();
@@ -227,4 +268,5 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
   bindConditionSelectors(dom);
   ui.showStep(state.currentStep, dom);
   signature.initializeSignaturePad({ dom, state });
+  refreshPatients(dom);
 }

@@ -3,6 +3,17 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth_middleware.php';
 require_once __DIR__ . '/controllers/AdesioneTerapieController.php';
+require_once __DIR__ . '/controllers/PatientsController.php';
+require_once __DIR__ . '/repositories/PatientRepository.php';
+require_once __DIR__ . '/services/ColumnBootstrapService.php';
+require_once __DIR__ . '/services/FormattingService.php';
+require_once __DIR__ . '/services/ValidationService.php';
+
+use Modules\AdesioneTerapie\Controllers\PatientsController;
+use Modules\AdesioneTerapie\Repositories\PatientRepository;
+use Modules\AdesioneTerapie\Services\ColumnBootstrapService;
+use Modules\AdesioneTerapie\Services\FormattingService;
+use Modules\AdesioneTerapie\Services\ValidationService;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -62,6 +73,8 @@ $allowedActions = [
     'save_followup_iniziale',
     'save_consensi_firma',
     'save_caregiver_preferences',
+    'save_patient',
+    'list_patients',
 ];
 
 if (!in_array($action, $allowedActions, true)) {
@@ -71,9 +84,40 @@ if (!in_array($action, $allowedActions, true)) {
 }
 
 $controller = new AdesioneTerapieController($pharmacyId);
+$columnBootstrap = new ColumnBootstrapService();
+$columns = $columnBootstrap->bootstrap(
+    'jta_patients',
+    'jta_therapies',
+    'jta_assistants',
+    'jta_therapy_assistant',
+    'jta_therapy_consents',
+    'jta_therapy_reminders',
+    'jta_therapy_reports'
+);
+$patientCols = $columns['patientCols'];
+$formattingService = new FormattingService();
+$validationService = new ValidationService();
+$patientsController = new PatientsController(
+    new PatientRepository('jta_patients', $patientCols),
+    $formattingService,
+    $pharmacyId,
+    $patientCols,
+    [$validationService, 'clean'],
+    [$validationService, 'now']
+);
 
 try {
     switch ($action) {
+        case 'save_patient':
+            $data = $patientsController->savePatient($payload);
+            echo json_encode(['success' => true, 'data' => $data]);
+            break;
+
+        case 'list_patients':
+            $data = $patientsController->listPatients();
+            echo json_encode(['success' => true, 'data' => $data]);
+            break;
+
         case 'save_chronic_M1':
             $data = $controller->saveChronicM1($payload);
             echo json_encode(['success' => true, 'data' => $data]);

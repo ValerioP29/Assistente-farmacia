@@ -32,6 +32,7 @@ export function buildDomReferences(moduleRoot = document) {
     therapyForm: scoped('#therapyForm'),
     checkForm: scoped('#checkForm'),
     reminderForm: scoped('#reminderForm'),
+    patientsList: scoped('#patientsList'),
     conditionSelector: scopedAll('[name="patologia_selezionata"]'),
     signatureImageInput: scoped('#signatureImageInput'),
     signatureCanvas: scoped('#consentSignaturePad'),
@@ -85,4 +86,35 @@ export function showAlert(message, type = 'info') {
   } else {
     alert(message);
   }
+}
+
+export function renderPatientsList(dom, patients = []) {
+  if (!dom.patientsList) return;
+  if (!Array.isArray(patients) || patients.length === 0) {
+    dom.patientsList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-user-friends"></i>
+        <p>Nessun paziente registrato. Aggiungi un nuovo paziente per iniziare.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const items = patients
+    .map((patient) => {
+      const name = [patient.first_name, patient.last_name].filter(Boolean).join(' ') || 'Paziente';
+      const phone = patient.phone ? `<span class="text-muted small"><i class="fas fa-phone me-1"></i>${patient.phone}</span>` : '';
+      const email = patient.email ? `<span class="text-muted small"><i class="fas fa-envelope me-1"></i>${patient.email}</span>` : '';
+      return `
+        <div class="patient-card">
+          <div>
+            <div class="fw-semibold">${name}</div>
+            <div class="d-flex flex-wrap gap-2">${phone}${email}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  dom.patientsList.innerHTML = items;
 }
