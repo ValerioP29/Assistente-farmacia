@@ -1,38 +1,51 @@
 // UI helpers for the chronic-care wizard.
 import { WIZARD_STEPS } from './state.js';
 
-export function buildDomReferences(moduleRoot = document) {
-  const scoped = (sel) => moduleRoot.querySelector(sel);
-  const scopedAll = (sel) => Array.from(moduleRoot.querySelectorAll(sel));
+export function buildStepMap(root) {
   const stepMap = {};
-  scopedAll('.wizard-step').forEach((node) => {
+  if (!root) return stepMap;
+  root.querySelectorAll('.wizard-step').forEach((node) => {
     const key = node.dataset.step || node.getAttribute('data-step');
     if (key) {
       stepMap[key] = node;
     }
   });
+  return stepMap;
+}
+
+export function buildDomReferences(moduleRoot = document) {
+  const therapyRoot =
+    moduleRoot?.querySelector?.('#therapyModal') ||
+    document.querySelector('#therapyModal') ||
+    moduleRoot ||
+    document;
+
+  const scoped = (sel) => therapyRoot.querySelector(sel);
+  const scopedAll = (sel) => Array.from(therapyRoot.querySelectorAll(sel));
+  const docScoped = (sel) => document.querySelector(sel);
+
   return {
-    moduleRoot,
-    stepMap,
+    moduleRoot: therapyRoot,
+    stepMap: buildStepMap(therapyRoot),
     stepIndicators: scopedAll('[data-step-indicator]'),
     nextButton: scoped('#nextStepButton'),
     prevButton: scoped('#prevStepButton'),
     submitButton: scoped('#submitTherapyButton'),
-    newPatientButton: scoped('#newPatientButton'),
-    newTherapyButton: scoped('#newTherapyButton'),
-    newCheckButton: scoped('#newCheckButton'),
-    newReminderButton: scoped('#newReminderButton'),
-    exportReportButton: scoped('#exportReportButton'),
-    patientModal: scoped('#patientModal'),
-    therapyModal: scoped('#therapyModal'),
-    checkModal: scoped('#checkModal'),
-    reminderModal: scoped('#reminderModal'),
-    reportModal: scoped('#reportModal'),
-    patientForm: scoped('#patientForm'),
+    newPatientButton: docScoped('#newPatientButton'),
+    newTherapyButton: docScoped('#newTherapyButton'),
+    newCheckButton: docScoped('#newCheckButton'),
+    newReminderButton: docScoped('#newReminderButton'),
+    exportReportButton: docScoped('#exportReportButton'),
+    patientModal: docScoped('#patientModal'),
+    therapyModal: therapyRoot,
+    checkModal: docScoped('#checkModal'),
+    reminderModal: docScoped('#reminderModal'),
+    reportModal: docScoped('#reportModal'),
+    patientForm: docScoped('#patientForm'),
     therapyForm: scoped('#therapyForm'),
-    checkForm: scoped('#checkForm'),
-    reminderForm: scoped('#reminderForm'),
-    patientsList: scoped('#patientsList'),
+    checkForm: docScoped('#checkForm'),
+    reminderForm: docScoped('#reminderForm'),
+    patientsList: docScoped('#patientsList'),
     conditionSelector: scopedAll('[name="patologia_selezionata"]'),
     signatureImageInput: scoped('#signatureImageInput'),
     signatureCanvas: scoped('#consentSignaturePad'),
@@ -44,6 +57,13 @@ export function buildDomReferences(moduleRoot = document) {
     therapyIdInput: scoped('[name="therapy_id"]'),
     patientIdInput: scoped('[name="patient_id"]'),
   };
+}
+
+export function rebuildStepMap(dom) {
+  if (!dom?.moduleRoot) return {};
+  const nextMap = buildStepMap(dom.moduleRoot);
+  dom.stepMap = nextMap;
+  return nextMap;
 }
 
 export function showStep(stepKey, dom) {

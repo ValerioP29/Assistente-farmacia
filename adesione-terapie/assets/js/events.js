@@ -5,6 +5,8 @@ import * as logic from './logic.js';
 import * as signature from './signature.js';
 import { getState, resetWizardData, setState, WIZARD_STEPS } from './state.js';
 
+let eventsInitialized = false;
+
 function createModalInstance(element) {
   if (!element || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
     return null;
@@ -64,7 +66,9 @@ function handleConditionSelection(dom) {
 function bindConditionSelectors(dom) {
   if (!dom.conditionSelector) return;
   dom.conditionSelector.forEach((input) => {
+    if (input.dataset.bound === 'true') return;
     input.addEventListener('change', () => handleConditionSelection(dom));
+    input.dataset.bound = 'true';
   });
   handleConditionSelection(dom);
 }
@@ -156,9 +160,13 @@ async function proceed(stepDelta, dom) {
 }
 
 export function initializeEvents({ routesBase, csrfToken, dom }) {
+  if (eventsInitialized) return;
+  eventsInitialized = true;
+
   api.configureApi({ routesBase, csrfToken });
   const state = getState();
   setState({ routesBase, csrfToken });
+  const startStep = WIZARD_STEPS[0];
 
   const modals = {
     patient: createModalInstance(dom.patientModal),
@@ -192,15 +200,14 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
   }
 
   if (dom.newTherapyButton && modals.therapy) {
-   dom.newTherapyButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        modals.therapy.show();             
-        resetWizardData();                 
-        ui.showStep(WIZARD_STEPS[0], dom); 
-        signature.clearSignature({ dom, state });
-        signature.updateSignatureMode({ dom });
+    dom.newTherapyButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      modals.therapy.show();
+      resetWizardData();
+      setState({ currentStep: startStep });
+      signature.clearSignature({ dom, state });
+      signature.updateSignatureMode({ dom });
     });
-
   }
 
   if (dom.newCheckButton && modals.check) {
@@ -266,8 +273,20 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     signature.updateSignatureMode({ dom });
   }
 
-  bindConditionSelectors(dom);
-  ui.showStep(state.currentStep, dom);
-  signature.initializeSignaturePad({ dom, state });
+  const ensureStepMapAndShow = () => {
+    ui.rebuildStepMap(dom);
+    const currentStep = getState().currentStep || startStep;
+    const safeStep = dom.stepMap[currentStep] ? currentStep : startStep;
+    setState({ currentStep: safeStep });
+    ui.showStep(safeStep, dom);
+    signature.initializeSignaturePad({ dom, state: getState() });
+    signature.updateSignatureMode({ dom });
+    bindConditionSelectors(dom);
+  };
+
+  if (dom.therapyModal) {
+    dom.therapyModal.addEventListener('shown.bs.modal', ensureStepMapAndShow);
+  }
+
   refreshPatients(dom);
 }
