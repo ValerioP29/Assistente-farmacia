@@ -115,16 +115,18 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $data = $this->chronicCareService->saveInitial($therapyId, [
-            'primary_condition' => $payload['primary_condition'] ?? '',
-            'care_context' => $payload['care_context'] ?? [],
-            'general_anamnesis' => $payload['general_anamnesis'] ?? [],
-            'detailed_intake' => $payload['detailed_intake'] ?? [],
-            'adherence_base' => $payload['adherence_base'] ?? [],
-            'risk_score' => $payload['risk_score'] ?? null,
-            'flags' => $payload['flags'] ?? [],
-            'notes_initial' => $payload['notes_initial'] ?? '',
-            'follow_up_date' => $payload['follow_up_date'] ?? null,
+            'primary_condition' => $input['primary_condition'] ?? '',
+            'care_context' => $input['care_context'] ?? [],
+            'general_anamnesis' => $input['general_anamnesis'] ?? [],
+            'detailed_intake' => $input['detailed_intake'] ?? [],
+            'adherence_base' => $input['adherence_base'] ?? [],
+            'risk_score' => $input['risk_score'] ?? null,
+            'flags' => $input['flags'] ?? [],
+            'notes_initial' => $input['notes_initial'] ?? '',
+            'follow_up_date' => $input['follow_up_date'] ?? null,
         ]);
 
         return ['chronic_care' => $data];
@@ -135,8 +137,10 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $data = $this->chronicCareService->update($therapyId, [
-            'general_anamnesis' => $payload['general_anamnesis'] ?? [],
+            'general_anamnesis' => $input['general_anamnesis'] ?? [],
         ]);
 
         return ['chronic_care' => $data];
@@ -147,9 +151,11 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $data = $this->chronicCareService->update($therapyId, [
-            'detailed_intake' => $payload['detailed_intake'] ?? [],
-            'primary_condition' => $payload['primary_condition'] ?? null,
+            'detailed_intake' => $input['detailed_intake'] ?? [],
+            'primary_condition' => $input['primary_condition'] ?? null,
         ]);
 
         return ['chronic_care' => $data];
@@ -160,10 +166,12 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $data = $this->chronicCareService->update($therapyId, [
-            'adherence_base' => $payload['adherence_base'] ?? [],
-            'risk_score' => $payload['risk_score'] ?? null,
-            'flags' => $payload['flags'] ?? null,
+            'adherence_base' => $input['adherence_base'] ?? [],
+            'risk_score' => $input['risk_score'] ?? null,
+            'flags' => $input['flags'] ?? null,
         ]);
 
         return ['chronic_care' => $data];
@@ -174,7 +182,9 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
-        $condition = $this->validationService->clean($payload['condition'] ?? '');
+        $input = $payload['payload'] ?? $payload;
+
+        $condition = $this->validationService->clean($input['condition'] ?? '');
         if ($condition === '') {
             throw new RuntimeException('Condizione patologica mancante');
         }
@@ -183,7 +193,7 @@ class AdesioneTerapieController
             $therapyId,
             $condition,
             'base',
-            is_array($payload['answers'] ?? null) ? $payload['answers'] : []
+            is_array($input['answers'] ?? null) ? $input['answers'] : []
         );
 
         return ['survey' => $survey];
@@ -194,7 +204,9 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
-        $condition = $this->validationService->clean($payload['condition'] ?? '');
+        $input = $payload['payload'] ?? $payload;
+
+        $condition = $this->validationService->clean($input['condition'] ?? '');
         if ($condition === '') {
             throw new RuntimeException('Condizione patologica mancante');
         }
@@ -203,7 +215,7 @@ class AdesioneTerapieController
             $therapyId,
             $condition,
             'approfondito',
-            is_array($payload['answers'] ?? null) ? $payload['answers'] : []
+            is_array($input['answers'] ?? null) ? $input['answers'] : []
         );
 
         return ['survey' => $survey];
@@ -214,19 +226,21 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $followup = $this->followupService->register($therapyId, [
-            'risk_score' => $payload['risk_score'] ?? null,
-            'pharmacist_notes' => $payload['pharmacist_notes'] ?? ($payload['notes_initial'] ?? ''),
-            'education_notes' => $payload['education_notes'] ?? '',
-            'snapshot' => $payload['snapshot'] ?? null,
-            'follow_up_date' => $payload['follow_up_date'] ?? null,
+            'risk_score' => $input['risk_score'] ?? null,
+            'pharmacist_notes' => $input['pharmacist_notes'] ?? ($input['notes_initial'] ?? ''),
+            'education_notes' => $input['education_notes'] ?? '',
+            'snapshot' => $input['snapshot'] ?? null,
+            'follow_up_date' => $input['follow_up_date'] ?? null,
         ]);
 
         $chronic = $this->chronicCareService->update($therapyId, [
-            'risk_score' => $payload['risk_score'] ?? null,
-            'flags' => $payload['flags'] ?? null,
-            'notes_initial' => $payload['pharmacist_notes'] ?? ($payload['notes_initial'] ?? ''),
-            'follow_up_date' => $payload['follow_up_date'] ?? null,
+            'risk_score' => $input['risk_score'] ?? null,
+            'flags' => $input['flags'] ?? null,
+            'notes_initial' => $input['pharmacist_notes'] ?? ($input['notes_initial'] ?? ''),
+            'follow_up_date' => $input['follow_up_date'] ?? null,
         ]);
 
         return [
@@ -240,15 +254,17 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
+        $input = $payload['payload'] ?? $payload;
+
         $consent = $this->consentService->save($therapyId, [
-            'signer_name' => $payload['signer_name'] ?? '',
-            'signer_relation' => $payload['signer_relation'] ?? '',
-            'signer_role' => $payload['signer_role'] ?? '',
-            'consent_text' => $payload['consent_text'] ?? '',
-            'scopes' => $payload['scopes'] ?? [],
-            'signature_image' => $payload['signature_image'] ?? null,
+            'signer_name' => $input['signer_name'] ?? '',
+            'signer_relation' => $input['signer_relation'] ?? '',
+            'signer_role' => $input['signer_role'] ?? '',
+            'consent_text' => $input['consent_text'] ?? '',
+            'scopes' => $input['scopes'] ?? [],
+            'signature_image' => $input['signature_image'] ?? null,
             'ip_address' => $payload['ip_address'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''),
-            'signed_at' => $payload['signed_at'] ?? null,
+            'signed_at' => $input['signed_at'] ?? null,
         ]);
 
         return ['consent' => $consent];
@@ -259,23 +275,25 @@ class AdesioneTerapieController
         $therapyId = $this->requireTherapyId($payload);
         $this->verifyTherapyOwnership($therapyId);
 
-        $assistantId = isset($payload['assistant_id']) ? (int)$payload['assistant_id'] : 0;
+        $input = $payload['payload'] ?? $payload;
+
+        $assistantId = isset($input['assistant_id']) ? (int)$input['assistant_id'] : 0;
         if ($assistantId <= 0) {
             throw new RuntimeException('assistant_id mancante per le preferenze caregiver');
         }
 
         $this->assistantRepository->upsertPivot($therapyId, $assistantId, [
-            'contact_channel' => $this->validationService->clean($payload['contact_channel'] ?? ''),
-            'preferences_json' => $this->encodeJsonField($payload['preferences'] ?? null),
-            'consents_json' => $this->encodeJsonField($payload['consents'] ?? null),
+            'contact_channel' => $this->validationService->clean($input['contact_channel'] ?? ''),
+            'preferences_json' => $this->encodeJsonField($input['preferences'] ?? null),
+            'consents_json' => $this->encodeJsonField($input['consents'] ?? null),
         ]);
 
         return [
             'therapy_id' => $therapyId,
             'assistant_id' => $assistantId,
-            'contact_channel' => $payload['contact_channel'] ?? '',
-            'preferences' => $payload['preferences'] ?? [],
-            'consents' => $payload['consents'] ?? [],
+            'contact_channel' => $input['contact_channel'] ?? '',
+            'preferences' => $input['preferences'] ?? [],
+            'consents' => $input['consents'] ?? [],
         ];
     }
 
