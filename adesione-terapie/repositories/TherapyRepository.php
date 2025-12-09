@@ -24,6 +24,15 @@ class TherapyRepository
         return AdesioneTableResolver::filterData($this->therapiesTable, $data);
     }
 
+    public function create(array $data): array
+    {
+        $filtered = $this->filterData($data);
+        $therapyId = $this->insert($filtered);
+
+        $therapy = $this->findWithPatient($therapyId, null);
+        return $therapy ?: ['id' => $therapyId];
+    }
+
     public function insert(array $data): int
     {
         return (int)db()->insert($this->therapiesTable, $data);

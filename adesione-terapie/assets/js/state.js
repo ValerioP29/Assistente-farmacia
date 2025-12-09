@@ -27,6 +27,8 @@ const state = {
   currentStep: 'm1',
   wizardData: { ...wizardDataTemplate },
   selectedCondition: null,
+  selectedPatientId: null,
+  currentTherapyId: null,
   routesBase: '',
   csrfToken: '',
   signaturePad: null,
@@ -46,4 +48,6 @@ export function resetWizardData() {
   state.wizardData = { ...wizardDataTemplate };
   state.currentStep = 'm1';
   state.selectedCondition = null;
+  state.selectedPatientId = null;
+  state.currentTherapyId = null;
 }

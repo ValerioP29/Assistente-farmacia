@@ -53,6 +53,10 @@ export function saveChronicM1(payload) {
   return postAction('save_chronic_M1', payload);
 }
 
+export function createChronicTherapy(payload) {
+  return postAction('chronic_create_therapy', payload);
+}
+
 export function saveAnamnesiGenerale(payload) {
   return postAction('save_anamnesi_generale', payload);
 }
