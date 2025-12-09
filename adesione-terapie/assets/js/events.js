@@ -285,8 +285,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
   };
 
   if (dom.therapyModal) {
-    dom.therapyModal.addEventListener('shown.bs.modal', ensureStepMapAndShow);
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(dom.therapyModal);
+      dom.therapyModal.addEventListener('shown.bs.modal', ensureStepMapAndShow);
   }
+
 
   refreshPatients(dom);
 }

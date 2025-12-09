@@ -14,48 +14,64 @@ export function buildStepMap(root) {
 }
 
 export function buildDomReferences(moduleRoot = document) {
-  const therapyRoot =
-    moduleRoot?.querySelector?.('#therapyModal') ||
-    document.querySelector('#therapyModal') ||
-    moduleRoot ||
-    document;
+  const therapyModal = document.querySelector('#therapyModal');
 
-  const scoped = (sel) => therapyRoot.querySelector(sel);
-  const scopedAll = (sel) => Array.from(therapyRoot.querySelectorAll(sel));
+  const stepRoot = therapyModal || document;
+
+  const stepScoped = (sel) => stepRoot.querySelector(sel);
+  const stepScopedAll = (sel) => Array.from(stepRoot.querySelectorAll(sel));
   const docScoped = (sel) => document.querySelector(sel);
 
   return {
-    moduleRoot: therapyRoot,
-    stepMap: buildStepMap(therapyRoot),
-    stepIndicators: scopedAll('[data-step-indicator]'),
-    nextButton: scoped('#nextStepButton'),
-    prevButton: scoped('#prevStepButton'),
-    submitButton: scoped('#submitTherapyButton'),
+    moduleRoot: stepRoot,
+    therapyModal,
+
+    // STEP MAP
+    stepMap: buildStepMap(stepRoot),
+    stepIndicators: stepScopedAll('[data-step-indicator]'),
+
+    // BOTTONI NAVIGAZIONE WIZARD
+    nextButton: stepScoped('#nextStepButton'),
+    prevButton: stepScoped('#prevStepButton'),
+    submitButton: stepScoped('#submitTherapyButton'),
+
+    // BOTTONI FUORI DALLA MODALE
     newPatientButton: docScoped('#newPatientButton'),
     newTherapyButton: docScoped('#newTherapyButton'),
     newCheckButton: docScoped('#newCheckButton'),
     newReminderButton: docScoped('#newReminderButton'),
     exportReportButton: docScoped('#exportReportButton'),
+
+    // MODALS
     patientModal: docScoped('#patientModal'),
-    therapyModal: therapyRoot,
     checkModal: docScoped('#checkModal'),
     reminderModal: docScoped('#reminderModal'),
     reportModal: docScoped('#reportModal'),
+
+    // FORM
     patientForm: docScoped('#patientForm'),
-    therapyForm: scoped('#therapyForm'),
+    therapyForm: stepScoped('#therapyForm'),
     checkForm: docScoped('#checkForm'),
     reminderForm: docScoped('#reminderForm'),
+
+    // LISTE
     patientsList: docScoped('#patientsList'),
-    conditionSelector: scopedAll('[name="patologia_selezionata"]'),
-    signatureImageInput: scoped('#signatureImageInput'),
-    signatureCanvas: scoped('#consentSignaturePad'),
-    signatureTypeSelect: scoped('#signatureType'),
-    signatureCanvasWrapper: scoped('#signatureCanvasWrapper'),
-    digitalSignatureWrapper: scoped('#digitalSignatureWrapper'),
-    clearSignatureButton: scoped('#clearSignatureButton'),
-    saveSignatureButton: scoped('#saveSignatureButton'),
-    therapyIdInput: scoped('[name="therapy_id"]'),
-    patientIdInput: scoped('[name="patient_id"]'),
+
+    // WIZARD: condition blocks
+    conditionSelector: stepScopedAll('[name="patologia_selezionata"]'),
+
+    // FIRMA
+    signatureImageInput: stepScoped('#signatureImageInput'),
+    signatureCanvas: stepScoped('#consentSignaturePad'),
+    signatureTypeSelect: stepScoped('#signatureType'),
+    signatureCanvasWrapper: stepScoped('#signatureCanvasWrapper'),
+    digitalSignatureWrapper: stepScoped('#digitalSignatureWrapper'),
+    clearSignatureButton: stepScoped('#clearSignatureButton'),
+    saveSignatureButton: stepScoped('#saveSignatureButton'),
+
+    // METADATI TERAPIA
+    therapyIdInput: stepScoped('[name="therapy_id"]'),
+    patientIdInput: stepScoped('[name="patient_id"]'),
   };
 }
 
@@ -69,8 +85,18 @@ export function rebuildStepMap(dom) {
 export function showStep(stepKey, dom) {
   Object.entries(dom.stepMap || {}).forEach(([key, node]) => {
     if (!node) return;
-    node.classList.toggle('d-none', key !== stepKey);
+
+    const isActive = key === stepKey;
+
+    node.classList.remove('active');
+    node.classList.add('d-none');
+
+    if (isActive) {
+      node.classList.add('active');
+      node.classList.remove('d-none');
+    }
   });
+
   if (dom.prevButton) {
     dom.prevButton.classList.toggle('disabled', stepKey === WIZARD_STEPS[0]);
   }
@@ -80,6 +106,7 @@ export function showStep(stepKey, dom) {
   if (dom.submitButton) {
     dom.submitButton.classList.toggle('d-none', stepKey !== WIZARD_STEPS[WIZARD_STEPS.length - 1]);
   }
+
   updateIndicators(stepKey, dom.stepIndicators);
 }
 
