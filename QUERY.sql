@@ -197,3 +197,23 @@ CREATE TABLE jta_therapy_reminders (
     INDEX idx_tr_therapy (therapy_id),
     INDEX idx_tr_schedule (scheduled_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+/* -----------------------------------------------------
+   ESTENSIONE SEMPLICE TABELLA ASSISTENTI
+----------------------------------------------------- */
+
+ALTER TABLE jta_assistants
+ADD relation_to_patient VARCHAR(100) NULL AFTER type,
+ADD preferred_contact ENUM('phone','email','whatsapp') NULL AFTER email,
+ADD extra_info JSON NULL AFTER notes;
+
+
+
+/* -----------------------------------------------------
+   ESTENSIONE SEMPLICE PER CRONICO: MEDICI + BIOMETRIA
+----------------------------------------------------- */
+
+ALTER TABLE jta_therapy_chronic_care
+ADD doctor_info JSON NULL AFTER care_context,
+ADD biometric_info JSON NULL AFTER general_anamnesis;
