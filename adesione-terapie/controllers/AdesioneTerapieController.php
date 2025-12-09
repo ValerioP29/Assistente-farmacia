@@ -84,6 +84,32 @@ class AdesioneTerapieController
         );
     }
 
+    public function createChronicTherapy(array $payload): array
+    {
+        $patientId = isset($payload['patient_id']) ? (int)$payload['patient_id'] : 0;
+        if ($patientId <= 0) {
+            throw new RuntimeException('patient_id obbligatorio per creare una terapia');
+        }
+
+        $data = [];
+        if ($this->therapyCols['pharmacy']) {
+            $data[$this->therapyCols['pharmacy']] = $this->pharmacyId;
+        }
+        if ($this->therapyCols['patient']) {
+            $data[$this->therapyCols['patient']] = $patientId;
+        }
+        if ($this->therapyCols['status']) {
+            $data[$this->therapyCols['status']] = 'active';
+        }
+
+        $therapy = $this->therapyRepository->create($data);
+
+        return [
+            'therapy_id' => (int)($therapy[$this->therapyCols['id']] ?? $therapy['id'] ?? 0),
+            'therapy' => $therapy,
+        ];
+    }
+
     public function saveChronicM1(array $payload): array
     {
         $therapyId = $this->requireTherapyId($payload);

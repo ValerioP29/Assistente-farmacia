@@ -15,10 +15,43 @@ function createModalInstance(element) {
 }
 
 function getBaseMetadata(dom) {
+  const state = getState();
   return {
-    therapy_id: dom.therapyIdInput?.value || '',
-    patient_id: dom.patientIdInput?.value || '',
+    therapy_id: state.currentTherapyId || dom.therapyIdInput?.value || '',
+    patient_id: state.selectedPatientId || dom.patientIdInput?.value || '',
   };
+}
+
+async function ensureTherapyContext(dom) {
+  const state = getState();
+  const existingTherapyId = Number(state.currentTherapyId || dom.therapyIdInput?.value || 0);
+  if (existingTherapyId > 0) {
+    if (!state.currentTherapyId) {
+      setState({ currentTherapyId: existingTherapyId });
+    }
+    return existingTherapyId;
+  }
+
+  const patientId = Number(state.selectedPatientId || dom.patientIdInput?.value || 0);
+  if (!patientId) {
+    throw new Error('Seleziona un paziente prima di avviare la terapia');
+  }
+
+  const response = await api.createChronicTherapy({ patient_id: patientId });
+  const therapyId = Number(response?.data?.therapy_id || 0);
+  if (!therapyId) {
+    throw new Error('Impossibile creare la terapia');
+  }
+
+  setState({ currentTherapyId: therapyId, selectedPatientId: patientId });
+  if (dom.therapyIdInput) {
+    dom.therapyIdInput.value = therapyId;
+  }
+  if (dom.patientIdInput) {
+    dom.patientIdInput.value = patientId;
+  }
+
+  return therapyId;
 }
 
 function syncSignatureField(dom) {
@@ -31,27 +64,30 @@ function syncSignatureField(dom) {
 
 async function persistStep(stepKey, payload, dom) {
   const meta = getBaseMetadata(dom);
+  const therapyId = await ensureTherapyContext(dom);
+  const patientId = meta.patient_id || dom.patientIdInput?.value || '';
+  const basePayload = { therapy_id: therapyId, patient_id: patientId };
   switch (stepKey) {
     case 'm1':
-      return api.saveChronicM1({ ...meta, payload });
+      return api.saveChronicM1({ ...basePayload, payload });
     case '1':
-      return api.saveAnamnesiGenerale({ ...meta, payload });
+      return api.saveAnamnesiGenerale({ ...basePayload, payload });
     case '2':
-      return api.saveAnamnesiSpecifica({ ...meta, payload });
+      return api.saveAnamnesiSpecifica({ ...basePayload, payload });
     case '3':
-      return api.saveAderenzaBase({ ...meta, payload });
+      return api.saveAderenzaBase({ ...basePayload, payload });
     case '4':
-      return api.saveConditionBase({ ...meta, payload });
+      return api.saveConditionBase({ ...basePayload, payload });
     case '5':
-      return api.saveConditionApprofondita({ ...meta, payload });
+      return api.saveConditionApprofondita({ ...basePayload, payload });
     case '6': {
       const followupPayload = payload.followup || {};
       const caregiverPayload = payload.caregiver_block || {};
-      await api.saveFollowupIniziale({ ...meta, payload: followupPayload });
-      return api.saveCaregiverPreferences({ ...meta, payload: caregiverPayload });
+      await api.saveFollowupIniziale({ ...basePayload, payload: followupPayload });
+      return api.saveCaregiverPreferences({ ...basePayload, payload: caregiverPayload });
     }
     case '7':
-      return api.saveConsensiFirma({ ...meta, payload });
+      return api.saveConsensiFirma({ ...basePayload, payload });
     default:
       return Promise.resolve();
   }
@@ -204,7 +240,10 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
       e.preventDefault();
       modals.therapy.show();
       resetWizardData();
-      setState({ currentStep: startStep });
+      setState({ currentStep: startStep, currentTherapyId: null });
+      if (dom.therapyIdInput) {
+        dom.therapyIdInput.value = '';
+      }
       signature.clearSignature({ dom, state });
       signature.updateSignatureMode({ dom });
     });
@@ -235,6 +274,12 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     dom.prevButton.addEventListener('click', (e) => {
       e.preventDefault();
       proceed(-1, dom);
+    });
+  }
+  if (dom.patientIdInput) {
+    dom.patientIdInput.addEventListener('change', () => {
+      const patientId = Number(dom.patientIdInput.value || 0) || null;
+      setState({ selectedPatientId: patientId });
     });
   }
   if (dom.nextButton) {
@@ -277,7 +322,9 @@ export function initializeEvents({ routesBase, csrfToken, dom }) {
     ui.rebuildStepMap(dom);
     const currentStep = getState().currentStep || startStep;
     const safeStep = dom.stepMap[currentStep] ? currentStep : startStep;
-    setState({ currentStep: safeStep });
+    const therapyIdFromInput = Number(dom.therapyIdInput?.value || 0) || null;
+    const patientIdFromInput = Number(dom.patientIdInput?.value || 0) || null;
+    setState({ currentStep: safeStep, currentTherapyId: therapyIdFromInput, selectedPatientId: patientIdFromInput });
     ui.showStep(safeStep, dom);
     signature.initializeSignaturePad({ dom, state: getState() });
     signature.updateSignatureMode({ dom });

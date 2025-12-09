@@ -64,6 +64,7 @@ if (!$action) {
 
 // Whitelist delle azioni consentite per il nuovo flusso cronico
 $allowedActions = [
+    'chronic_create_therapy',
     'save_chronic_M1',
     'save_anamnesi_generale',
     'save_anamnesi_specifica',
@@ -108,6 +109,11 @@ $patientsController = new PatientsController(
 
 try {
     switch ($action) {
+        case 'chronic_create_therapy':
+            $data = $controller->createChronicTherapy($payload);
+            echo json_encode(['success' => true, 'data' => $data]);
+            break;
+
         case 'save_patient':
             $data = $patientsController->savePatient($payload);
             echo json_encode(['success' => true, 'data' => $data]);
