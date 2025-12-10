@@ -29,9 +29,9 @@ switch ($method) {
             respondReports(true, ['report' => $report]);
         }
 
-        $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+        $pharmacy_id = get_panel_pharma_id(true);
         $therapy_id = $_GET['therapy_id'] ?? null;
-        if (!$pharmacy_id || !$therapy_id) {
+        if (!$therapy_id) {
             respondReports(false, null, 'therapy_id o farmacia mancanti', 400);
         }
         $sql = "SELECT * FROM jta_therapy_reports WHERE therapy_id = ? AND pharmacy_id = ? ORDER BY created_at DESC";
@@ -44,10 +44,10 @@ switch ($method) {
         break;
 
     case 'POST':
-        $pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
+        $pharmacy_id = get_panel_pharma_id(true);
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $therapy_id = $input['therapy_id'] ?? null;
-        if (!$pharmacy_id || !$therapy_id) {
+        if (!$therapy_id) {
             respondReports(false, null, 'therapy_id o farmacia mancanti', 400);
         }
         $content = $input['content'] ?? [];

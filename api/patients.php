@@ -15,10 +15,7 @@ function respondPatients($success, $data = null, $error = null, $code = 200) {
     exit;
 }
 
-$pharmacy_id = $_SESSION['pharmacy_id'] ?? null;
-if (!$pharmacy_id) {
-    respondPatients(false, null, 'Farmacia non disponibile', 400);
-}
+$pharmacy_id = get_panel_pharma_id(true);
 
 switch ($method) {
     case 'GET':

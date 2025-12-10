@@ -62,6 +62,32 @@ function checkApiAccess($required_roles = ['admin']) {
     return true;
 }
 
+/**
+ * Recupera l'ID farmacia dal contesto di sessione.
+ * Se richiesto e mancante, risponde con errore JSON standardizzato.
+ */
+function get_panel_pharma_id($required = false) {
+    $pharmacyId = $_SESSION['pharmacy_id'] ?? null;
+    $pharmacyId = is_numeric($pharmacyId) ? (int)$pharmacyId : null;
+
+    if ($pharmacyId > 0) {
+        return $pharmacyId;
+    }
+
+    if ($required) {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'status' => false,
+            'error' => 'Pharmacy context missing'
+        ]);
+        exit;
+    }
+
+    return null;
+}
+
 function saveReturnUrl() {
     if ($_SERVER['REQUEST_URI'] !== '/login.php') {
         $_SESSION['return_url'] = $_SERVER['REQUEST_URI'];
@@ -131,13 +157,14 @@ function logActivity($action, $data = []) {
 
 // Funzioni per farmacia corrente
 function getCurrentPharmacy() {
-    if (!isset($_SESSION['pharmacy_id'])) {
+    $pharmacyId = get_panel_pharma_id();
+    if (!$pharmacyId) {
         return null;
     }
-    
+
     try {
         $sql = "SELECT * FROM jta_pharmas WHERE id = ? AND status = 'active'";
-        return db_fetch_one($sql, [$_SESSION['pharmacy_id'] ?? 1]);
+        return db_fetch_one($sql, [$pharmacyId]);
     } catch (Exception $e) {
         error_log("Errore recupero farmacia corrente: " . $e->getMessage());
         return null;
