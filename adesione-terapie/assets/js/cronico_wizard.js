@@ -214,6 +214,7 @@ function prevStep() {
 
 function validateStep(step) {
     if (step === 1) {
+        collectStep1Data();
         const patientValid = therapyWizardState.patient && (therapyWizardState.patient.id || (therapyWizardState.patient.first_name && therapyWizardState.patient.last_name));
         const conditionValid = !!therapyWizardState.primary_condition;
         if (!patientValid) {
