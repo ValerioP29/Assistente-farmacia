@@ -167,12 +167,16 @@ function renderPagination(items) {
     therapyPagination.innerHTML = `${prevItem}${currentItem}${nextItem}`;
 }
 
-function attachReminderForm() {
+function attachReminderForm(therapySelect) {
     const form = document.getElementById('reminderForm');
     if (!form) return;
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const therapyId = form.getAttribute('data-therapy-id');
+        const therapyId = therapySelect?.value;
+        if (!therapyId) {
+            alert('Seleziona una terapia.');
+            return;
+        }
         const payload = {
             therapy_id: therapyId,
             title: form.title.value.trim(),
@@ -205,6 +209,10 @@ function attachReminderForm() {
 async function loadReminders(therapyId) {
     const list = document.getElementById('reminderList');
     if (!list) return;
+    if (!therapyId) {
+        list.innerHTML = '<div class="text-muted">Seleziona una terapia per visualizzare i promemoria</div>';
+        return;
+    }
     list.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
     try {
         const response = await fetch(`api/reminders.php?therapy_id=${therapyId}`);
@@ -235,12 +243,16 @@ async function loadReminders(therapyId) {
     }
 }
 
-function attachReportForm() {
+function attachReportForm(therapySelect) {
     const form = document.getElementById('reportForm');
     if (!form) return;
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const therapyId = form.getAttribute('data-therapy-id');
+        const therapyId = therapySelect?.value;
+        if (!therapyId) {
+            alert('Seleziona una terapia.');
+            return;
+        }
         const payload = {
             therapy_id: therapyId,
             content: safeJsonString(form.content.value),
@@ -273,6 +285,10 @@ function attachReportForm() {
 async function loadReports(therapyId) {
     const list = document.getElementById('reportList');
     if (!list) return;
+    if (!therapyId) {
+        list.innerHTML = '<div class="text-muted">Seleziona una terapia per visualizzare i report</div>';
+        return;
+    }
     list.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
     try {
         const response = await fetch(`api/reports.php?therapy_id=${therapyId}`);
@@ -304,12 +320,16 @@ async function loadReports(therapyId) {
     }
 }
 
-function attachFollowupForm() {
+function attachFollowupForm(therapySelect) {
     const form = document.getElementById('followupForm');
     if (!form) return;
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const therapyId = form.getAttribute('data-therapy-id');
+        const therapyId = therapySelect?.value;
+        if (!therapyId) {
+            alert('Seleziona una terapia.');
+            return;
+        }
         const payload = {
             therapy_id: therapyId,
             risk_score: form.risk_score.value || null,
@@ -342,6 +362,10 @@ function attachFollowupForm() {
 async function loadFollowups(therapyId) {
     const list = document.getElementById('followupList');
     if (!list) return;
+    if (!therapyId) {
+        list.innerHTML = '<div class="text-muted">Seleziona una terapia per visualizzare i follow-up</div>';
+        return;
+    }
     list.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
     try {
         const response = await fetch(`api/followups.php?therapy_id=${therapyId}`);
@@ -407,6 +431,37 @@ function sanitizeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+async function populateTherapySelect(selectEl, selectedId = null, placeholder = 'Seleziona una terapia') {
+    if (!selectEl) return [];
+    selectEl.innerHTML = `<option value="">${sanitizeHtml(placeholder)}</option>`;
+    try {
+        const response = await fetch('api/therapies.php?status=active');
+        const result = await response.json();
+        if (!result.success) return [];
+        const items = result.data?.items || result.data || [];
+        items.forEach((therapy) => {
+            const option = document.createElement('option');
+            option.value = therapy.id;
+            option.textContent = formatTherapyOption(therapy);
+            if (selectedId && String(selectedId) === String(therapy.id)) {
+                option.selected = true;
+            }
+            selectEl.appendChild(option);
+        });
+        return items;
+    } catch (error) {
+        console.error('Errore caricamento terapie', error);
+        return [];
+    }
+}
+
+function formatTherapyOption(therapy) {
+    const patientName = `${therapy.first_name || ''} ${therapy.last_name || ''}`.trim() || 'Paziente';
+    const condition = therapy.primary_condition || therapy.condition || therapy.therapy_title || '-';
+    const title = therapy.therapy_title || '-';
+    return `${patientName} – ${condition} – ${title}`;
+}
+
 function openTherapyWizard(therapyId = null) {
     console.log('openTherapyWizard', therapyId);
     const modalEl = document.getElementById('therapyWizardModal');
@@ -416,13 +471,7 @@ function openTherapyWizard(therapyId = null) {
     }
 }
 
-function openRemindersModal(therapyId = null) {
-    if (!therapyId) {
-        const chosen = prompt('Inserisci ID terapia per gestire i promemoria');
-        if (!chosen) return;
-        therapyId = chosen;
-    }
-
+async function openRemindersModal(therapyId = null) {
     if (!reminderModalContainer) return;
 
     reminderModalContainer.innerHTML = `
@@ -430,12 +479,16 @@ function openRemindersModal(therapyId = null) {
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Promemoria terapia #${sanitizeHtml(therapyId)}</h5>
+                        <h5 class="modal-title">Promemoria terapia</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Terapia</label>
+                            <select class="form-select" id="reminderTherapySelect"></select>
+                        </div>
                         <div id="reminderList" class="mb-3"></div>
-                        <form id="reminderForm" class="row g-3" data-therapy-id="${therapyId}">
+                        <form id="reminderForm" class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Titolo</label>
                                 <input type="text" class="form-control" name="title" required>
@@ -476,19 +529,19 @@ function openRemindersModal(therapyId = null) {
         </div>
     `;
 
+    const therapySelect = document.getElementById('reminderTherapySelect');
+    await populateTherapySelect(therapySelect, therapyId);
+    therapySelect?.addEventListener('change', () => {
+        loadReminders(therapySelect.value);
+    });
+
     const modal = new bootstrap.Modal(document.getElementById('reminderModalDialog'));
-    attachReminderForm();
-    loadReminders(therapyId);
+    attachReminderForm(therapySelect);
+    loadReminders(therapySelect?.value);
     modal.show();
 }
 
-function openReportsModal(therapyId = null) {
-    if (!therapyId) {
-        const chosen = prompt('Inserisci ID terapia per generare un report');
-        if (!chosen) return;
-        therapyId = chosen;
-    }
-
+async function openReportsModal(therapyId = null) {
     if (!reportModalContainer) return;
 
     reportModalContainer.innerHTML = `
@@ -496,12 +549,16 @@ function openReportsModal(therapyId = null) {
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Report terapia #${sanitizeHtml(therapyId)}</h5>
+                        <h5 class="modal-title">Report terapia</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Terapia</label>
+                            <select class="form-select" id="reportTherapySelect"></select>
+                        </div>
                         <div id="reportList" class="mb-3"></div>
-                        <form id="reportForm" class="row g-3" data-therapy-id="${therapyId}">
+                        <form id="reportForm" class="row g-3">
                             <div class="col-12">
                                 <label class="form-label">Contenuto JSON</label>
                                 <textarea class="form-control" name="content" rows="4" required>{}</textarea>
@@ -533,19 +590,19 @@ function openReportsModal(therapyId = null) {
         </div>
     `;
 
+    const therapySelect = document.getElementById('reportTherapySelect');
+    await populateTherapySelect(therapySelect, therapyId);
+    therapySelect?.addEventListener('change', () => {
+        loadReports(therapySelect.value);
+    });
+
     const modal = new bootstrap.Modal(document.getElementById('reportModalDialog'));
-    attachReportForm();
-    loadReports(therapyId);
+    attachReportForm(therapySelect);
+    loadReports(therapySelect?.value);
     modal.show();
 }
 
-function openFollowupModal(therapyId = null) {
-    if (!therapyId) {
-        const chosen = prompt('Inserisci ID terapia per registrare un follow-up');
-        if (!chosen) return;
-        therapyId = chosen;
-    }
-
+async function openFollowupModal(therapyId = null) {
     if (!followupModalContainer) return;
 
     followupModalContainer.innerHTML = `
@@ -553,12 +610,16 @@ function openFollowupModal(therapyId = null) {
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Follow-up terapia #${sanitizeHtml(therapyId)}</h5>
+                        <h5 class="modal-title">Follow-up terapia</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Terapia</label>
+                            <select class="form-select" id="followupTherapySelect"></select>
+                        </div>
                         <div id="followupList" class="mb-3"></div>
-                        <form id="followupForm" class="row g-3" data-therapy-id="${therapyId}">
+                        <form id="followupForm" class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Rischio aggiornato</label>
                                 <input type="number" class="form-control" name="risk_score">
@@ -590,9 +651,15 @@ function openFollowupModal(therapyId = null) {
         </div>
     `;
 
+    const therapySelect = document.getElementById('followupTherapySelect');
+    await populateTherapySelect(therapySelect, therapyId);
+    therapySelect?.addEventListener('change', () => {
+        loadFollowups(therapySelect.value);
+    });
+
     const modal = new bootstrap.Modal(document.getElementById('followupModalDialog'));
-    attachFollowupForm();
-    loadFollowups(therapyId);
+    attachFollowupForm(therapySelect);
+    loadFollowups(therapySelect?.value);
     modal.show();
 }
 
