@@ -15,15 +15,11 @@ function respond($success, $data = null, $error = null, $code = 200) {
     exit;
 }
 
-function getPharmacyId() {
-    return $_SESSION['pharmacy_id'] ?? null;
-}
-
 $pdo = db()->getConnection();
 
 switch ($method) {
     case 'GET':
-        $pharmacy_id = getPharmacyId();
+        $pharmacy_id = get_panel_pharma_id();
         $therapy_id = $_GET['id'] ?? null;
         $status = $_GET['status'] ?? null;
         $patient_id = $_GET['patient_id'] ?? null;
@@ -77,10 +73,7 @@ switch ($method) {
 
     case 'POST':
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $pharmacy_id = getPharmacyId();
-        if (!$pharmacy_id) {
-            respond(false, null, 'Farmacia non disponibile', 400);
-        }
+        $pharmacy_id = get_panel_pharma_id(true);
 
         $patient = sanitize($input['patient'] ?? []);
         $primary_condition = sanitize($input['primary_condition'] ?? null);
@@ -237,8 +230,8 @@ switch ($method) {
     case 'PUT':
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $therapy_id = $input['id'] ?? ($_GET['id'] ?? null);
-        $pharmacy_id = getPharmacyId();
-        if (!$therapy_id || !$pharmacy_id) {
+        $pharmacy_id = get_panel_pharma_id(true);
+        if (!$therapy_id) {
             respond(false, null, 'ID terapia o farmacia mancanti', 400);
         }
 
@@ -397,8 +390,8 @@ switch ($method) {
 
     case 'DELETE':
         $therapy_id = $_GET['id'] ?? null;
-        $pharmacy_id = getPharmacyId();
-        if (!$therapy_id || !$pharmacy_id) {
+        $pharmacy_id = get_panel_pharma_id(true);
+        if (!$therapy_id) {
             respond(false, null, 'ID terapia o farmacia mancanti', 400);
         }
         try {
