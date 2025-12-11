@@ -293,15 +293,23 @@ function validateStep(step) {
         const gdprCareFollowup = document.getElementById('consentCareFollowup')?.checked ?? false;
         const gdprContact = document.getElementById('consentContact')?.checked ?? false;
         const gdprAnonymous = document.getElementById('consentAnonymous')?.checked ?? false;
+        const signerName = document.getElementById('signerName')?.value?.trim() || '';
+        const signedAt = document.getElementById('signedAt')?.value || '';
 
         therapyWizardState.consent = therapyWizardState.consent || {};
         therapyWizardState.consent.scopes = therapyWizardState.consent.scopes || {};
         therapyWizardState.consent.scopes.care_followup = gdprCareFollowup;
         therapyWizardState.consent.scopes.contact_for_reminders = gdprContact;
         therapyWizardState.consent.scopes.anonymous_stats = gdprAnonymous;
+        therapyWizardState.consent.scopes.gdpr_accepted =
+            gdprCareFollowup && gdprContact && gdprAnonymous;
 
         if (!gdprCareFollowup || !gdprContact || !gdprAnonymous) {
             alert('Il consenso GDPR è obbligatorio per procedere.');
+            return false;
+        }
+        if (!signerName || !signedAt) {
+            alert('Compila almeno firma paziente/caregiver e data per procedere.');
             return false;
         }
     }
@@ -1074,15 +1082,6 @@ function renderStep4() {
     const compiledAt = survey.compiled_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     const template = SURVEY_TEMPLATES[condition] || [];
-    const templateKeys = template.map(t => t.key);
-    const genericAnswerRows = Object.keys(answers)
-        .filter((key) => !templateKeys.includes(key))
-        .map((key, idx) => `
-            <div class="row g-2 mb-2 answer-row" data-index="${idx}">
-                <div class="col-md-4"><input type="text" class="form-control answer-key" value="${escapeHtml(key)}" placeholder="Chiave"></div>
-                <div class="col-md-8"><input type="text" class="form-control answer-value" value="${escapeHtml(answers[key] ?? '')}" placeholder="Valore"></div>
-            </div>
-        `).join('');
 
     const templateControls = template.map((q) => {
         const existingVal = answers[q.key] ?? '';
@@ -1125,33 +1124,10 @@ function renderStep4() {
             </div>
         </div>
         <div class="mb-3">
-            <label class="form-label">Risposte (chiave → valore)</label>
-            <div id="surveyAnswers">
-                ${genericAnswerRows || '<div class="text-muted">Aggiungi domande specifiche</div>'}
-            </div>
-            <button class="btn btn-sm btn-outline-primary mt-2" id="addAnswerRow"><i class="fas fa-plus me-1"></i>Aggiungi campo</button>
-            <div class="mt-2 text-muted small">Sezione commentata per domande specifiche per patologia (Diabete, BPCO, Ipertensione, Dislipidemia, Altro)</div>
-        </div>
-        <div class="mb-3">
             <label class="form-label">Compiled at</label>
             <input type="text" class="form-control" id="compiledAt" value="${escapeHtml(compiledAt)}">
         </div>
     `;
-
-    const addBtn = document.getElementById('addAnswerRow');
-    if (addBtn) addBtn.addEventListener('click', () => {
-        const container = document.getElementById('surveyAnswers');
-        if (!container) return;
-        const idx = container.querySelectorAll('.answer-row').length;
-        const row = document.createElement('div');
-        row.className = 'row g-2 mb-2 answer-row';
-        row.setAttribute('data-index', idx);
-        row.innerHTML = `
-            <div class="col-md-4"><input type="text" class="form-control answer-key" placeholder="Chiave"></div>
-            <div class="col-md-8"><input type="text" class="form-control answer-value" placeholder="Valore"></div>
-        `;
-        container.appendChild(row);
-    });
 
     const conditionSelect = document.getElementById('surveyCondition');
     if (conditionSelect) {
@@ -1170,13 +1146,6 @@ function collectStep4Data() {
         if (!key) return;
         answers[key] = input.value;
     });
-
-    // Keep flexibility: allow manual key/value rows in addition to template
-    document.querySelectorAll('#surveyAnswers .answer-row').forEach((row) => {
-        const key = row.querySelector('.answer-key')?.value;
-        const val = row.querySelector('.answer-value')?.value;
-        if (key) answers[key] = val;
-    });
     therapyWizardState.condition_survey = {
         condition_type: document.getElementById('surveyCondition')?.value || therapyWizardState.primary_condition,
         level: 'base',
@@ -1190,23 +1159,41 @@ function renderStep5() {
     const content = document.getElementById('wizardContent');
     if (!content) return;
     content.innerHTML = `
-        <h5 class="mb-3">Pianificazione, rischio, note</h5>
+        <h5 class="mb-3">Sezione 5 – Note farmacista e follow-up</h5>
         <div class="row g-3">
             <div class="col-md-4">
-                <label class="form-label">Risk score</label>
+                <label class="form-label">Punteggio di rischio / aderenza</label>
                 <input type="number" class="form-control" id="riskScore" value="${escapeHtml(therapyWizardState.risk_score || '')}">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Data follow-up</label>
+                <label class="form-label">Follow-up programmato</label>
                 <input type="date" class="form-control" id="followUpDate" value="${escapeHtml(therapyWizardState.follow_up_date || '')}">
             </div>
             <div class="col-12">
-                <label class="form-label">Flags (JSON)</label>
-                <textarea class="form-control" id="flagsJson" rows="2">${escapeHtml(JSON.stringify(therapyWizardState.flags || {}))}</textarea>
+                <label class="form-label">Criticità rilevate</label>
+                <textarea class="form-control" id="criticalIssues" rows="3">${escapeHtml(therapyWizardState.flags?.critical_issues || '')}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Educazione sanitaria / interventi proposti</label>
+                <textarea class="form-control" id="educationNotes" rows="3">${escapeHtml(therapyWizardState.flags?.education_notes || '')}</textarea>
             </div>
             <div class="col-12">
                 <label class="form-label">Note iniziali</label>
                 <textarea class="form-control" id="notesInitial" rows="3">${escapeHtml(therapyWizardState.notes_initial || '')}</textarea>
+            </div>
+        </div>
+        <div class="mt-4">
+            <h6 class="mb-2">Per il Caregiver</h6>
+            <ul>
+                <li>E’ soddisfatto del questionario che le è stato sottoposto</li>
+                <li>Ha qualche altra informazione che secondo lei può essere utile al Farmacista per migliorare il monitoraggio dell’assistito?</li>
+                <li>E’ interessato a ricevere un REPORT mensile sullo stato di salute del suo Familiare tramite mail o whatsapp</li>
+                <li>E’ favorevole a rilasciare presso questa Farmacia l’autorizzazione ad interagire direttamente con il medico curante del suo familiare per ottenere un’aderenza alla terapia ed un monitoraggio efficace dello stato di salute dell’assistito?</li>
+                <li>E’ favorevole ad autorizzare questa Farmacia al ritiro di ricette mediche e referti medici presso lo Studio Medico del suo familiare?</li>
+            </ul>
+            <div class="mt-3">
+                <label class="form-label">Note dal caregiver / informazioni aggiuntive</label>
+                <textarea class="form-control" id="caregiverNotes" rows="3">${escapeHtml(therapyWizardState.flags?.caregiver_extra_notes || '')}</textarea>
             </div>
         </div>
     `;
@@ -1216,11 +1203,11 @@ function collectStep5Data() {
     therapyWizardState.risk_score = toNumberOrNull(document.getElementById('riskScore')?.value);
     therapyWizardState.follow_up_date = document.getElementById('followUpDate')?.value || null;
     therapyWizardState.notes_initial = document.getElementById('notesInitial')?.value || '';
-    try {
-        therapyWizardState.flags = JSON.parse(document.getElementById('flagsJson')?.value || '{}');
-    } catch (e) {
-        therapyWizardState.flags = {};
-    }
+    therapyWizardState.flags = {
+        critical_issues: document.getElementById('criticalIssues')?.value || '',
+        education_notes: document.getElementById('educationNotes')?.value || '',
+        caregiver_extra_notes: document.getElementById('caregiverNotes')?.value || ''
+    };
 }
 
 function renderStep6() {
@@ -1251,56 +1238,40 @@ function renderStep6() {
                 <input type="text" class="form-control" id="signerName" value="${escapeHtml(consent.signer_name || '')}">
             </div>
             <div class="col-md-6">
-                <label class="form-label">Relazione firmatario</label>
-                <select class="form-select" id="signerRelation">
-                    <option value="patient" ${consent.signer_relation === 'patient' ? 'selected' : ''}>Paziente</option>
-                    <option value="caregiver" ${consent.signer_relation === 'caregiver' ? 'selected' : ''}>Caregiver</option>
-                    <option value="familiare" ${consent.signer_relation === 'familiare' ? 'selected' : ''}>Familiare</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Data firma</label>
+                <label class="form-label">Data</label>
                 <input type="date" class="form-control" id="signedAt" value="${escapeHtml(consent.signed_at || '')}">
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Canale contatto preferito</label>
-                <select class="form-select" id="contactChannelPref">
-                    <option value="">Seleziona</option>
-                    <option value="whatsapp" ${scopes.contact_channel_preference === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
-                    <option value="email" ${scopes.contact_channel_preference === 'email' ? 'selected' : ''}>Email</option>
-                    <option value="phone" ${scopes.contact_channel_preference === 'phone' ? 'selected' : ''}>Telefono</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Luogo</label>
-                <input type="text" class="form-control" id="consentPlace" value="${escapeHtml(consent.place || '')}">
-            </div>
             <div class="col-md-6">
-                <label class="form-label">Nome farmacista</label>
+                <label class="form-label">Firma farmacista</label>
                 <input type="text" class="form-control" id="pharmacistName" value="${escapeHtml(consent.pharmacist_name || '')}">
             </div>
             <div class="col-md-6">
-                <label class="form-label">Ruolo firmatario (testo libero)</label>
-                <input type="text" class="form-control" id="signerRole" value="${escapeHtml(consent.signer_role || '')}">
+                <label class="form-label">Luogo</label>
+                <input type="text" class="form-control" id="consentPlace" value="${escapeHtml(consent.place || '')}">
             </div>
         </div>
     `;
 }
 
 function collectStep6Data() {
+    const gdprCareFollowup = document.getElementById('consentCareFollowup')?.checked || false;
+    const gdprContact = document.getElementById('consentContact')?.checked || false;
+    const gdprAnonymous = document.getElementById('consentAnonymous')?.checked || false;
+    const signedAtRaw = document.getElementById('signedAt')?.value || '';
+
     therapyWizardState.consent = {
         signer_name: document.getElementById('signerName')?.value || '',
-        signer_relation: document.getElementById('signerRelation')?.value || 'patient',
-        signed_at: document.getElementById('signedAt')?.value || '',
+        signer_relation: 'patient',
+        signed_at: signedAtRaw || '',
         pharmacist_name: document.getElementById('pharmacistName')?.value || '',
         place: document.getElementById('consentPlace')?.value || '',
         scopes: {
-            care_followup: document.getElementById('consentCareFollowup')?.checked || false,
-            contact_for_reminders: document.getElementById('consentContact')?.checked || false,
-            anonymous_stats: document.getElementById('consentAnonymous')?.checked || false,
-            contact_channel_preference: document.getElementById('contactChannelPref')?.value || ''
+            care_followup: gdprCareFollowup,
+            contact_for_reminders: gdprContact,
+            anonymous_stats: gdprAnonymous,
+            gdpr_accepted: gdprCareFollowup && gdprContact && gdprAnonymous
         },
-        signer_role: document.getElementById('signerRole')?.value || ''
+        signer_role: ''
     };
 }
 
