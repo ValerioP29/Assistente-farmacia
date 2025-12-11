@@ -92,16 +92,20 @@ switch ($method) {
 
         $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
-        $sql = "SELECT t.*, p.first_name, p.last_name, p.codice_fiscale, ph.nice_name AS pharmacy_name
+        $sql = "SELECT t.*, p.first_name, p.last_name, p.codice_fiscale, ph.nice_name AS pharmacy_name, tcc.consent AS consent
                 FROM jta_therapies t
                 JOIN jta_patients p ON t.patient_id = p.id
                 JOIN jta_pharmas ph ON t.pharmacy_id = ph.id
+                LEFT JOIN jta_therapy_chronic_care tcc ON t.id = tcc.therapy_id
                 $whereSql
                 ORDER BY t.created_at DESC
                 LIMIT $per_page OFFSET $offset";
 
         try {
             $rows = db_fetch_all($sql, $params);
+            foreach ($rows as &$row) {
+                $row['consent'] = isset($row['consent']) ? ($row['consent'] ? json_decode($row['consent'], true) : null) : null;
+            }
             respond(true, ['items' => $rows, 'page' => $page, 'per_page' => $per_page]);
         } catch (Exception $e) {
             respond(false, null, 'Errore caricamento terapie', 500);
@@ -182,7 +186,7 @@ switch ($method) {
             $therapy_id = $pdo->lastInsertId();
 
             executeQueryWithTypes($pdo, 
-                "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date) VALUES (?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [
                     $therapy_id,
                     $primary_condition,
@@ -192,7 +196,8 @@ switch ($method) {
                     $risk_score,
                     $flags ? json_encode($flags) : null,
                     $notes_initial ?? $initial_notes,
-                    $follow_up_date
+                    $follow_up_date,
+                    $consent ? json_encode($consent) : null
                 ]
             );
 
@@ -250,9 +255,11 @@ switch ($method) {
                 if (empty($consentSignedAt)) {
                     $consentSignedAt = date('Y-m-d H:i:s');
                 }
+                $signatures = $consent['signatures'] ?? null;
+                $signaturePayload = $signatures ? json_encode($signatures) : null;
 
                 executeQueryWithTypes($pdo,
-                    "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?)",
+                    "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, signature_image, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
                         $consentSignerName,
@@ -260,6 +267,7 @@ switch ($method) {
                         $consentText,
                         $consentSignedAt,
                         $_SERVER['REMOTE_ADDR'] ?? null,
+                        $signaturePayload,
                         isset($consent['scopes']) ? json_encode($consent['scopes']) : null,
                         $consent['signer_role'] ?? null
                     ]
@@ -332,8 +340,8 @@ switch ($method) {
 
             $existing = db_fetch_one("SELECT id FROM jta_therapy_chronic_care WHERE therapy_id = ?", [$therapy_id]);
             if ($existing) {
-                executeQueryWithTypes($pdo, 
-                    "UPDATE jta_therapy_chronic_care SET primary_condition = ?, general_anamnesis = ?, detailed_intake = ?, adherence_base = ?, risk_score = ?, flags = ?, notes_initial = ?, follow_up_date = ?, updated_at = NOW() WHERE therapy_id = ?",
+                executeQueryWithTypes($pdo,
+                    "UPDATE jta_therapy_chronic_care SET primary_condition = ?, general_anamnesis = ?, detailed_intake = ?, adherence_base = ?, risk_score = ?, flags = ?, notes_initial = ?, follow_up_date = ?, consent = ?, updated_at = NOW() WHERE therapy_id = ?",
                     [
                         $primary_condition,
                         $general_anamnesis ? json_encode($general_anamnesis) : null,
@@ -343,12 +351,13 @@ switch ($method) {
                         $flags ? json_encode($flags) : null,
                         $notes_initial ?? $initial_notes,
                         $follow_up_date,
+                        $consent ? json_encode($consent) : null,
                         $therapy_id
                     ]
                 );
             } else {
-                executeQueryWithTypes($pdo, 
-                    "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date) VALUES (?,?,?,?,?,?,?,?,?)",
+                executeQueryWithTypes($pdo,
+                    "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent) VALUES (?,?,?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
                         $primary_condition,
@@ -358,7 +367,8 @@ switch ($method) {
                         $risk_score,
                         $flags ? json_encode($flags) : null,
                         $notes_initial ?? $initial_notes,
-                        $follow_up_date
+                        $follow_up_date,
+                        $consent ? json_encode($consent) : null
                     ]
                 );
             }
@@ -419,9 +429,11 @@ switch ($method) {
                 if (empty($consentSignedAt)) {
                     $consentSignedAt = date('Y-m-d H:i:s');
                 }
+                $signatures = $consent['signatures'] ?? null;
+                $signaturePayload = $signatures ? json_encode($signatures) : null;
 
                 executeQueryWithTypes($pdo,
-                    "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?)",
+                    "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, signature_image, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
                         $consentSignerName,
@@ -429,6 +441,7 @@ switch ($method) {
                         $consentText,
                         $consentSignedAt,
                         $_SERVER['REMOTE_ADDR'] ?? null,
+                        $signaturePayload,
                         isset($consent['scopes']) ? json_encode($consent['scopes']) : null,
                         $consent['signer_role'] ?? null
                     ]

@@ -10,6 +10,7 @@ $current_page = 'cronico_terapie';
 $page_title = 'Gestione Terapie Paziente Cronico';
 $additional_js = [
     'assets/js/cronico_terapie.js',
+    'adesione-terapie/assets/js/signature_pad.js',
     'adesione-terapie/assets/js/cronico_wizard.js'
 ];
 

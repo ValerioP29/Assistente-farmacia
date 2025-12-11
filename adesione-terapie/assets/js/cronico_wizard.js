@@ -1634,6 +1634,8 @@ function renderStep5() {
     collectStep4Data();
     const content = document.getElementById('wizardContent');
     if (!content) return;
+    const flags = therapyWizardState.flags || {};
+    const feedback = flags.caregiver_feedback || {};
     content.innerHTML = `
         <h5 class="mb-3">Sezione 5 – Note farmacista e follow-up</h5>
         <div class="row g-3">
@@ -1667,6 +1669,41 @@ function renderStep5() {
                 <li>E’ favorevole a rilasciare presso questa Farmacia l’autorizzazione ad interagire direttamente con il medico curante del suo familiare per ottenere un’aderenza alla terapia ed un monitoraggio efficace dello stato di salute dell’assistito?</li>
                 <li>E’ favorevole ad autorizzare questa Farmacia al ritiro di ricette mediche e referti medici presso lo Studio Medico del suo familiare?</li>
             </ul>
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label class="form-label">È soddisfatto del questionario che le è stato sottoposto?</label>
+                    <select class="form-select" id="caregiverSatisfied">
+                        <option value="" ${feedback.satisfied_questionnaire === null || feedback.satisfied_questionnaire === undefined ? 'selected' : ''}>Seleziona</option>
+                        <option value="true" ${feedback.satisfied_questionnaire === true ? 'selected' : ''}>Sì</option>
+                        <option value="false" ${feedback.satisfied_questionnaire === false ? 'selected' : ''}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">È interessato a ricevere un REPORT mensile sullo stato di salute del suo familiare?</label>
+                    <select class="form-select" id="caregiverReportChannel">
+                        <option value="" ${!feedback.wants_monthly_report ? 'selected' : ''}>Non specificato</option>
+                        <option value="none" ${feedback.wants_monthly_report === 'none' ? 'selected' : ''}>No</option>
+                        <option value="email" ${feedback.wants_monthly_report === 'email' ? 'selected' : ''}>Via email</option>
+                        <option value="whatsapp" ${feedback.wants_monthly_report === 'whatsapp' ? 'selected' : ''}>Via WhatsApp</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">È favorevole ad autorizzare la farmacia a interagire con il medico curante del suo familiare?</label>
+                    <select class="form-select" id="caregiverAllowDoctor">
+                        <option value="" ${feedback.allow_doctor_interaction === null || feedback.allow_doctor_interaction === undefined ? 'selected' : ''}>Non specificato</option>
+                        <option value="true" ${feedback.allow_doctor_interaction === true ? 'selected' : ''}>Sì</option>
+                        <option value="false" ${feedback.allow_doctor_interaction === false ? 'selected' : ''}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">È favorevole ad autorizzare questa farmacia al ritiro di ricette e referti presso lo studio medico del familiare?</label>
+                    <select class="form-select" id="caregiverAllowPickup">
+                        <option value="" ${feedback.allow_prescription_pickup === null || feedback.allow_prescription_pickup === undefined ? 'selected' : ''}>Non specificato</option>
+                        <option value="true" ${feedback.allow_prescription_pickup === true ? 'selected' : ''}>Sì</option>
+                        <option value="false" ${feedback.allow_prescription_pickup === false ? 'selected' : ''}>No</option>
+                    </select>
+                </div>
+            </div>
             <div class="mt-3">
                 <label class="form-label">Note dal caregiver / informazioni aggiuntive</label>
                 <textarea class="form-control" id="caregiverNotes" rows="3">${escapeHtml(therapyWizardState.flags?.caregiver_extra_notes || '')}</textarea>
@@ -1679,10 +1716,18 @@ function collectStep5Data() {
     therapyWizardState.risk_score = toNumberOrNull(document.getElementById('riskScore')?.value);
     therapyWizardState.follow_up_date = document.getElementById('followUpDate')?.value || null;
     therapyWizardState.notes_initial = document.getElementById('notesInitial')?.value || '';
+    const existingFlags = therapyWizardState.flags || {};
     therapyWizardState.flags = {
+        ...existingFlags,
         critical_issues: document.getElementById('criticalIssues')?.value || '',
         education_notes: document.getElementById('educationNotes')?.value || '',
-        caregiver_extra_notes: document.getElementById('caregiverNotes')?.value || ''
+        caregiver_extra_notes: document.getElementById('caregiverNotes')?.value || '',
+        caregiver_feedback: {
+            satisfied_questionnaire: toBool(document.getElementById('caregiverSatisfied')?.value),
+            wants_monthly_report: document.getElementById('caregiverReportChannel')?.value || '',
+            allow_doctor_interaction: toBool(document.getElementById('caregiverAllowDoctor')?.value),
+            allow_prescription_pickup: toBool(document.getElementById('caregiverAllowPickup')?.value)
+        }
     };
 }
 
@@ -1692,6 +1737,7 @@ function renderStep6() {
     if (!content) return;
     const consent = therapyWizardState.consent || {};
     const scopes = consent.scopes || {};
+    const signatures = consent.signatures || {};
     content.innerHTML = `
         <h5 class="mb-3">Consenso informato e firme</h5>
         <div class="mb-3">
@@ -1726,7 +1772,34 @@ function renderStep6() {
                 <input type="text" class="form-control" id="consentPlace" value="${escapeHtml(consent.place || '')}">
             </div>
         </div>
+        <div class="mt-4">
+            <h6 class="mb-2">Firme digitali</h6>
+            <div class="row g-3">
+                <div class="col-md-6 mt-2">
+                    <label class="form-label">Firma digitale paziente/caregiver</label>
+                    <canvas id="patientSignatureCanvas" class="signature-canvas" style="border: 1px solid #ccc; width: 100%; height: 150px;"></canvas>
+                    <button type="button" id="clearPatientSignature" class="btn btn-sm btn-outline-secondary mt-1">Pulisci firma</button>
+                </div>
+                <div class="col-md-6 mt-2">
+                    <label class="form-label">Firma digitale farmacista</label>
+                    <canvas id="pharmacistSignatureCanvas" class="signature-canvas" style="border: 1px solid #ccc; width: 100%; height: 150px;"></canvas>
+                    <button type="button" id="clearPharmacistSignature" class="btn btn-sm btn-outline-secondary mt-1">Pulisci firma</button>
+                </div>
+            </div>
+        </div>
     `;
+
+    const patientCanvas = document.getElementById('patientSignatureCanvas');
+    const pharmacistCanvas = document.getElementById('pharmacistSignatureCanvas');
+    if (patientCanvas && signatures.patient_data_url) {
+        patientCanvas.dataset.existingImage = signatures.patient_data_url;
+    }
+    if (pharmacistCanvas && signatures.pharmacist_data_url) {
+        pharmacistCanvas.dataset.existingImage = signatures.pharmacist_data_url;
+    }
+
+    initSignaturePad('patientSignatureCanvas', 'clearPatientSignature');
+    initSignaturePad('pharmacistSignatureCanvas', 'clearPharmacistSignature');
 }
 
 function collectStep6Data() {
@@ -1735,17 +1808,26 @@ function collectStep6Data() {
     const gdprAnonymous = document.getElementById('consentAnonymous')?.checked || false;
     const signedAtRaw = document.getElementById('signedAt')?.value || '';
 
+    const previousConsent = therapyWizardState.consent || {};
+    const previousScopes = previousConsent.scopes || {};
+
     therapyWizardState.consent = {
+        ...previousConsent,
         signer_name: document.getElementById('signerName')?.value || '',
         signer_relation: 'patient',
         signed_at: signedAtRaw || '',
         pharmacist_name: document.getElementById('pharmacistName')?.value || '',
         place: document.getElementById('consentPlace')?.value || '',
         scopes: {
+            ...previousScopes,
             care_followup: gdprCareFollowup,
             contact_for_reminders: gdprContact,
             anonymous_stats: gdprAnonymous,
             gdpr_accepted: gdprCareFollowup && gdprContact && gdprAnonymous
+        },
+        signatures: {
+            patient_data_url: getSignatureDataUrl('patientSignatureCanvas'),
+            pharmacist_data_url: getSignatureDataUrl('pharmacistSignatureCanvas')
         },
         signer_role: ''
     };
