@@ -5,6 +5,8 @@ let therapyWizardState = {
     initial_notes: null,
     general_anamnesis: {},
     detailed_intake: {},
+    doctor_info: {},
+    biometric_info: {},
     therapy_assistants: [],
     adherence_base: {},
     condition_survey: {},
@@ -352,6 +354,8 @@ function getDefaultWizardState() {
         initial_notes: null,
         general_anamnesis: {},
         detailed_intake: {},
+        doctor_info: {},
+        biometric_info: {},
         therapy_assistants: [],
         adherence_base: {},
         condition_survey: {
@@ -473,6 +477,8 @@ async function loadTherapyForEdit(therapyId) {
             therapyWizardState.notes_initial = t.notes_initial || therapyWizardState.notes_initial;
             therapyWizardState.follow_up_date = t.follow_up_date || null;
             therapyWizardState.condition_survey.condition_type = therapyWizardState.primary_condition;
+            therapyWizardState.doctor_info = t.doctor_info || {};
+            therapyWizardState.biometric_info = t.biometric_info || {};
         }
     } catch (error) {
         console.error('Errore caricamento terapia', error);
@@ -625,7 +631,11 @@ function renderStep1() {
     const patient = therapyWizardState.patient || {};
     const general = therapyWizardState.general_anamnesis || {};
     const detailed = therapyWizardState.detailed_intake || {};
+    const doctorInfo = therapyWizardState.doctor_info || {};
+    const biometricInfo = therapyWizardState.biometric_info || {};
     const primary_condition = therapyWizardState.primary_condition || '';
+
+    const age = patient.birth_date ? calculateAgeFromBirthDate(patient.birth_date) : '';
 
     content.innerHTML = `
         <div class="mb-4">
@@ -720,6 +730,138 @@ function renderStep1() {
                         <option value="true" ${general.has_caregiver ? 'selected' : ''}>Sì</option>
                         <option value="false" ${general.has_caregiver === false ? 'selected' : ''}>No</option>
                     </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Riferimenti del medico curante</label>
+                    <textarea class="form-control" id="gpReference" rows="2">${escapeHtml(doctorInfo.gp_reference || '')}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Riferimenti dello specialista</label>
+                    <textarea class="form-control" id="specialistReference" rows="2">${escapeHtml(doctorInfo.specialist_reference || '')}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h5 class="mb-3">Profilo clinico e stile di vita</h5>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Età</label>
+                    <input type="number" class="form-control" id="patientAge" value="${escapeHtml(age)}" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Stato ormonale donna</label>
+                    <select class="form-select" id="femaleStatus">
+                        <option value=""></option>
+                        <option value="fertile" ${general.female_status === 'fertile' ? 'selected' : ''}>Età fertile</option>
+                        <option value="menopausa" ${general.female_status === 'menopausa' ? 'selected' : ''}>Menopausa</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Stato di salute percepito</label>
+                    <select class="form-select" id="selfRatedHealth">
+                        <option value="">Seleziona</option>
+                        <option value="buono" ${general.self_rated_health === 'buono' ? 'selected' : ''}>Buono</option>
+                        <option value="discreto" ${general.self_rated_health === 'discreto' ? 'selected' : ''}>Discreto</option>
+                        <option value="scarso" ${general.self_rated_health === 'scarso' ? 'selected' : ''}>Scarso</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fumo</label>
+                    <select class="form-select" id="smokingStatus">
+                        <option value="">Seleziona</option>
+                        <option value="no" ${general.smoking_status === 'no' ? 'selected' : ''}>No</option>
+                        <option value="ex" ${general.smoking_status === 'ex' ? 'selected' : ''}>Ex fumatore</option>
+                        <option value="si" ${general.smoking_status === 'si' ? 'selected' : ''}>Sì</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sigarette/giorno</label>
+                    <input type="number" class="form-control" id="cigarettesPerDay" value="${escapeHtml(general.cigarettes_per_day || '')}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Attività fisica regolare</label>
+                    <select class="form-select" id="physicalActivity">
+                        <option value="">Seleziona</option>
+                        <option value="true" ${general.physical_activity_regular ? 'selected' : ''}>Sì</option>
+                        <option value="false" ${general.physical_activity_regular === false ? 'selected' : ''}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Dieta particolare / controllo</label>
+                    <select class="form-select" id="dietControl">
+                        <option value="">Seleziona</option>
+                        <option value="si" ${general.diet_control === 'si' ? 'selected' : ''}>Sì</option>
+                        <option value="no" ${general.diet_control === 'no' ? 'selected' : ''}>No</option>
+                        <option value="a_volte" ${general.diet_control === 'a_volte' ? 'selected' : ''}>A volte</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Farmaci continuativi</label>
+                    <select class="form-select" id="chronicTherapy">
+                        <option value="">Seleziona</option>
+                        <option value="no" ${general.chronic_therapy_regimen === 'no' ? 'selected' : ''}>No</option>
+                        <option value="1-2" ${general.chronic_therapy_regimen === '1-2' ? 'selected' : ''}>1–2</option>
+                        <option value="3-5" ${general.chronic_therapy_regimen === '3-5' ? 'selected' : ''}>3–5</option>
+                        <option value=">5" ${general.chronic_therapy_regimen === '>5' ? 'selected' : ''}>>5</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Difficoltà a gestire la terapia</label>
+                    <select class="form-select" id="therapyDifficulty">
+                        <option value="">Seleziona</option>
+                        <option value="no" ${general.therapy_management_difficulty === 'no' ? 'selected' : ''}>No</option>
+                        <option value="talvolta" ${general.therapy_management_difficulty === 'talvolta' ? 'selected' : ''}>Talvolta</option>
+                        <option value="spesso" ${general.therapy_management_difficulty === 'spesso' ? 'selected' : ''}>Spesso</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Patologie diagnosticate</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="condDiabete" ${general.diagnosed_conditions?.diabete ? 'checked' : ''}>
+                        <label class="form-check-label" for="condDiabete">Diabete</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="condIpertensione" ${general.diagnosed_conditions?.ipertensione ? 'checked' : ''}>
+                        <label class="form-check-label" for="condIpertensione">Ipertensione</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="condBpco" ${general.diagnosed_conditions?.bpco ? 'checked' : ''}>
+                        <label class="form-check-label" for="condBpco">BPCO</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="condDislipidemia" ${general.diagnosed_conditions?.dislipidemia ? 'checked' : ''}>
+                        <label class="form-check-label" for="condDislipidemia">Dislipidemia</label>
+                    </div>
+                    <div class="mt-2">
+                        <input type="text" class="form-control" id="condAltro" placeholder="Altro" value="${escapeHtml(general.diagnosed_conditions?.altro || '')}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Familiarità infarto/ictus/diabete/colesterolo</label>
+                    <select class="form-select" id="familyHistoryCvd">
+                        <option value="">Seleziona</option>
+                        <option value="si" ${general.family_history_cvd === 'si' ? 'selected' : ''}>Sì</option>
+                        <option value="no" ${general.family_history_cvd === 'no' ? 'selected' : ''}>No</option>
+                        <option value="non_so" ${general.family_history_cvd === 'non_so' ? 'selected' : ''}>Non so</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-3">
+                <h6 class="mb-2">Parametri biometrici</h6>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Peso (kg)</label>
+                        <input type="number" step="0.1" class="form-control" id="bioWeight" value="${escapeHtml(biometricInfo.weight_kg || '')}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Altezza (cm)</label>
+                        <input type="number" step="0.1" class="form-control" id="bioHeight" value="${escapeHtml(biometricInfo.height_cm || '')}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">BMI</label>
+                        <input type="number" step="0.1" class="form-control" id="bioBmi" value="${escapeHtml(biometricInfo.bmi || '')}">
+                    </div>
                 </div>
             </div>
         </div>
@@ -872,6 +1014,11 @@ function bindStep1Events() {
             searchPatients();
         }
     });
+
+    const weightInput = document.getElementById('bioWeight');
+    const heightInput = document.getElementById('bioHeight');
+    if (weightInput) weightInput.addEventListener('input', updateBmiFromInputs);
+    if (heightInput) heightInput.addEventListener('input', updateBmiFromInputs);
 }
 
 async function searchPatients() {
@@ -936,7 +1083,23 @@ function collectStep1Data() {
         allergies: document.getElementById('anaAllergies')?.value || '',
         er_access: document.getElementById('anaErAccess')?.value || '',
         exams: document.getElementById('anaExams')?.value || '',
-        vaccines: document.getElementById('anaVaccines')?.value || ''
+        vaccines: document.getElementById('anaVaccines')?.value || '',
+        female_status: document.getElementById('femaleStatus')?.value || '',
+        self_rated_health: document.getElementById('selfRatedHealth')?.value || '',
+        smoking_status: document.getElementById('smokingStatus')?.value || '',
+        cigarettes_per_day: toNumberOrNull(document.getElementById('cigarettesPerDay')?.value),
+        physical_activity_regular: toBool(document.getElementById('physicalActivity')?.value),
+        diet_control: document.getElementById('dietControl')?.value || '',
+        chronic_therapy_regimen: document.getElementById('chronicTherapy')?.value || '',
+        therapy_management_difficulty: document.getElementById('therapyDifficulty')?.value || '',
+        diagnosed_conditions: {
+            diabete: !!document.getElementById('condDiabete')?.checked,
+            ipertensione: !!document.getElementById('condIpertensione')?.checked,
+            bpco: !!document.getElementById('condBpco')?.checked,
+            dislipidemia: !!document.getElementById('condDislipidemia')?.checked,
+            altro: document.getElementById('condAltro')?.value || ''
+        },
+        family_history_cvd: document.getElementById('familyHistoryCvd')?.value || ''
     };
 
     therapyWizardState.detailed_intake = {
@@ -958,6 +1121,17 @@ function collectStep1Data() {
         pharmacy_bp_frequency: document.getElementById('pharmacyBPFrequency')?.value || '',
         ever_measured_glycemia: toBool(document.getElementById('everMeasuredGlycemia')?.value),
         drug_or_supplement_allergic_reactions: toBool(document.getElementById('drugAllergicReactions')?.value)
+    };
+
+    therapyWizardState.doctor_info = {
+        gp_reference: document.getElementById('gpReference')?.value || '',
+        specialist_reference: document.getElementById('specialistReference')?.value || ''
+    };
+
+    therapyWizardState.biometric_info = {
+        weight_kg: toNumberOrNull(document.getElementById('bioWeight')?.value),
+        height_cm: toNumberOrNull(document.getElementById('bioHeight')?.value),
+        bmi: toNumberOrNull(document.getElementById('bioBmi')?.value)
     };
 }
 
@@ -1591,6 +1765,8 @@ function assemblePayload() {
         initial_notes: therapyWizardState.initial_notes,
         general_anamnesis: therapyWizardState.general_anamnesis,
         detailed_intake: therapyWizardState.detailed_intake,
+        doctor_info: therapyWizardState.doctor_info,
+        biometric_info: therapyWizardState.biometric_info,
         therapy_assistants: therapyWizardState.therapy_assistants,
         adherence_base: therapyWizardState.adherence_base,
         condition_survey: therapyWizardState.condition_survey,
@@ -1600,6 +1776,32 @@ function assemblePayload() {
         follow_up_date: therapyWizardState.follow_up_date,
         consent: therapyWizardState.consent
     };
+}
+
+function calculateAgeFromBirthDate(birthDate) {
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age >= 0 ? age : '';
+}
+
+function updateBmiFromInputs() {
+    const weight = toNumberOrNull(document.getElementById('bioWeight')?.value);
+    const height = toNumberOrNull(document.getElementById('bioHeight')?.value);
+    const bmiInput = document.getElementById('bioBmi');
+    if (!bmiInput) return;
+    if (weight && height) {
+        const heightMeters = height / 100;
+        const bmi = heightMeters > 0 ? weight / (heightMeters * heightMeters) : null;
+        bmiInput.value = bmi ? bmi.toFixed(1) : '';
+    } else {
+        bmiInput.value = '';
+    }
 }
 
 async function submitTherapy() {
