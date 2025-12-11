@@ -217,3 +217,7 @@ ADD extra_info JSON NULL AFTER notes;
 ALTER TABLE jta_therapy_chronic_care
 ADD doctor_info JSON NULL AFTER care_context,
 ADD biometric_info JSON NULL AFTER general_anamnesis;
+
+ /* ALTERAZIONE TABELLA PER INSERIRE I CONSENSI */
+ALTER TABLE jta_therapy_chronic_care
+ADD consent JSON NULL AFTER follow_up_date;
