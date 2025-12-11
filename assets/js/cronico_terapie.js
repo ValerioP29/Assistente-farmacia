@@ -9,6 +9,9 @@ const therapyResultsInfo = document.getElementById('therapyResultsInfo');
 const reminderModalContainer = document.getElementById('reminderModal');
 const reportModalContainer = document.getElementById('reportModal');
 const followupModalContainer = document.getElementById('followupModal');
+let activeFollowupId = null;
+let activeFollowupSnapshot = null;
+let activeFollowups = [];
 
 function initCronicoTerapiePage() {
     attachToolbarActions();
@@ -27,7 +30,7 @@ function attachToolbarActions() {
     if (btnNewTherapy) btnNewTherapy.addEventListener('click', () => openTherapyWizard());
     if (btnReminder) btnReminder.addEventListener('click', () => openRemindersModal());
     if (btnReport) btnReport.addEventListener('click', () => openReportsModal());
-    if (btnFollowup) btnFollowup.addEventListener('click', () => openFollowupModal());
+    if (btnFollowup) btnFollowup.addEventListener('click', () => openCheckPeriodicoModal());
 }
 
 function attachFilterActions() {
@@ -195,6 +198,7 @@ function attachReminderForm(therapySelect) {
             const result = await response.json();
             if (result.success) {
                 form.reset();
+                showReminderToast('Promemoria salvato correttamente', 'success');
                 loadReminders(therapyId);
             } else {
                 alert(result.error || 'Errore nel salvataggio del promemoria');
@@ -221,21 +225,36 @@ async function loadReminders(therapyId) {
             list.innerHTML = `<div class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</div>`;
             return;
         }
-        const items = result.data || [];
+        const items = result.data?.items || result.data || [];
         if (!items.length) {
             list.innerHTML = '<div class="text-muted">Nessun promemoria</div>';
             return;
         }
-        const rows = items.map((r) => `
-            <div class="border rounded p-2 mb-2">
-                <div class="d-flex justify-content-between">
-                    <strong>${sanitizeHtml(r.title || '-')}</strong>
-                    <span class="badge bg-light text-dark">${sanitizeHtml(r.type || '')}</span>
+        const rows = items.map((r) => {
+            const statusBadge = renderReminderStatusBadge(r.status);
+            const typeBadge = `<span class="badge bg-light text-dark">${sanitizeHtml(r.type || '')}</span>`;
+            const cancelButton = r.status === 'scheduled'
+                ? `<button class="btn btn-sm btn-outline-danger" onclick="cancelReminder(${r.id}, ${therapyId})">Cancella</button>`
+                : '';
+
+            return `
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <strong>${sanitizeHtml(r.title || '-')}</strong>
+                            <div class="small text-muted">${sanitizeHtml(r.channel || '')}</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            ${typeBadge}
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    <div class="small text-muted">${sanitizeHtml(r.scheduled_at || '')}</div>
+                    <div>${sanitizeHtml(r.message || '')}</div>
+                    ${cancelButton ? `<div class="text-end mt-2">${cancelButton}</div>` : ''}
                 </div>
-                <div class="small text-muted">${sanitizeHtml(r.channel || '')} • ${sanitizeHtml(r.scheduled_at || '')}</div>
-                <div>${sanitizeHtml(r.message || '')}</div>
-            </div>
-        `);
+            `;
+        });
         list.innerHTML = rows.join('');
     } catch (error) {
         console.error(error);
@@ -243,9 +262,90 @@ async function loadReminders(therapyId) {
     }
 }
 
+async function cancelReminder(reminderId, therapyId = null) {
+    if (!reminderId) return;
+    const targetTherapyId = therapyId || document.getElementById('reminderTherapySelect')?.value;
+
+    try {
+        const response = await fetch(`api/reminders.php?action=cancel&id=${reminderId}`, { method: 'POST' });
+        const result = await response.json();
+        if (result.success) {
+            showReminderToast('Promemoria cancellato', 'success');
+            loadReminders(targetTherapyId);
+        } else {
+            alert(result.error || 'Errore nella cancellazione del promemoria');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nella cancellazione del promemoria');
+    }
+}
+
+function renderReminderStatusBadge(status) {
+    const clsMap = {
+        scheduled: 'bg-info text-dark',
+        sent: 'bg-success',
+        canceled: 'bg-secondary',
+        failed: 'bg-danger'
+    };
+    const label = status || '-';
+    const cls = clsMap[status] || 'bg-light text-dark';
+    return `<span class="badge ${cls}">${sanitizeHtml(label)}</span>`;
+}
+
+function showReminderToast(message, type = 'success') {
+    const containerId = 'reminderToastContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${sanitizeHtml(message)}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+        if (!container.children.length) {
+            container.remove();
+        }
+    });
+    bsToast.show();
+}
+
 function attachReportForm(therapySelect) {
     const form = document.getElementById('reportForm');
+    const followupSelectWrapper = document.getElementById('reportFollowupWrapper');
+    const followupSelect = document.getElementById('reportFollowupSelect');
+    const modeInputs = form?.querySelectorAll('input[name="reportMode"]');
     if (!form) return;
+
+    const toggleFollowupField = () => {
+        const mode = form.reportMode.value;
+        if (mode === 'single') {
+            followupSelectWrapper?.classList.remove('d-none');
+        } else {
+            followupSelectWrapper?.classList.add('d-none');
+        }
+    };
+
+    modeInputs?.forEach((input) => input.addEventListener('change', toggleFollowupField));
+
+    toggleFollowupField();
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const therapyId = therapySelect?.value;
@@ -253,33 +353,50 @@ function attachReportForm(therapySelect) {
             alert('Seleziona una terapia.');
             return;
         }
-        const payload = {
+        const mode = form.reportMode.value;
+        const followupId = followupSelect?.value;
+        if (mode === 'single' && !followupId) {
+            alert('Seleziona un check periodico.');
+            return;
+        }
+
+        const query = new URLSearchParams({
+            action: 'generate',
             therapy_id: therapyId,
-            content: safeJsonString(form.content.value),
-            share_token: form.share_token.value.trim() || null,
-            pin_code: form.pin_code.value.trim() || null,
-            valid_until: form.valid_until.value || null,
-            recipients: form.recipients.value.trim() || null
-        };
+            mode,
+            followup_id: followupId || ''
+        });
 
         try {
-            const response = await fetch('api/reports.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const response = await fetch(`api/reports.php?${query.toString()}`);
             const result = await response.json();
             if (result.success) {
-                form.reset();
+                showReportToast(result.data?.pdf_url);
                 loadReports(therapyId);
             } else {
-                alert(result.error || 'Errore nel salvataggio del report');
+                alert(result.error || 'Errore nella generazione del report');
             }
         } catch (error) {
             console.error(error);
-            alert('Errore di rete nel salvataggio del report');
+            alert('Errore di rete nella generazione del report');
         }
     });
+
+    const refreshFollowups = async () => {
+        const therapyId = therapySelect?.value;
+        if (!therapyId || !followupSelect) return;
+        followupSelect.innerHTML = '<option value="">Seleziona check</option>';
+        const followups = await fetchFollowupsOptions(therapyId);
+        followups.forEach((f) => {
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = `${f.follow_up_date || f.created_at || ''} - Rischio ${f.risk_score ?? '-'}`;
+            followupSelect.appendChild(opt);
+        });
+    };
+
+    therapySelect?.addEventListener('change', refreshFollowups);
+    refreshFollowups();
 }
 
 async function loadReports(therapyId) {
@@ -297,7 +414,7 @@ async function loadReports(therapyId) {
             list.innerHTML = `<div class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</div>`;
             return;
         }
-        const items = result.data || [];
+        const items = result.data?.items || [];
         if (!items.length) {
             list.innerHTML = '<div class="text-muted">Nessun report</div>';
             return;
@@ -310,6 +427,7 @@ async function loadReports(therapyId) {
                 </div>
                 <div class="small">Token: ${sanitizeHtml(r.share_token || '-')}</div>
                 <div class="small">PIN: ${sanitizeHtml(r.pin_code || '-')}</div>
+                <div class="small">PDF: ${r.pdf_url ? `<a href="${sanitizeHtml(r.pdf_url)}" target="_blank">Scarica</a>` : '-'}</div>
                 <pre class="bg-light p-2 mt-2 mb-0" style="white-space: pre-wrap;">${sanitizeHtml(formatJson(r.content))}</pre>
             </div>
         `);
@@ -330,13 +448,19 @@ function attachFollowupForm(therapySelect) {
             alert('Seleziona una terapia.');
             return;
         }
+        if (!form.follow_up_date.value) {
+            alert('Seleziona la data di follow-up.');
+            return;
+        }
+        if (!form.risk_score.value) {
+            alert('Inserisci il rischio aggiornato.');
+            return;
+        }
         const payload = {
             therapy_id: therapyId,
-            risk_score: form.risk_score.value || null,
+            risk_score: form.risk_score.value,
             pharmacist_notes: form.pharmacist_notes.value.trim() || null,
-            education_notes: form.education_notes.value.trim() || null,
-            snapshot: safeJsonString(form.snapshot.value),
-            follow_up_date: form.follow_up_date.value || null
+            follow_up_date: form.follow_up_date.value
         };
 
         try {
@@ -348,6 +472,7 @@ function attachFollowupForm(therapySelect) {
             const result = await response.json();
             if (result.success) {
                 form.reset();
+                showFollowupToast('Follow-up salvato', 'success');
                 loadFollowups(therapyId);
             } else {
                 alert(result.error || 'Errore nel salvataggio del follow-up');
@@ -374,28 +499,445 @@ async function loadFollowups(therapyId) {
             list.innerHTML = `<div class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</div>`;
             return;
         }
-        const items = result.data || [];
+        const items = result.data?.items || [];
         if (!items.length) {
             list.innerHTML = '<div class="text-muted">Nessun follow-up</div>';
             return;
         }
-        const rows = items.map((r) => `
-            <div class="border rounded p-2 mb-2">
-                <div class="d-flex justify-content-between">
-                    <strong>Follow-up #${sanitizeHtml(r.id)}</strong>
-                    <span class="small text-muted">${sanitizeHtml(r.follow_up_date || '')}</span>
+        const rows = items.map((r) => {
+            const statusBadge = r.status === 'canceled'
+                ? '<span class="badge bg-secondary">Annullato</span>'
+                : '<span class="badge bg-success">Programmato</span>';
+            const cancelButton = r.status === 'scheduled'
+                ? `<button class="btn btn-sm btn-outline-danger" onclick="cancelFollowup(${r.id}, ${therapyId})">Cancella</button>`
+                : '';
+            return `
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">Rischio: ${sanitizeHtml(r.risk_score || 'N/A')}</div>
+                            <div class="small text-muted">${sanitizeHtml(r.follow_up_date || '')}</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            ${statusBadge}
+                            ${cancelButton ? cancelButton : ''}
+                        </div>
+                    </div>
+                    <div class="mt-2">${sanitizeHtml(r.pharmacist_notes || '')}</div>
                 </div>
-                <div class="small">Rischio: ${sanitizeHtml(r.risk_score || '-')}</div>
-                <div class="small">Note farmacista: ${sanitizeHtml(r.pharmacist_notes || '')}</div>
-                <div class="small">Note educazione: ${sanitizeHtml(r.education_notes || '')}</div>
-                <pre class="bg-light p-2 mt-2 mb-0" style="white-space: pre-wrap;">${sanitizeHtml(formatJson(r.snapshot))}</pre>
-            </div>
-        `);
+            `;
+        });
         list.innerHTML = rows.join('');
     } catch (error) {
         console.error(error);
         list.innerHTML = '<div class="text-danger">Errore di rete</div>';
     }
+}
+
+async function cancelFollowup(followupId, therapyId = null) {
+    if (!followupId) return;
+    const targetTherapyId = therapyId || document.getElementById('followupTherapySelect')?.value;
+    try {
+        const response = await fetch(`api/followups.php?action=cancel&id=${followupId}`, { method: 'POST' });
+        const result = await response.json();
+        if (result.success) {
+            showFollowupToast('Follow-up cancellato', 'success');
+            loadFollowups(targetTherapyId);
+        } else {
+            alert(result.error || 'Errore nella cancellazione del follow-up');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nella cancellazione del follow-up');
+    }
+}
+
+async function openCheckPeriodicoModal(therapyId = null) {
+    if (!followupModalContainer) return;
+
+    followupModalContainer.innerHTML = `
+        <div class="modal fade" id="checkPeriodicoModalDialog" tabindex="-1">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Check periodico</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Terapia</label>
+                                <select class="form-select" id="checkTherapySelect"></select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end justify-content-end gap-2">
+                                <button type="button" class="btn btn-outline-primary" id="btnNewCheck">Nuovo check periodico</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                            </div>
+                        </div>
+                        <div class="mt-3" id="checkQuestionsSection">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Domande</h6>
+                                <div class="input-group" style="max-width: 420px;">
+                                    <input type="text" class="form-control" id="customQuestionText" placeholder="Nuova domanda">
+                                    <select class="form-select" id="customQuestionType">
+                                        <option value="text">Testo</option>
+                                        <option value="boolean">Sì/No</option>
+                                    </select>
+                                    <button class="btn btn-outline-primary" type="button" onclick="addCustomQuestion()">Aggiungi</button>
+                                </div>
+                            </div>
+                            <div id="checkQuestionList" class="mb-3"></div>
+                            <div class="text-end">
+                                <button class="btn btn-primary" type="button" onclick="saveAnswers()">Salva risposte</button>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <h6>Storico check periodici</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Data creazione</th>
+                                            <th>Data follow-up</th>
+                                            <th>Rischio</th>
+                                            <th>Stato</th>
+                                            <th>Risposte</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="checkHistoryBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const therapySelect = document.getElementById('checkTherapySelect');
+    await populateTherapySelect(therapySelect, therapyId);
+    therapySelect?.addEventListener('change', () => {
+        loadCheckFollowups(therapySelect.value);
+    });
+
+    const btnNewCheck = document.getElementById('btnNewCheck');
+    if (btnNewCheck) {
+        btnNewCheck.addEventListener('click', () => createCheckPeriodico());
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('checkPeriodicoModalDialog'));
+    loadCheckFollowups(therapySelect?.value);
+    modal.show();
+}
+
+async function loadCheckFollowups(therapyId) {
+    const historyBody = document.getElementById('checkHistoryBody');
+    const questionList = document.getElementById('checkQuestionList');
+    if (!historyBody || !questionList) return;
+    activeFollowupId = null;
+    activeFollowupSnapshot = null;
+    activeFollowups = [];
+
+    if (!therapyId) {
+        historyBody.innerHTML = '<tr><td colspan="5" class="text-muted">Seleziona una terapia per proseguire</td></tr>';
+        questionList.innerHTML = '<div class="text-muted">Nessun check disponibile</div>';
+        return;
+    }
+
+    historyBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Caricamento...</td></tr>';
+    questionList.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
+
+    try {
+        const response = await fetch(`api/followups.php?therapy_id=${therapyId}`);
+        const result = await response.json();
+        if (!result.success) {
+            historyBody.innerHTML = `<tr><td colspan="5" class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</td></tr>`;
+            questionList.innerHTML = '<div class="text-danger">Errore nel caricamento</div>';
+            return;
+        }
+
+        const items = result.data?.items || [];
+        activeFollowups = items;
+        renderCheckHistory(items);
+        const active = items.find((f) => f.status !== 'canceled') || items[0];
+        if (active) {
+            setActiveFollowup(active);
+        } else {
+            questionList.innerHTML = '<div class="text-muted">Nessun check periodico. Creane uno nuovo.</div>';
+        }
+    } catch (error) {
+        console.error(error);
+        historyBody.innerHTML = '<tr><td colspan="5" class="text-danger">Errore di rete</td></tr>';
+        questionList.innerHTML = '<div class="text-danger">Errore di rete</div>';
+    }
+}
+
+function setActiveFollowup(followup) {
+    activeFollowupId = followup?.id || null;
+    activeFollowupSnapshot = parseFollowupSnapshot(followup?.snapshot);
+    renderCheckQuestions();
+}
+
+function renderQuestionInput(question, index, isCustom = false) {
+    const currentValue = question?.answer;
+    const inputName = isCustom ? `custom-${index}` : `base-${index}`;
+    if (question.type === 'boolean') {
+        const value = currentValue === true || currentValue === 'true' ? 'true' : currentValue === false || currentValue === 'false' ? 'false' : '';
+        return `
+            <select class="form-select form-select-sm check-question-input" data-section="${isCustom ? 'custom' : 'base'}" data-index="${index}" name="${inputName}">
+                <option value="">Seleziona...</option>
+                <option value="true" ${value === 'true' ? 'selected' : ''}>Sì</option>
+                <option value="false" ${value === 'false' ? 'selected' : ''}>No</option>
+            </select>
+        `;
+    }
+
+    return `<input type="text" class="form-control form-control-sm check-question-input" data-section="${isCustom ? 'custom' : 'base'}" data-index="${index}" name="${inputName}" value="${currentValue !== null && currentValue !== undefined ? sanitizeHtml(String(currentValue)) : ''}">`;
+}
+
+function renderCheckQuestions() {
+    const questionList = document.getElementById('checkQuestionList');
+    if (!questionList) return;
+    if (!activeFollowupId || !activeFollowupSnapshot) {
+        questionList.innerHTML = '<div class="text-muted">Nessun check attivo. Creane uno nuovo.</div>';
+        return;
+    }
+
+    const snapshot = activeFollowupSnapshot;
+    const baseQuestions = snapshot.questions || [];
+    const customQuestions = snapshot.custom_questions || [];
+
+    const baseRows = baseQuestions.map((q, idx) => `
+        <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="fw-semibold">${sanitizeHtml(q.text || `Domanda ${idx + 1}`)}</div>
+                <button class="btn btn-sm btn-outline-danger" type="button" onclick="removeQuestion(${idx})">Rimuovi</button>
+            </div>
+            <div class="mt-2">${renderQuestionInput(q, idx, false)}</div>
+        </div>
+    `);
+
+    const customRows = customQuestions.map((q, idx) => `
+        <div class="border rounded p-2 mb-2">
+            <div class="fw-semibold">${sanitizeHtml(q.text || `Domanda custom ${idx + 1}`)}</div>
+            <div class="small text-muted">${sanitizeHtml(q.type || '')}</div>
+            <div class="mt-2">${renderQuestionInput(q, idx, true)}</div>
+        </div>
+    `);
+
+    questionList.innerHTML = baseRows.concat(customRows).join('') || '<div class="text-muted">Nessuna domanda presente</div>';
+}
+
+function renderCheckHistory(items) {
+    const historyBody = document.getElementById('checkHistoryBody');
+    if (!historyBody) return;
+    if (!items.length) {
+        historyBody.innerHTML = '<tr><td colspan="5" class="text-muted">Nessun check registrato</td></tr>';
+        return;
+    }
+
+    historyBody.innerHTML = items.map((item) => {
+        const snapshot = parseFollowupSnapshot(item.snapshot);
+        const answersCount = countAnswered(snapshot);
+        const statusBadge = item.status === 'canceled'
+            ? '<span class="badge bg-secondary">Annullato</span>'
+            : '<span class="badge bg-success">Attivo</span>';
+        return `
+            <tr>
+                <td>${sanitizeHtml(item.created_at || '')}</td>
+                <td>${sanitizeHtml(item.follow_up_date || '-')}</td>
+                <td>${sanitizeHtml(item.risk_score ?? '-')}</td>
+                <td>${statusBadge}</td>
+                <td>${answersCount}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function createCheckPeriodico() {
+    const therapySelect = document.getElementById('checkTherapySelect');
+    const therapyId = therapySelect?.value;
+    if (!therapyId) {
+        alert('Seleziona una terapia prima di creare un check.');
+        return;
+    }
+    try {
+        const response = await fetch('api/followups.php?action=init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ therapy_id: therapyId })
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeFollowupId = result.data?.followup?.id || null;
+            activeFollowupSnapshot = result.data?.snapshot || (result.data?.followup?.snapshot ? JSON.parse(result.data.followup.snapshot) : null);
+            showFollowupToast('Check periodico creato', 'success');
+            loadCheckFollowups(therapyId);
+        } else {
+            alert(result.error || 'Errore nella creazione del check');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nella creazione del check');
+    }
+}
+
+async function addCustomQuestion() {
+    if (!activeFollowupId) {
+        alert('Crea prima un check periodico.');
+        return;
+    }
+    const textInput = document.getElementById('customQuestionText');
+    const typeInput = document.getElementById('customQuestionType');
+    const text = textInput?.value?.trim();
+    const type = typeInput?.value || 'text';
+    if (!text) {
+        alert('Inserisci il testo della domanda.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`api/followups.php?action=add-question&id=${activeFollowupId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, type })
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            renderCheckQuestions();
+            if (textInput) textInput.value = '';
+            showFollowupToast('Domanda aggiunta', 'success');
+        } else {
+            alert(result.error || 'Errore aggiunta domanda');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nell\'aggiunta della domanda');
+    }
+}
+
+async function removeQuestion(index) {
+    if (!activeFollowupId) return;
+    try {
+        const response = await fetch(`api/followups.php?action=remove-question&id=${activeFollowupId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index })
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            renderCheckQuestions();
+            showFollowupToast('Domanda rimossa', 'success');
+        } else {
+            alert(result.error || 'Errore nella rimozione della domanda');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nella rimozione della domanda');
+    }
+}
+
+async function saveAnswers() {
+    if (!activeFollowupId) {
+        alert('Nessun check selezionato.');
+        return;
+    }
+    const inputs = document.querySelectorAll('.check-question-input');
+    const answers = [];
+    inputs.forEach((input) => {
+        const index = input.dataset.index;
+        const section = input.dataset.section;
+        let value = input.value;
+        if (input.type === 'select-one' && input.value === '') {
+            value = null;
+        }
+        if (input.type === 'select-one' && input.value !== '') {
+            value = input.value === 'true' ? true : input.value === 'false' ? false : input.value;
+        }
+        if (input.type === 'text' && input.value === '') {
+            value = null;
+        }
+        answers.push({ index: Number(index), answer: value, custom: section === 'custom' });
+    });
+
+    try {
+        const response = await fetch(`api/followups.php?action=answer&id=${activeFollowupId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers })
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            renderCheckQuestions();
+            const therapyId = document.getElementById('checkTherapySelect')?.value;
+            loadCheckFollowups(therapyId);
+            showFollowupToast('Risposte salvate', 'success');
+        } else {
+            alert(result.error || 'Errore nel salvataggio delle risposte');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nel salvataggio delle risposte');
+    }
+}
+
+function countAnswered(snapshot) {
+    if (!snapshot) return 0;
+    const base = snapshot.questions || [];
+    const custom = snapshot.custom_questions || [];
+    const isAnswered = (ans) => ans !== null && ans !== undefined && ans !== '';
+    const baseCount = base.filter((q) => isAnswered(q.answer)).length;
+    const customCount = custom.filter((q) => isAnswered(q.answer)).length;
+    return baseCount + customCount;
+}
+
+function parseFollowupSnapshot(snapshot) {
+    if (!snapshot) return null;
+    try {
+        if (typeof snapshot === 'string') {
+            return JSON.parse(snapshot);
+        }
+        return snapshot;
+    } catch (error) {
+        console.error('Errore parsing snapshot', error);
+        return null;
+    }
+}
+
+function showFollowupToast(message, type = 'success') {
+    const containerId = 'followupToastContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${sanitizeHtml(message)}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+        if (!container.children.length) {
+            container.remove();
+        }
+    });
+    bsToast.show();
 }
 
 function safeJsonString(value) {
@@ -559,29 +1101,24 @@ async function openReportsModal(therapyId = null) {
                         </div>
                         <div id="reportList" class="mb-3"></div>
                         <form id="reportForm" class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label">Contenuto JSON</label>
-                                <textarea class="form-control" name="content" rows="4" required>{}</textarea>
+                            <div class="col-md-6">
+                                <label class="form-label">Modalità</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="reportMode" id="reportModeAll" value="all" checked>
+                                    <label class="form-check-label" for="reportModeAll">Tutti i check periodici</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="reportMode" id="reportModeSingle" value="single">
+                                    <label class="form-check-label" for="reportModeSingle">Solo uno</label>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Validità fino al</label>
-                                <input type="datetime-local" class="form-control" name="valid_until">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Token condivisibile</label>
-                                <input type="text" class="form-control" name="share_token" placeholder="opzionale">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">PIN (opzionale)</label>
-                                <input type="text" class="form-control" name="pin_code" placeholder="opzionale">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Destinatari (email/sms)</label>
-                                <input type="text" class="form-control" name="recipients" placeholder="es. email1, email2">
+                            <div class="col-md-6 d-none" id="reportFollowupWrapper">
+                                <label class="form-label">Seleziona check</label>
+                                <select class="form-select" id="reportFollowupSelect"></select>
                             </div>
                             <div class="col-12 text-end">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                                <button type="submit" class="btn btn-primary">Crea report</button>
+                                <button type="submit" class="btn btn-primary">Genera report</button>
                             </div>
                         </form>
                     </div>
@@ -600,6 +1137,71 @@ async function openReportsModal(therapyId = null) {
     attachReportForm(therapySelect);
     loadReports(therapySelect?.value);
     modal.show();
+}
+
+async function fetchFollowupsOptions(therapyId) {
+    if (!therapyId) return [];
+    try {
+        const response = await fetch(`api/followups.php?therapy_id=${therapyId}`);
+        const result = await response.json();
+        if (!result.success) return [];
+        return result.data?.items || [];
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+}
+
+function showReportToast(pdfUrl) {
+    const containerId = 'reportToastContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-white bg-success border-0';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex';
+
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    body.textContent = 'Report generato. ';
+
+    if (pdfUrl) {
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.target = '_blank';
+        link.className = 'text-white text-decoration-underline';
+        link.textContent = 'Apri PDF';
+        body.appendChild(link);
+    }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close btn-close-white me-2 m-auto';
+    closeBtn.setAttribute('data-bs-dismiss', 'toast');
+
+    wrapper.appendChild(body);
+    wrapper.appendChild(closeBtn);
+    toast.appendChild(wrapper);
+
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+        if (!container.children.length) {
+            container.remove();
+        }
+    });
+    bsToast.show();
 }
 
 async function openFollowupModal(therapyId = null) {
@@ -627,14 +1229,6 @@ async function openFollowupModal(therapyId = null) {
                             <div class="col-12">
                                 <label class="form-label">Note farmacista</label>
                                 <textarea class="form-control" name="pharmacist_notes" rows="2"></textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Note educazione sanitaria</label>
-                                <textarea class="form-control" name="education_notes" rows="2"></textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Snapshot JSON</label>
-                                <textarea class="form-control" name="snapshot" rows="3">{}</textarea>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Data follow-up</label>
