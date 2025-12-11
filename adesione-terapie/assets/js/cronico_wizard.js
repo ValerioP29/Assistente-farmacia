@@ -598,64 +598,59 @@ function renderStep2() {
             <h5 class="mb-0">Caregiver e familiari</h5>
             <button class="btn btn-sm btn-outline-primary" id="btnAddAssistant">Aggiungi nuovo assistente</button>
         </div>
+
         <div id="assistantsList" class="mb-4"></div>
-        <div id="assistantForms"></div>
-        <div class="modal fade" id="caregiverModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Nuovo assistente</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div id="assistantForms" class="mb-4"></div>
+
+        <div id="newAssistantForm" class="card mb-4 d-none">
+            <div class="card-body">
+                <h6 class="mb-3">Nuovo assistente</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Nome *</label>
+                        <input type="text" class="form-control" id="assistantFirstName">
                     </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Nome *</label>
-                                <input type="text" class="form-control" id="assistantFirstName">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Cognome</label>
-                                <input type="text" class="form-control" id="assistantLastName">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Telefono</label>
-                                <input type="text" class="form-control" id="assistantPhone">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-control" id="assistantEmail">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tipo</label>
-                                <select class="form-select" id="assistantType">
-                                    <option value="familiare">Familiare</option>
-                                    <option value="caregiver">Caregiver</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Relazione con paziente</label>
-                                <input type="text" class="form-control" id="assistantRelation">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Contatto preferito</label>
-                                <select class="form-select" id="assistantPreferredContact">
-                                    <option value="">Seleziona</option>
-                                    <option value="phone">Telefono</option>
-                                    <option value="email">Email</option>
-                                    <option value="whatsapp">WhatsApp</option>
-                                </select>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Note</label>
-                                <textarea class="form-control" id="assistantNotes" rows="2"></textarea>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Cognome</label>
+                        <input type="text" class="form-control" id="assistantLastName">
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="button" class="btn btn-primary" id="saveAssistantBtn">Salva</button>
+                    <div class="col-md-6">
+                        <label class="form-label">Telefono</label>
+                        <input type="text" class="form-control" id="assistantPhone">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="assistantEmail">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" id="assistantType">
+                            <option value="familiare">Familiare</option>
+                            <option value="caregiver">Caregiver</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Relazione con il paziente</label>
+                        <input type="text" class="form-control" id="assistantRelation">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Canale di contatto preferito</label>
+                        <select class="form-select" id="assistantPreferredContact">
+                            <option value="">Seleziona</option>
+                            <option value="phone">Telefono</option>
+                            <option value="email">Email</option>
+                            <option value="whatsapp">WhatsApp</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" id="assistantNotes" rows="2"></textarea>
                     </div>
                 </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" id="cancelAssistantBtn">Annulla</button>
+                <button type="button" class="btn btn-primary" id="saveAssistantBtn">Salva</button>
             </div>
         </div>
     `;
@@ -663,26 +658,29 @@ function renderStep2() {
     fetchAssistants();
 
     const addBtn = document.getElementById('btnAddAssistant');
-    if (addBtn) addBtn.addEventListener('click', () => {
-        const modalEl = document.getElementById('caregiverModal');
-        if (modalEl) {
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    });
-
-    const saveBtn = document.getElementById('saveAssistantBtn');
-    if (saveBtn) saveBtn.addEventListener('click', saveNewAssistant);
-
-    const caregiverModalEl = document.getElementById('caregiverModal');
-    if (caregiverModalEl) {
-        $('#caregiverModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
-            $('body').addClass('modal-open');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            const formCard = document.getElementById('newAssistantForm');
+            if (formCard) {
+                formCard.classList.remove('d-none');
+            }
         });
     }
 
-    renderAssistantForms(assistants);
-}
+    const cancelBtn = document.getElementById('cancelAssistantBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            hideAndResetAssistantForm();
+        });
+    }
+
+    const saveBtn = document.getElementById('saveAssistantBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveNewAssistant);
+    }
+
+        renderAssistantForms(assistants);
+    }
 
 function renderAssistantForms(list) {
     const container = document.getElementById('assistantForms');
@@ -842,9 +840,7 @@ async function fetchAssistants() {
 }
 
 async function saveNewAssistant(event) {
-    if (event) event.preventDefault();
-
-    const modalEl = document.getElementById('caregiverModal');
+   if (event) event.preventDefault();
     const payload = {
         first_name: document.getElementById('assistantFirstName')?.value?.trim() || '',
         last_name: document.getElementById('assistantLastName')?.value?.trim() || '',
@@ -869,10 +865,7 @@ async function saveNewAssistant(event) {
         });
         const data = await resp.json();
         if (data.success) {
-            if (modalEl) {
-                const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                if (modalInstance) modalInstance.hide();
-            }
+            hideAndResetAssistantForm();
             fetchAssistants();
         } else {
             alert(data.error || 'Errore salvataggio assistente');
@@ -880,6 +873,29 @@ async function saveNewAssistant(event) {
     } catch (err) {
         alert('Errore di rete');
     }
+}
+
+function hideAndResetAssistantForm() {
+  const formCard = document.getElementById('newAssistantForm');
+  if (formCard) {
+      formCard.classList.add('d-none');
+  }
+  const fields = [
+      'assistantFirstName',
+      'assistantLastName',
+      'assistantPhone',
+      'assistantEmail',
+      'assistantType',
+      'assistantRelation',
+      'assistantPreferredContact',
+      'assistantNotes',
+  ];
+  fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') el.value = '';
+      else if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.value = '';
+  });
 }
 
 function renderStep3() {
