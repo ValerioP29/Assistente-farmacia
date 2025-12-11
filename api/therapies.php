@@ -19,6 +19,39 @@ function getPharmacyId() {
     return $_SESSION['pharmacy_id'] ?? null;
 }
 
+function normalizeDateFields($data) {
+    if (!is_array($data)) {
+        return $data;
+    }
+
+    foreach ($data as $key => $value) {
+        if (is_array($value)) {
+            $data[$key] = normalizeDateFields($value);
+            continue;
+        }
+
+        if (is_string($value) && $value === '' && preg_match('/(_date|_at)$/', $key)) {
+            $data[$key] = null;
+        }
+    }
+
+    return $data;
+}
+
+function executeQueryWithTypes(PDO $pdo, string $sql, array $params = []) {
+    $stmt = $pdo->prepare($sql);
+    $index = 1;
+
+    foreach ($params as $value) {
+        $type = is_null($value) ? PDO::PARAM_NULL : PDO::PARAM_STR;
+        $stmt->bindValue($index, $value, $type);
+        $index++;
+    }
+
+    $stmt->execute();
+    return $stmt;
+}
+
 $pdo = db()->getConnection();
 
 switch ($method) {
@@ -76,13 +109,13 @@ switch ($method) {
         break;
 
     case 'POST':
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $input = normalizeDateFields(json_decode(file_get_contents('php://input'), true) ?? []);
         $pharmacy_id = getPharmacyId();
         if (!$pharmacy_id) {
             respond(false, null, 'Farmacia non disponibile', 400);
         }
 
-        $patient = sanitize($input['patient'] ?? []);
+        $patient = normalizeDateFields(sanitize($input['patient'] ?? []));
         $primary_condition = sanitize($input['primary_condition'] ?? null);
         $initial_notes = $input['initial_notes'] ?? null;
         $general_anamnesis = $input['general_anamnesis'] ?? null;
@@ -105,7 +138,7 @@ switch ($method) {
 
             $patient_id = $patient['id'] ?? null;
             if (!$patient_id) {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_patients (pharmacy_id, first_name, last_name, birth_date, codice_fiscale, phone, email, notes) VALUES (?,?,?,?,?,?,?,?)",
                     [
                         $pharmacy_id,
@@ -119,9 +152,9 @@ switch ($method) {
                     ]
                 );
                 $patient_id = $pdo->lastInsertId();
-                db_query("INSERT INTO jta_pharma_patient (pharma_id, patient_id) VALUES (?, ?)", [$pharmacy_id, $patient_id]);
+                executeQueryWithTypes($pdo, "INSERT INTO jta_pharma_patient (pharma_id, patient_id) VALUES (?, ?)", [$pharmacy_id, $patient_id]);
             } else {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ?",
                     [
                         $patient['first_name'],
@@ -142,13 +175,13 @@ switch ($method) {
             $start_date = $input['start_date'] ?? date('Y-m-d');
             $end_date = $input['end_date'] ?? null;
 
-            db_query(
+            executeQueryWithTypes($pdo, 
                 "INSERT INTO jta_therapies (pharmacy_id, patient_id, therapy_title, therapy_description, status, start_date, end_date) VALUES (?,?,?,?,?,?,?)",
                 [$pharmacy_id, $patient_id, $therapy_title, $therapy_description, $status, $start_date, $end_date]
             );
             $therapy_id = $pdo->lastInsertId();
 
-            db_query(
+            executeQueryWithTypes($pdo, 
                 "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date) VALUES (?,?,?,?,?,?,?,?,?)",
                 [
                     $therapy_id,
@@ -167,7 +200,7 @@ switch ($method) {
                 $assistant = sanitize($assistant);
                 $assistant_id = $assistant['assistant_id'] ?? null;
                 if (!$assistant_id) {
-                    db_query(
+                    executeQueryWithTypes($pdo, 
                         "INSERT INTO jta_assistants (pharma_id, first_name, last_name, phone, email, type, relation_to_patient, preferred_contact, notes) VALUES (?,?,?,?,?,?,?,?,?)",
                         [
                             $pharmacy_id,
@@ -184,7 +217,7 @@ switch ($method) {
                     $assistant_id = $pdo->lastInsertId();
                 }
 
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_assistant (therapy_id, assistant_id, role, contact_channel, preferences_json, consents_json) VALUES (?,?,?,?,?,?)",
                     [
                         $therapy_id,
@@ -198,7 +231,7 @@ switch ($method) {
             }
 
             if ($condition_survey) {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_condition_surveys (therapy_id, condition_type, level, answers, compiled_at) VALUES (?,?,?,?,?)",
                     [
                         $therapy_id,
@@ -211,14 +244,21 @@ switch ($method) {
             }
 
             if ($consent) {
-                db_query(
+                $consentSignerName = $consent['signer_name'] ?? '';
+                $consentText = $consent['consent_text'] ?? 'Consenso informato e trattamento dati';
+                $consentSignedAt = $consent['signed_at'] ?? null;
+                if (empty($consentSignedAt)) {
+                    $consentSignedAt = date('Y-m-d H:i:s');
+                }
+
+                executeQueryWithTypes($pdo,
                     "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
-                        $consent['signer_name'] ?? '',
+                        $consentSignerName,
                         $consent['signer_relation'] ?? 'patient',
-                        $consent['consent_text'] ?? 'Consenso informato e trattamento dati',
-                        $consent['signed_at'] ?? date('Y-m-d H:i:s'),
+                        $consentText,
+                        $consentSignedAt,
                         $_SERVER['REMOTE_ADDR'] ?? null,
                         isset($consent['scopes']) ? json_encode($consent['scopes']) : null,
                         $consent['signer_role'] ?? null
@@ -236,14 +276,14 @@ switch ($method) {
         break;
 
     case 'PUT':
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $input = normalizeDateFields(json_decode(file_get_contents('php://input'), true) ?? []);
         $therapy_id = $input['id'] ?? ($_GET['id'] ?? null);
         $pharmacy_id = getPharmacyId();
         if (!$therapy_id || !$pharmacy_id) {
             respond(false, null, 'ID terapia o farmacia mancanti', 400);
         }
 
-        $patient = sanitize($input['patient'] ?? []);
+        $patient = normalizeDateFields(sanitize($input['patient'] ?? []));
         $primary_condition = sanitize($input['primary_condition'] ?? null);
         $initial_notes = $input['initial_notes'] ?? null;
         $general_anamnesis = $input['general_anamnesis'] ?? null;
@@ -262,7 +302,7 @@ switch ($method) {
 
             $patient_id = $patient['id'] ?? null;
             if ($patient_id) {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ?",
                     [
                         $patient['first_name'] ?? '',
@@ -277,7 +317,7 @@ switch ($method) {
                 );
             }
 
-            db_query(
+            executeQueryWithTypes($pdo, 
                 "UPDATE jta_therapies SET therapy_title = ?, therapy_description = ?, status = ?, start_date = ?, end_date = ? WHERE id = ? AND pharmacy_id = ?",
                 [
                     $input['therapy_title'] ?? ('Presa in carico paziente cronico – ' . $primary_condition),
@@ -292,7 +332,7 @@ switch ($method) {
 
             $existing = db_fetch_one("SELECT id FROM jta_therapy_chronic_care WHERE therapy_id = ?", [$therapy_id]);
             if ($existing) {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "UPDATE jta_therapy_chronic_care SET primary_condition = ?, general_anamnesis = ?, detailed_intake = ?, adherence_base = ?, risk_score = ?, flags = ?, notes_initial = ?, follow_up_date = ?, updated_at = NOW() WHERE therapy_id = ?",
                     [
                         $primary_condition,
@@ -307,7 +347,7 @@ switch ($method) {
                     ]
                 );
             } else {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date) VALUES (?,?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
@@ -323,12 +363,12 @@ switch ($method) {
                 );
             }
 
-            db_query("DELETE FROM jta_therapy_assistant WHERE therapy_id = ?", [$therapy_id]);
+            executeQueryWithTypes($pdo, "DELETE FROM jta_therapy_assistant WHERE therapy_id = ?", [$therapy_id]);
             foreach ($therapy_assistants as $assistant) {
                 $assistant = sanitize($assistant);
                 $assistant_id = $assistant['assistant_id'] ?? null;
                 if (!$assistant_id) {
-                    db_query(
+                    executeQueryWithTypes($pdo, 
                         "INSERT INTO jta_assistants (pharma_id, first_name, last_name, phone, email, type, relation_to_patient, preferred_contact, notes) VALUES (?,?,?,?,?,?,?,?,?)",
                         [
                             $pharmacy_id,
@@ -344,7 +384,7 @@ switch ($method) {
                     );
                     $assistant_id = $pdo->lastInsertId();
                 }
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_assistant (therapy_id, assistant_id, role, contact_channel, preferences_json, consents_json) VALUES (?,?,?,?,?,?)",
                     [
                         $therapy_id,
@@ -357,9 +397,9 @@ switch ($method) {
                 );
             }
 
-            db_query("DELETE FROM jta_therapy_condition_surveys WHERE therapy_id = ?", [$therapy_id]);
+            executeQueryWithTypes($pdo, "DELETE FROM jta_therapy_condition_surveys WHERE therapy_id = ?", [$therapy_id]);
             if ($condition_survey) {
-                db_query(
+                executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_condition_surveys (therapy_id, condition_type, level, answers, compiled_at) VALUES (?,?,?,?,?)",
                     [
                         $therapy_id,
@@ -371,16 +411,23 @@ switch ($method) {
                 );
             }
 
-            db_query("DELETE FROM jta_therapy_consents WHERE therapy_id = ?", [$therapy_id]);
+            executeQueryWithTypes($pdo, "DELETE FROM jta_therapy_consents WHERE therapy_id = ?", [$therapy_id]);
             if ($consent) {
-                db_query(
+                $consentSignerName = $consent['signer_name'] ?? '';
+                $consentText = $consent['consent_text'] ?? 'Consenso informato e trattamento dati';
+                $consentSignedAt = $consent['signed_at'] ?? null;
+                if (empty($consentSignedAt)) {
+                    $consentSignedAt = date('Y-m-d H:i:s');
+                }
+
+                executeQueryWithTypes($pdo,
                     "INSERT INTO jta_therapy_consents (therapy_id, signer_name, signer_relation, consent_text, signed_at, ip_address, scopes_json, signer_role) VALUES (?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
-                        $consent['signer_name'] ?? '',
+                        $consentSignerName,
                         $consent['signer_relation'] ?? 'patient',
-                        $consent['consent_text'] ?? 'Consenso informato e trattamento dati',
-                        $consent['signed_at'] ?? date('Y-m-d H:i:s'),
+                        $consentText,
+                        $consentSignedAt,
                         $_SERVER['REMOTE_ADDR'] ?? null,
                         isset($consent['scopes']) ? json_encode($consent['scopes']) : null,
                         $consent['signer_role'] ?? null
@@ -403,7 +450,7 @@ switch ($method) {
             respond(false, null, 'ID terapia o farmacia mancanti', 400);
         }
         try {
-            db_query("UPDATE jta_therapies SET status = 'suspended', end_date = ? WHERE id = ? AND pharmacy_id = ?", [date('Y-m-d'), $therapy_id, $pharmacy_id]);
+            executeQueryWithTypes($pdo, "UPDATE jta_therapies SET status = 'suspended', end_date = ? WHERE id = ? AND pharmacy_id = ?", [date('Y-m-d'), $therapy_id, $pharmacy_id]);
             respond(true, ['therapy_id' => $therapy_id]);
         } catch (Exception $e) {
             respond(false, null, 'Errore sospensione terapia', 500);
