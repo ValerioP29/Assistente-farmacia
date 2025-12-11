@@ -20,6 +20,29 @@ const totalWizardSteps = 6;
 let currentTherapyId = null;
 let wizardModalInstance = null;
 
+const SURVEY_TEMPLATES = {
+    Diabete: [
+        { key: 'controllo_glicemia', label: 'Esegue controlli regolari della glicemia?', type: 'select', options: ['Mai', 'Talvolta', 'Regolarmente'] },
+        { key: 'aderenza_dieta', label: 'Segue la dieta prescritta?', type: 'select', options: ['Sempre', 'A volte', 'Mai'] },
+        { key: 'ultima_visita', label: 'Data/descrizione ultima visita diabetologica', type: 'text' },
+    ],
+    BPCO: [
+        { key: 'uso_dispositivo', label: 'Utilizza regolarmente il dispositivo inalatorio?', type: 'select', options: ['Mai', 'Talvolta', 'Regolarmente'] },
+        { key: 'dispnea', label: 'Livello di dispnea', type: 'select', options: ['Assente', 'Lieve', 'Moderata', 'Grave'] },
+        { key: 'ultima_spirometria', label: 'Data/descrizione ultima spirometria', type: 'text' },
+    ],
+    Ipertensione: [
+        { key: 'automisurazione', label: 'Esegue automisurazioni della pressione?', type: 'select', options: ['Mai', 'Talvolta', 'Regolarmente'] },
+        { key: 'aderenza_terapia', label: 'Aderenza alla terapia antipertensiva', type: 'select', options: ['Alta', 'Media', 'Bassa'] },
+        { key: 'ultima_visita_cardiologica', label: 'Data/descrizione ultima visita cardiologica', type: 'text' },
+    ],
+    Dislipidemia: [
+        { key: 'dieta_ipolipidica', label: 'Segue dieta ipolipidica?', type: 'select', options: ['Sempre', 'A volte', 'Mai'] },
+        { key: 'aderenza_statine', label: 'Aderenza alla terapia con statine', type: 'select', options: ['Alta', 'Media', 'Bassa'] },
+        { key: 'ultimo_profilo_lipidico', label: 'Data/descrizione ultimo profilo lipidico', type: 'text' },
+    ],
+};
+
 function getDefaultWizardState() {
     return {
         patient: {},
@@ -199,6 +222,28 @@ function updateNavigationButtons() {
 
 function nextStep() {
     if (!validateStep(currentWizardStep)) return;
+
+    // Persist data of the step we are leaving before rendering the next one
+    switch (currentWizardStep) {
+        case 1:
+            collectStep1Data();
+            break;
+        case 3:
+            collectStep3Data();
+            break;
+        case 4:
+            collectStep4Data();
+            break;
+        case 5:
+            collectStep5Data();
+            break;
+        case 6:
+            collectStep6Data();
+            break;
+        default:
+            break;
+    }
+
     if (currentWizardStep < totalWizardSteps) {
         currentWizardStep += 1;
         renderCurrentStep();
@@ -206,6 +251,24 @@ function nextStep() {
 }
 
 function prevStep() {
+    // Persist data before going back so user input is not lost
+    switch (currentWizardStep) {
+        case 3:
+            collectStep3Data();
+            break;
+        case 4:
+            collectStep4Data();
+            break;
+        case 5:
+            collectStep5Data();
+            break;
+        case 6:
+            collectStep6Data();
+            break;
+        default:
+            break;
+    }
+
     if (currentWizardStep > 1) {
         currentWizardStep -= 1;
         renderCurrentStep();
@@ -286,8 +349,8 @@ function renderStep1() {
                     <label class="form-label">Sesso</label>
                     <select class="form-select" id="patientGender">
                         <option value="">Seleziona</option>
-                        <option value="M">M</option>
-                        <option value="F">F</option>
+                        <option value="M" ${patient.gender === 'M' ? 'selected' : ''}>M</option>
+                        <option value="F" ${patient.gender === 'F' ? 'selected' : ''}>F</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -300,7 +363,7 @@ function renderStep1() {
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Caregiver (facoltativo)</label>
-                    <input type="text" class="form-control" id="patientCaregiverNote" placeholder="es. figlia Lucia">
+                    <input type="text" class="form-control" id="patientCaregiverNote" placeholder="es. figlia Lucia" value="${escapeHtml(patient.caregiver_note || '')}">
                 </div>
                 <div class="col-12">
                     <label class="form-label">Note iniziali</label>
@@ -546,6 +609,8 @@ function collectStep1Data() {
     patient.phone = document.getElementById('patientPhone')?.value?.trim() || '';
     patient.email = document.getElementById('patientEmail')?.value?.trim() || '';
     patient.notes = document.getElementById('patientNotes')?.value || '';
+    patient.gender = document.getElementById('patientGender')?.value || '';
+    patient.caregiver_note = document.getElementById('patientCaregiverNote')?.value || '';
     therapyWizardState.patient = patient;
 
     therapyWizardState.initial_notes = document.getElementById('patientNotes')?.value || '';
@@ -1008,12 +1073,38 @@ function renderStep4() {
     const answers = survey.answers || {};
     const compiledAt = survey.compiled_at || new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    const answerRows = Object.keys(answers).map((key, idx) => `
-        <div class="row g-2 mb-2 answer-row" data-index="${idx}">
-            <div class="col-md-4"><input type="text" class="form-control answer-key" value="${escapeHtml(key)}" placeholder="Chiave"></div>
-            <div class="col-md-8"><input type="text" class="form-control answer-value" value="${escapeHtml(answers[key] ?? '')}" placeholder="Valore"></div>
-        </div>
-    `).join('');
+    const template = SURVEY_TEMPLATES[condition] || [];
+    const templateKeys = template.map(t => t.key);
+    const genericAnswerRows = Object.keys(answers)
+        .filter((key) => !templateKeys.includes(key))
+        .map((key, idx) => `
+            <div class="row g-2 mb-2 answer-row" data-index="${idx}">
+                <div class="col-md-4"><input type="text" class="form-control answer-key" value="${escapeHtml(key)}" placeholder="Chiave"></div>
+                <div class="col-md-8"><input type="text" class="form-control answer-value" value="${escapeHtml(answers[key] ?? '')}" placeholder="Valore"></div>
+            </div>
+        `).join('');
+
+    const templateControls = template.map((q) => {
+        const existingVal = answers[q.key] ?? '';
+        if (q.type === 'select') {
+            const options = q.options.map(opt => `<option value="${escapeHtml(opt)}" ${existingVal === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('');
+            return `
+                <div class="col-md-6">
+                    <label class="form-label">${escapeHtml(q.label)}</label>
+                    <select class="form-select survey-input" data-key="${escapeHtml(q.key)}">
+                        <option value="">Seleziona</option>
+                        ${options}
+                    </select>
+                </div>
+            `;
+        }
+        return `
+            <div class="col-md-6">
+                <label class="form-label">${escapeHtml(q.label)}</label>
+                <input type="text" class="form-control survey-input" data-key="${escapeHtml(q.key)}" value="${escapeHtml(existingVal)}">
+            </div>
+        `;
+    }).join('');
 
     content.innerHTML = `
         <h5 class="mb-3">Questionario specifico patologia</h5>
@@ -1028,9 +1119,15 @@ function renderStep4() {
             </select>
         </div>
         <div class="mb-3">
+            <label class="form-label">Domande specifiche</label>
+            <div class="row g-3" id="surveyTemplateQuestions">
+                ${templateControls || '<div class="col-12 text-muted">Nessuna domanda specifica per la patologia selezionata.</div>'}
+            </div>
+        </div>
+        <div class="mb-3">
             <label class="form-label">Risposte (chiave → valore)</label>
             <div id="surveyAnswers">
-                ${answerRows || '<div class="text-muted">Aggiungi domande specifiche</div>'}
+                ${genericAnswerRows || '<div class="text-muted">Aggiungi domande specifiche</div>'}
             </div>
             <button class="btn btn-sm btn-outline-primary mt-2" id="addAnswerRow"><i class="fas fa-plus me-1"></i>Aggiungi campo</button>
             <div class="mt-2 text-muted small">Sezione commentata per domande specifiche per patologia (Diabete, BPCO, Ipertensione, Dislipidemia, Altro)</div>
@@ -1055,10 +1152,26 @@ function renderStep4() {
         `;
         container.appendChild(row);
     });
+
+    const conditionSelect = document.getElementById('surveyCondition');
+    if (conditionSelect) {
+        conditionSelect.addEventListener('change', () => {
+            // Re-render to load the appropriate template while keeping current answers
+            collectStep4Data();
+            renderStep4();
+        });
+    }
 }
 
 function collectStep4Data() {
     const answers = {};
+    document.querySelectorAll('.survey-input').forEach((input) => {
+        const key = input.getAttribute('data-key');
+        if (!key) return;
+        answers[key] = input.value;
+    });
+
+    // Keep flexibility: allow manual key/value rows in addition to template
     document.querySelectorAll('#surveyAnswers .answer-row').forEach((row) => {
         const key = row.querySelector('.answer-key')?.value;
         const val = row.querySelector('.answer-value')?.value;
@@ -1193,6 +1306,12 @@ function collectStep6Data() {
 
 function assemblePayload() {
     collectStep6Data();
+
+    // Fallback: if primary condition missing, reuse condition survey selection
+    if (!therapyWizardState.primary_condition && therapyWizardState.condition_survey?.condition_type) {
+        therapyWizardState.primary_condition = therapyWizardState.condition_survey.condition_type;
+    }
+
     return {
         patient: therapyWizardState.patient,
         primary_condition: therapyWizardState.primary_condition,
