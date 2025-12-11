@@ -227,7 +227,17 @@ function validateStep(step) {
         }
     }
     if (step === 6) {
-        if (!therapyWizardState.consent?.scopes?.care_followup) {
+        const gdprCareFollowup = document.getElementById('consentCareFollowup')?.checked ?? false;
+        const gdprContact = document.getElementById('consentContact')?.checked ?? false;
+        const gdprAnonymous = document.getElementById('consentAnonymous')?.checked ?? false;
+
+        therapyWizardState.consent = therapyWizardState.consent || {};
+        therapyWizardState.consent.scopes = therapyWizardState.consent.scopes || {};
+        therapyWizardState.consent.scopes.care_followup = gdprCareFollowup;
+        therapyWizardState.consent.scopes.contact_for_reminders = gdprContact;
+        therapyWizardState.consent.scopes.anonymous_stats = gdprAnonymous;
+
+        if (!gdprCareFollowup || !gdprContact || !gdprAnonymous) {
             alert('Il consenso GDPR è obbligatorio per procedere.');
             return false;
         }
@@ -590,7 +600,7 @@ function renderStep2() {
         </div>
         <div id="assistantsList" class="mb-4"></div>
         <div id="assistantForms"></div>
-        <div class="modal fade" id="assistantModal" tabindex="-1" aria-hidden="true">
+        <div class="modal fade" id="caregiverModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -654,7 +664,7 @@ function renderStep2() {
 
     const addBtn = document.getElementById('btnAddAssistant');
     if (addBtn) addBtn.addEventListener('click', () => {
-        const modalEl = document.getElementById('assistantModal');
+        const modalEl = document.getElementById('caregiverModal');
         if (modalEl) {
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
@@ -663,6 +673,13 @@ function renderStep2() {
 
     const saveBtn = document.getElementById('saveAssistantBtn');
     if (saveBtn) saveBtn.addEventListener('click', saveNewAssistant);
+
+    const caregiverModalEl = document.getElementById('caregiverModal');
+    if (caregiverModalEl) {
+        $('#caregiverModal').off('hidden.bs.modal').on('hidden.bs.modal', function () {
+            $('body').addClass('modal-open');
+        });
+    }
 
     renderAssistantForms(assistants);
 }
@@ -824,8 +841,10 @@ async function fetchAssistants() {
     }
 }
 
-async function saveNewAssistant() {
-    const modalEl = document.getElementById('assistantModal');
+async function saveNewAssistant(event) {
+    if (event) event.preventDefault();
+
+    const modalEl = document.getElementById('caregiverModal');
     const payload = {
         first_name: document.getElementById('assistantFirstName')?.value?.trim() || '',
         last_name: document.getElementById('assistantLastName')?.value?.trim() || '',
@@ -850,7 +869,10 @@ async function saveNewAssistant() {
         });
         const data = await resp.json();
         if (data.success) {
-            if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
+            if (modalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) modalInstance.hide();
+            }
             fetchAssistants();
         } else {
             alert(data.error || 'Errore salvataggio assistente');
