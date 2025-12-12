@@ -21,26 +21,34 @@ function respondReports($success, $data = null, $error = null, $code = 200) {
 }
 
 function loadTherapyReportData($therapy_id, $pharmacy_id) {
-    $therapy = db_fetch_one(
-        "SELECT t.*, p.first_name AS patient_first_name, p.last_name AS patient_last_name, p.codice_fiscale, p.birth_date, p.phone, p.email,
-                ph.nice_name AS pharmacy_name, ph.business_name, ph.address AS pharmacy_address, ph.city AS pharmacy_city, ph.email AS pharmacy_email, ph.phone_number AS pharmacy_phone,
-                tcc.primary_condition, tcc.general_anamnesis, tcc.detailed_intake, tcc.adherence_base, tcc.risk_score AS chronic_risk_score, tcc.flags, tcc.notes_initial, tcc.follow_up_date AS chronic_follow_up_date
-         FROM jta_therapies t
-         JOIN jta_patients p ON t.patient_id = p.id
-         JOIN jta_pharmas ph ON t.pharmacy_id = ph.id
-         LEFT JOIN jta_therapy_chronic_care tcc ON t.id = tcc.therapy_id
-         WHERE t.id = ? AND t.pharmacy_id = ?",
-        [$therapy_id, $pharmacy_id]
-    );
+    try {
+        $therapy = db_fetch_one(
+            "SELECT t.*, p.first_name AS patient_first_name, p.last_name AS patient_last_name, p.codice_fiscale, p.birth_date, p.phone, p.email,
+                    ph.nice_name AS pharmacy_name, ph.business_name, ph.address AS pharmacy_address, ph.city AS pharmacy_city, ph.email AS pharmacy_email, ph.phone_number AS pharmacy_phone,
+                    tcc.primary_condition, tcc.general_anamnesis, tcc.detailed_intake, tcc.adherence_base, tcc.risk_score AS chronic_risk_score, tcc.flags, tcc.notes_initial, tcc.follow_up_date AS chronic_follow_up_date
+             FROM jta_therapies t
+             JOIN jta_patients p ON t.patient_id = p.id
+             JOIN jta_pharmas ph ON t.pharmacy_id = ph.id
+             LEFT JOIN jta_therapy_chronic_care tcc ON t.id = tcc.therapy_id
+             WHERE t.id = ? AND t.pharmacy_id = ?",
+            [$therapy_id, $pharmacy_id]
+        );
+    } catch (Exception $e) {
+        respondReports(false, null, 'Errore caricamento dati terapia', 500);
+    }
 
     if (!$therapy) {
         return null;
     }
 
-    $baseSurvey = db_fetch_one(
-        "SELECT answers, compiled_at FROM jta_therapy_condition_surveys WHERE therapy_id = ? AND level = 'base' ORDER BY compiled_at DESC LIMIT 1",
-        [$therapy_id]
-    );
+    try {
+        $baseSurvey = db_fetch_one(
+            "SELECT answers, compiled_at FROM jta_therapy_condition_surveys WHERE therapy_id = ? AND level = 'base' ORDER BY compiled_at DESC LIMIT 1",
+            [$therapy_id]
+        );
+    } catch (Exception $e) {
+        respondReports(false, null, 'Errore caricamento questionario', 500);
+    }
 
     $surveyAnswers = $baseSurvey ? json_decode($baseSurvey['answers'] ?? '', true) : null;
 
@@ -134,7 +142,15 @@ switch ($method) {
             }
 
             $userId = $_SESSION['user_id'] ?? null;
-            $user = $userId ? db_fetch_one('SELECT id, name, surname, slug_name, email FROM jta_users WHERE id = ?', [$userId]) : null;
+            if ($userId) {
+                try {
+                    $user = db_fetch_one('SELECT id, name, surname, slug_name, email FROM jta_users WHERE id = ?', [$userId]);
+                } catch (Exception $e) {
+                    respondReports(false, null, 'Errore recupero utente', 500);
+                }
+            } else {
+                $user = null;
+            }
             $pharmacistName = trim(($user['name'] ?? '') . ' ' . ($user['surname'] ?? ''));
             if (!$pharmacistName) {
                 $pharmacistName = $user['slug_name'] ?? ($_SESSION['user_name'] ?? '');
@@ -148,14 +164,17 @@ switch ($method) {
             }
             $followupSql .= " ORDER BY f.created_at DESC";
 
-            $followups = db_fetch_all($followupSql, $followupParams);
+            try {
+                $followups = db_fetch_all($followupSql, $followupParams);
+            } catch (Exception $e) {
+                respondReports(false, null, 'Errore recupero follow-up', 500);
+            }
             $followupData = array_map(function ($row) {
                 $snapshot = json_decode($row['snapshot'] ?? '', true);
                 return [
                     'id' => $row['id'],
                     'follow_up_date' => $row['follow_up_date'] ?? null,
                     'risk_score' => $row['risk_score'] ?? null,
-                    'status' => $row['status'] ?? null,
                     'snapshot' => $snapshot,
                     'pharmacist_notes' => $row['pharmacist_notes'] ?? null,
                     'created_at' => $row['created_at'] ?? null
@@ -229,10 +248,14 @@ switch ($method) {
             $html = buildReportHtml($reportContent);
             $fullPdfPath = renderTherapyReportPdf($html, $storageDir, 'report_' . $report_id . '.pdf');
 
-            db_query(
-                "UPDATE jta_therapy_reports SET content = ? WHERE id = ?",
-                [json_encode($reportContent), $report_id]
-            );
+            try {
+                db_query(
+                    "UPDATE jta_therapy_reports SET content = ? WHERE id = ?",
+                    [json_encode($reportContent), $report_id]
+                );
+            } catch (Exception $e) {
+                respondReports(false, null, 'Errore aggiornamento report', 500);
+            }
 
             respondReports(true, [
                 'pdf_url' => $reportContent['pdf_path'],
@@ -242,7 +265,11 @@ switch ($method) {
         }
 
         if ($publicToken) {
-            $report = db_fetch_one("SELECT * FROM jta_therapy_reports WHERE share_token = ? AND (valid_until IS NULL OR valid_until >= NOW())", [$publicToken]);
+            try {
+                $report = db_fetch_one("SELECT * FROM jta_therapy_reports WHERE share_token = ? AND (valid_until IS NULL OR valid_until >= NOW())", [$publicToken]);
+            } catch (Exception $e) {
+                respondReports(false, null, 'Errore recupero report', 500);
+            }
             if (!$report) {
                 respondReports(false, null, 'Report non trovato', 404);
             }
