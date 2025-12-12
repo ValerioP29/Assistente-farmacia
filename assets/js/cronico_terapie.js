@@ -17,16 +17,24 @@ let lastReportPreviewParams = null;
 let surveyTemplatesPromise = null;
 
 function ensureSurveyTemplatesLoaded() {
-    if (typeof SURVEY_TEMPLATES !== 'undefined') return Promise.resolve();
+    if (typeof window !== 'undefined' && window.SURVEY_TEMPLATES) {
+        return Promise.resolve(window.SURVEY_TEMPLATES);
+    }
+
     if (surveyTemplatesPromise) return surveyTemplatesPromise;
 
     surveyTemplatesPromise = new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'assets/js/survey_templates.js';
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => resolve();
-        document.head.appendChild(script);
+        const startTime = Date.now();
+        const maxWaitMs = 1000;
+
+        const checkTemplates = () => {
+            if (window.SURVEY_TEMPLATES || Date.now() - startTime >= maxWaitMs) {
+                clearInterval(intervalId);
+                resolve(window.SURVEY_TEMPLATES);
+            }
+        };
+
+        const intervalId = setInterval(checkTemplates, 50);
     });
 
     return surveyTemplatesPromise;
@@ -42,8 +50,9 @@ function humanizeQuestionKey(key) {
 function getConditionQuestionLabel(condition, key) {
     if (!key) return '';
     try {
-        if (typeof SURVEY_TEMPLATES !== 'undefined' && condition && SURVEY_TEMPLATES[condition]) {
-            const found = SURVEY_TEMPLATES[condition].find((q) => q.key === key);
+        const templates = window.SURVEY_TEMPLATES;
+        if (templates && condition && templates[condition]) {
+            const found = templates[condition].find((q) => q.key === key);
             if (found?.label) return found.label;
         }
     } catch (error) {

@@ -22,7 +22,7 @@ const totalWizardSteps = 6;
 let currentTherapyId = null;
 let wizardModalInstance = null;
 
-const SURVEY_TEMPLATES = {
+window.SURVEY_TEMPLATES = {
    Diabete: [
         // QUESTIONARIO BASE
         {
@@ -346,6 +346,8 @@ const SURVEY_TEMPLATES = {
     ]
 
 };
+
+const SURVEY_TEMPLATES = window.SURVEY_TEMPLATES;
 
 function getDefaultWizardState() {
     return {
