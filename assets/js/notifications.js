@@ -86,8 +86,10 @@ class NotificationSystem {
         try {
             const response = await fetch(`api/notifications/check-new.php?last_seen=${this.lastSeenId}`);
             const data = await response.json();
-            
-            if (data.success && data.new_count > 0) {
+            const hasNewRequests = data.success && (data.new_count > 0);
+            const hasNewReminders = data.success && Array.isArray(data.reminders) && data.reminders.length > 0;
+
+            if (hasNewRequests || hasNewReminders) {
                 this.handleNewRequests(data);
             }
         } catch (error) {
@@ -96,39 +98,58 @@ class NotificationSystem {
     }
     
     handleNewRequests(data) {
-        // Aggiorna l'ID dell'ultima richiesta vista
-        this.lastSeenId = data.latest_id;
-        this.saveLastSeenId(this.lastSeenId);
-        
+        // Aggiorna l'ID dell'ultima richiesta vista se disponibile
+        if (data.latest_id && data.latest_id > 0) {
+            this.lastSeenId = data.latest_id;
+            this.saveLastSeenId(this.lastSeenId);
+        }
+
+        const newRequests = Array.isArray(data.new_requests) ? data.new_requests : [];
+        const reminders = Array.isArray(data.reminders) ? data.reminders : [];
+
         // Mostra sempre le notifiche desktop
-        this.showDesktopNotification(data);
-        
+        this.showDesktopNotification({ ...data, new_requests: newRequests, reminders });
+
         // Riproduci suono
         this.playNotificationSound();
-        
+
         // Mostra notifica in-app
-        this.showInAppNotification(data.new_requests);
+        this.showInAppNotification(newRequests, reminders);
     }
     
     showDesktopNotification(data) {
         if (!this.notificationPermission) return;
-        
+
+        const newRequests = Array.isArray(data.new_requests) ? data.new_requests : [];
+        const reminders = Array.isArray(data.reminders) ? data.reminders : [];
+        const totalParts = [];
+        if (newRequests.length) {
+            totalParts.push(`${newRequests.length} nuova/e richiesta/e`);
+        }
+        if (reminders.length) {
+            totalParts.push(`${reminders.length} promemoria in scadenza`);
+        }
+
+        if (!totalParts.length) return;
+
         try {
-            const notification = new Notification('Nuova Richiesta Farmacia', {
-                body: `Hai ${data.new_count} nuova/e richiesta/e in attesa`,
+            const notification = new Notification('Assistente Farmacia', {
+                body: `Hai ${totalParts.join(' e ')}`,
                 icon: 'images/farmacia_icon.png',
                 badge: 'images/farmacia_icon.png',
                 tag: 'new-request',
                 requireInteraction: false,
                 silent: false
             });
-            
+
             notification.onclick = () => {
                 window.focus();
-                window.location.href = 'richieste.php';
+                if (newRequests.length) {
+                    window.location.href = 'richieste.php';
+                }
                 notification.close();
             };
-            
+
             // Chiudi automaticamente dopo 5 secondi
             setTimeout(() => {
                 notification.close();
@@ -137,11 +158,11 @@ class NotificationSystem {
             console.error('Errore creazione notifica desktop:', error);
         }
     }
-    
-    showInAppNotification(newRequests) {
+
+    showInAppNotification(newRequests, reminders = []) {
         // Crea o aggiorna il toast di notifica
         let toast = document.getElementById('notification-toast');
-        
+
         if (!toast) {
             toast = document.createElement('div');
             toast.id = 'notification-toast';
@@ -150,17 +171,43 @@ class NotificationSystem {
         }
         
         const requestText = newRequests.length === 1 ? 'richiesta' : 'richieste';
+        const reminderText = reminders.length === 1 ? 'promemoria in scadenza' : 'promemoria in scadenza';
+        const requestDetails = newRequests.slice(0, 3).map(req =>
+            `${req.customer_name} - ${req.product_name || 'Prodotto'}`
+        ).join('<br>');
+
+        const reminderDetails = reminders.slice(0, 3).map(rem => {
+            const therapyPart = rem.therapy_title ? ` (${rem.therapy_title})` : '';
+            const patientPart = rem.patient_name ? ` - ${rem.patient_name}` : '';
+            return `${rem.title}${therapyPart}${patientPart}`;
+        }).join('<br>');
+
+        const detailSections = [];
+        if (newRequests.length) {
+            detailSections.push(`
+                <strong>${newRequests.length} nuova ${requestText}</strong>
+                <div class="notification-details">
+                    ${requestDetails}
+                    ${newRequests.length > 3 ? `<br>...e altre ${newRequests.length - 3}` : ''}
+                </div>
+            `);
+        }
+
+        if (reminders.length) {
+            detailSections.push(`
+                <strong>${reminders.length} ${reminderText}</strong>
+                <div class="notification-details">
+                    ${reminderDetails}
+                    ${reminders.length > 3 ? `<br>...e altri ${reminders.length - 3}` : ''}
+                </div>
+            `);
+        }
+
         toast.innerHTML = `
             <div class="notification-content">
                 <div class="notification-icon">🔔</div>
                 <div class="notification-text">
-                    <strong>${newRequests.length} nuova ${requestText}</strong>
-                    <div class="notification-details">
-                        ${newRequests.slice(0, 3).map(req => 
-                            `${req.customer_name} - ${req.product_name || 'Prodotto'}`
-                        ).join('<br>')}
-                        ${newRequests.length > 3 ? `<br>...e altre ${newRequests.length - 3}` : ''}
-                    </div>
+                    ${detailSections.join('<hr class="my-2">')}
                 </div>
                 <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
             </div>

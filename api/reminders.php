@@ -40,7 +40,14 @@ switch ($method) {
         if (!$therapy_id) {
             respondReminders(false, null, 'therapy_id richiesto', 400);
         }
-        $sql = "SELECT r.* FROM jta_therapy_reminders r JOIN jta_therapies t ON r.therapy_id = t.id WHERE r.therapy_id = ? AND t.pharmacy_id = ? ORDER BY r.scheduled_at ASC";
+
+        $includeCanceled = isset($_GET['include_canceled']) && $_GET['include_canceled'] === '1';
+        $sql = "SELECT r.* FROM jta_therapy_reminders r JOIN jta_therapies t ON r.therapy_id = t.id WHERE r.therapy_id = ? AND t.pharmacy_id = ?";
+        if (!$includeCanceled) {
+            $sql .= " AND r.status <> 'canceled'";
+        }
+        $sql .= " ORDER BY r.scheduled_at ASC";
+
         try {
             $rows = db_fetch_all($sql, [$therapy_id, $pharmacy_id]);
             respondReminders(true, ['items' => $rows]);
