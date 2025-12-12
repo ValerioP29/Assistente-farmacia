@@ -1,5 +1,21 @@
 <?php
 session_start();
+ob_start();
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err !== null) {
+        if (!headers_sent()) header('Content-Type: application/json');
+        http_response_code(500);
+        $buffer = ob_get_clean();
+        echo json_encode([
+            'success' => false,
+            'data' => null,
+            'error' => 'Fatal error',
+            'details' => $err,
+            'buffer' => $buffer
+        ]);
+    }
+});
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth_middleware.php';
@@ -327,4 +343,3 @@ switch ($method) {
     default:
         respondReports(false, null, 'Metodo non consentito', 405);
 }
-?>

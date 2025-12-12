@@ -183,4 +183,3 @@ function db_fetch_all($sql, $params = []) {
 function db_fetch_one($sql, $params = []) {
     return db()->fetchOne($sql, $params);
 }
-?> 
