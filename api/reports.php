@@ -36,6 +36,20 @@ function respondReports($success, $data = null, $error = null, $code = 200) {
     exit;
 }
 
+function isDompdfAvailable() {
+    if (!class_exists('Dompdf\\Dompdf')) {
+        $paths = [__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../vendor/dompdf/autoload.inc.php'];
+        foreach ($paths as $path) {
+            if (file_exists($path)) {
+                require_once $path;
+                break;
+            }
+        }
+    }
+
+    return class_exists('Dompdf\\Dompdf');
+}
+
 function loadTherapyReportData($therapy_id, $pharmacy_id) {
     try {
         $therapy = db_fetch_one(
@@ -89,22 +103,8 @@ function loadTherapyReportData($therapy_id, $pharmacy_id) {
     ];
 }
 
-function ensureDompdfAvailable() {
-    if (!class_exists('Dompdf\\Dompdf')) {
-        $paths = [__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../vendor/dompdf/autoload.inc.php'];
-        foreach ($paths as $path) {
-            if (file_exists($path)) {
-                require_once $path;
-                break;
-            }
-        }
-    }
-
-    return class_exists('Dompdf\\Dompdf');
-}
-
 function renderTherapyReportPdf($html, $storageDir, $filename) {
-    if (!ensureDompdfAvailable()) {
+    if (!isDompdfAvailable()) {
         respondReports(false, null, 'Libreria DomPDF non disponibile', 500);
     }
 
@@ -136,108 +136,138 @@ function buildReportHtml($data) {
     return ob_get_clean();
 }
 
+function fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id = null)
+{
+    $followupParams = [$therapy_id, $pharmacy_id];
+    $followupSql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ?";
+    if ($mode === 'single') {
+        $followupSql .= " AND f.id = ?";
+        $followupParams[] = $followup_id;
+    }
+    $followupSql .= " ORDER BY f.created_at DESC";
+
+    try {
+        $followups = db_fetch_all($followupSql, $followupParams);
+    } catch (Exception $e) {
+        respondReports(false, null, 'Errore recupero follow-up', 500);
+    }
+
+    return array_map(function ($row) {
+        $snapshot = json_decode($row['snapshot'] ?? '', true);
+        return [
+            'id' => $row['id'],
+            'follow_up_date' => $row['follow_up_date'] ?? null,
+            'risk_score' => $row['risk_score'] ?? null,
+            'snapshot' => $snapshot,
+            'pharmacist_notes' => $row['pharmacist_notes'] ?? null,
+            'created_at' => $row['created_at'] ?? null
+        ];
+    }, $followups);
+}
+
+function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = null)
+{
+    if (!$therapy_id || !in_array($mode, ['all', 'single'], true)) {
+        respondReports(false, null, 'Parametri mancanti o non validi', 400);
+    }
+
+    if ($mode === 'single' && !$followup_id) {
+        respondReports(false, null, 'followup_id richiesto per la modalità singola', 400);
+    }
+
+    $therapyData = loadTherapyReportData($therapy_id, $pharmacy_id);
+    if (!$therapyData) {
+        respondReports(false, null, 'Terapia non trovata', 404);
+    }
+
+    $userId = $_SESSION['user_id'] ?? null;
+    if ($userId) {
+        try {
+            $user = db_fetch_one('SELECT id, name, surname, slug_name, email FROM jta_users WHERE id = ?', [$userId]);
+        } catch (Exception $e) {
+            respondReports(false, null, 'Errore recupero utente', 500);
+        }
+    } else {
+        $user = null;
+    }
+    $pharmacistName = trim(($user['name'] ?? '') . ' ' . ($user['surname'] ?? ''));
+    if (!$pharmacistName) {
+        $pharmacistName = $user['slug_name'] ?? ($_SESSION['user_name'] ?? '');
+    }
+
+    $followupData = fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id);
+
+    $therapy = $therapyData['therapy'];
+    $reportContent = [
+        'generated_at' => date('Y-m-d H:i'),
+        'mode' => $mode,
+        'pharmacy' => [
+            'id' => $therapy['pharmacy_id'],
+            'name' => $therapy['pharmacy_name'] ?? $therapy['business_name'] ?? '',
+            'address' => $therapy['pharmacy_address'] ?? '',
+            'city' => $therapy['pharmacy_city'] ?? '',
+            'email' => $therapy['pharmacy_email'] ?? '',
+            'phone' => $therapy['pharmacy_phone'] ?? ''
+        ],
+        'pharmacist' => [
+            'id' => $userId,
+            'name' => $pharmacistName,
+            'email' => $user['email'] ?? null
+        ],
+        'patient' => [
+            'id' => $therapy['patient_id'],
+            'first_name' => $therapy['patient_first_name'] ?? null,
+            'last_name' => $therapy['patient_last_name'] ?? null,
+            'codice_fiscale' => $therapy['codice_fiscale'] ?? null,
+            'birth_date' => $therapy['birth_date'] ?? null,
+            'phone' => $therapy['phone'] ?? null,
+            'email' => $therapy['email'] ?? null
+        ],
+        'therapy' => [
+            'id' => $therapy['id'],
+            'title' => $therapy['therapy_title'] ?? null,
+            'description' => $therapy['therapy_description'] ?? null,
+            'status' => $therapy['status'] ?? null,
+            'start_date' => $therapy['start_date'] ?? null,
+            'end_date' => $therapy['end_date'] ?? null
+        ],
+        'chronic_care' => $therapyData['chronic_care'],
+        'survey_base' => $therapyData['survey'],
+        'followups' => $followupData
+    ];
+
+    return $reportContent;
+}
+
 switch ($method) {
     case 'GET':
+        if ($action === 'preview') {
+            $pharmacy_id = get_panel_pharma_id(true);
+            $therapy_id = $_GET['therapy_id'] ?? null;
+            $mode = $_GET['mode'] ?? 'all';
+            $followup_id = $_GET['followup_id'] ?? null;
+
+            $reportContent = buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id);
+            $html = buildReportHtml($reportContent);
+            $pdfAvailable = isDompdfAvailable();
+
+            respondReports(true, [
+                'content' => $reportContent,
+                'html' => $html,
+                'pdf_available' => $pdfAvailable
+            ]);
+        }
+
         if ($action === 'generate') {
             $pharmacy_id = get_panel_pharma_id(true);
             $therapy_id = $_GET['therapy_id'] ?? null;
             $mode = $_GET['mode'] ?? 'all';
             $followup_id = $_GET['followup_id'] ?? null;
 
-            if (!$therapy_id || !in_array($mode, ['all', 'single'], true)) {
-                respondReports(false, null, 'Parametri mancanti o non validi', 400);
-            }
-
-            if ($mode === 'single' && !$followup_id) {
-                respondReports(false, null, 'followup_id richiesto per la modalità singola', 400);
-            }
-
-            $therapyData = loadTherapyReportData($therapy_id, $pharmacy_id);
-            if (!$therapyData) {
-                respondReports(false, null, 'Terapia non trovata', 404);
-            }
-
-            $userId = $_SESSION['user_id'] ?? null;
-            if ($userId) {
-                try {
-                    $user = db_fetch_one('SELECT id, name, surname, slug_name, email FROM jta_users WHERE id = ?', [$userId]);
-                } catch (Exception $e) {
-                    respondReports(false, null, 'Errore recupero utente', 500);
-                }
-            } else {
-                $user = null;
-            }
-            $pharmacistName = trim(($user['name'] ?? '') . ' ' . ($user['surname'] ?? ''));
-            if (!$pharmacistName) {
-                $pharmacistName = $user['slug_name'] ?? ($_SESSION['user_name'] ?? '');
-            }
-
-            $followupParams = [$therapy_id, $pharmacy_id];
-            $followupSql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ?";
-            if ($mode === 'single') {
-                $followupSql .= " AND f.id = ?";
-                $followupParams[] = $followup_id;
-            }
-            $followupSql .= " ORDER BY f.created_at DESC";
-
-            try {
-                $followups = db_fetch_all($followupSql, $followupParams);
-            } catch (Exception $e) {
-                respondReports(false, null, 'Errore recupero follow-up', 500);
-            }
-            $followupData = array_map(function ($row) {
-                $snapshot = json_decode($row['snapshot'] ?? '', true);
-                return [
-                    'id' => $row['id'],
-                    'follow_up_date' => $row['follow_up_date'] ?? null,
-                    'risk_score' => $row['risk_score'] ?? null,
-                    'snapshot' => $snapshot,
-                    'pharmacist_notes' => $row['pharmacist_notes'] ?? null,
-                    'created_at' => $row['created_at'] ?? null
-                ];
-            }, $followups);
-
-            $therapy = $therapyData['therapy'];
-            $reportContent = [
-                'generated_at' => date('Y-m-d H:i'),
-                'mode' => $mode,
-                'pharmacy' => [
-                    'id' => $therapy['pharmacy_id'],
-                    'name' => $therapy['pharmacy_name'] ?? $therapy['business_name'] ?? '',
-                    'address' => $therapy['pharmacy_address'] ?? '',
-                    'city' => $therapy['pharmacy_city'] ?? '',
-                    'email' => $therapy['pharmacy_email'] ?? '',
-                    'phone' => $therapy['pharmacy_phone'] ?? ''
-                ],
-                'pharmacist' => [
-                    'id' => $userId,
-                    'name' => $pharmacistName,
-                    'email' => $user['email'] ?? null
-                ],
-                'patient' => [
-                    'id' => $therapy['patient_id'],
-                    'first_name' => $therapy['patient_first_name'] ?? null,
-                    'last_name' => $therapy['patient_last_name'] ?? null,
-                    'codice_fiscale' => $therapy['codice_fiscale'] ?? null,
-                    'birth_date' => $therapy['birth_date'] ?? null,
-                    'phone' => $therapy['phone'] ?? null,
-                    'email' => $therapy['email'] ?? null
-                ],
-                'therapy' => [
-                    'id' => $therapy['id'],
-                    'title' => $therapy['therapy_title'] ?? null,
-                    'description' => $therapy['therapy_description'] ?? null,
-                    'status' => $therapy['status'] ?? null,
-                    'start_date' => $therapy['start_date'] ?? null,
-                    'end_date' => $therapy['end_date'] ?? null
-                ],
-                'chronic_care' => $therapyData['chronic_care'],
-                'survey_base' => $therapyData['survey'],
-                'followups' => $followupData
-            ];
-
+            $reportContent = buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id);
             $storageDir = __DIR__ . '/../storage/therapy_reports';
             $shareToken = bin2hex(random_bytes(16));
+            $pdfAvailable = isDompdfAvailable();
 
             try {
                 db_query(
@@ -259,10 +289,13 @@ switch ($method) {
 
             $reportContent['share_token'] = $shareToken;
             $reportContent['report_id'] = $report_id;
-            $reportContent['pdf_path'] = '/storage/therapy_reports/report_' . $report_id . '.pdf';
-
+            $reportContent['pdf_path'] = null;
             $html = buildReportHtml($reportContent);
-            $fullPdfPath = renderTherapyReportPdf($html, $storageDir, 'report_' . $report_id . '.pdf');
+
+            if ($pdfAvailable) {
+                $reportContent['pdf_path'] = '/storage/therapy_reports/report_' . $report_id . '.pdf';
+                $fullPdfPath = renderTherapyReportPdf($html, $storageDir, 'report_' . $report_id . '.pdf');
+            }
 
             try {
                 db_query(
@@ -273,11 +306,19 @@ switch ($method) {
                 respondReports(false, null, 'Errore aggiornamento report', 500);
             }
 
-            respondReports(true, [
+            $responseData = [
                 'pdf_url' => $reportContent['pdf_path'],
                 'report_id' => $report_id,
-                'content' => $reportContent
-            ]);
+                'content' => $reportContent,
+                'html' => $html,
+                'pdf_available' => $pdfAvailable
+            ];
+
+            if (!$pdfAvailable) {
+                respondReports(true, $responseData, 'PDF non disponibile', 200);
+            }
+
+            respondReports(true, $responseData);
         }
 
         if ($publicToken) {

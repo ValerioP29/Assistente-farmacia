@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 requireApiAuth(['admin', 'pharmacist']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$action = $_GET['action'] ?? ($_POST['action'] ?? null);
 
 function respond($success, $data = null, $error = null, $code = 200) {
     http_response_code($code);
@@ -113,6 +114,28 @@ switch ($method) {
         break;
 
     case 'POST':
+        if ($action === 'delete') {
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+            $therapy_id = $input['therapy_id'] ?? $input['id'] ?? null;
+            $pharmacy_id = get_panel_pharma_id(true);
+
+            if (!$therapy_id) {
+                respond(false, null, 'ID terapia mancante', 400);
+            }
+
+            $existing = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+            if (!$existing) {
+                respond(false, null, 'Terapia non trovata', 404);
+            }
+
+            try {
+                db_query("DELETE FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+                respond(true, ['therapy_id' => $therapy_id]);
+            } catch (Exception $e) {
+                respond(false, null, 'Errore eliminazione terapia', 500);
+            }
+        }
+
         $input = normalizeDateFields(json_decode(file_get_contents('php://input'), true) ?? []);
         $pharmacy_id = getPharmacyId();
         if (!$pharmacy_id) {
