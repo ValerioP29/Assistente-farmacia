@@ -20,10 +20,14 @@ $pharmacy_id = get_panel_pharma_id(true);
 
 function getFollowupById($followup_id, $pharmacy_id)
 {
-    return db_fetch_one(
-        "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.id = ? AND t.pharmacy_id = ?",
-        [$followup_id, $pharmacy_id]
-    );
+    try {
+        return db_fetch_one(
+            "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.id = ? AND t.pharmacy_id = ?",
+            [$followup_id, $pharmacy_id]
+        );
+    } catch (Exception $e) {
+        respondFollowups(false, null, 'Errore recupero follow-up', 500);
+    }
 }
 
 function normalizeSnapshot($snapshot)
@@ -79,19 +83,23 @@ switch ($method) {
             if (!$therapy_id) {
                 respondFollowups(false, null, 'therapy_id richiesto', 400);
             }
-            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
-            if (!$therapy) {
-                respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
-            }
+            try {
+                $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+                if (!$therapy) {
+                    respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
+                }
 
-            $conditionRow = db_fetch_one(
-                "SELECT primary_condition FROM jta_therapy_chronic_care WHERE therapy_id = ?",
-                [$therapy_id]
-            );
-            $baseSurvey = db_fetch_one(
-                "SELECT answers FROM jta_therapy_condition_surveys WHERE therapy_id = ? AND level = 'base' ORDER BY compiled_at DESC LIMIT 1",
-                [$therapy_id]
-            );
+                $conditionRow = db_fetch_one(
+                    "SELECT primary_condition FROM jta_therapy_chronic_care WHERE therapy_id = ?",
+                    [$therapy_id]
+                );
+                $baseSurvey = db_fetch_one(
+                    "SELECT answers FROM jta_therapy_condition_surveys WHERE therapy_id = ? AND level = 'base' ORDER BY compiled_at DESC LIMIT 1",
+                    [$therapy_id]
+                );
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore recupero dati terapia', 500);
+            }
 
             $answers = $baseSurvey ? json_decode($baseSurvey['answers'], true) : [];
             $snapshot = [
@@ -102,7 +110,7 @@ switch ($method) {
 
             try {
                 db_query(
-                    "INSERT INTO jta_therapy_followups (therapy_id, snapshot, status) VALUES (?, ?, 'scheduled')",
+                    "INSERT INTO jta_therapy_followups (therapy_id, snapshot) VALUES (?, ?)",
                     [
                         $therapy_id,
                         json_encode($snapshot)
@@ -230,12 +238,21 @@ switch ($method) {
             if (!$followup_id) {
                 respondFollowups(false, null, 'id follow-up richiesto', 400);
             }
+            $followup = getFollowupById($followup_id, $pharmacy_id);
+            if (!$followup) {
+                respondFollowups(false, null, 'Follow-up non trovato', 404);
+            }
             try {
                 db_query(
-                    "UPDATE jta_therapy_followups SET status = 'canceled' WHERE id = ? AND therapy_id IN (SELECT id FROM jta_therapies WHERE pharmacy_id = ?)",
-                    [$followup_id, $pharmacy_id]
+                    "UPDATE jta_therapy_followups SET snapshot = JSON_SET(COALESCE(snapshot, '{}'), '$.canceled', true) WHERE id = ?",
+                    [$followup_id]
                 );
-                respondFollowups(true, ['message' => 'Follow-up annullato']);
+                $updatedSnapshot = json_decode($followup['snapshot'] ?? '', true);
+                if (!is_array($updatedSnapshot)) {
+                    $updatedSnapshot = [];
+                }
+                $updatedSnapshot['canceled'] = true;
+                respondFollowups(true, ['snapshot' => $updatedSnapshot]);
             } catch (Exception $e) {
                 respondFollowups(false, null, 'Errore annullamento follow-up', 500);
             }
@@ -252,14 +269,14 @@ switch ($method) {
             respondFollowups(false, null, 'Campi obbligatori mancanti', 400);
         }
 
-        $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
-        if (!$therapy) {
-            respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
-        }
-
         try {
+            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+            if (!$therapy) {
+                respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
+            }
+
             db_query(
-                "INSERT INTO jta_therapy_followups (therapy_id, risk_score, pharmacist_notes, follow_up_date, status) VALUES (?,?,?,?, 'scheduled')",
+                "INSERT INTO jta_therapy_followups (therapy_id, risk_score, pharmacist_notes, follow_up_date) VALUES (?,?,?,?)",
                 [
                     $therapy_id,
                     $risk_score,

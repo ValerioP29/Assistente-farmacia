@@ -71,11 +71,12 @@ switch ($method) {
         if (!$therapy_id || empty($input['title']) || empty($input['message']) || empty($input['scheduled_at'])) {
             respondReminders(false, null, 'Campi obbligatori mancanti', 400);
         }
-        $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
-        if (!$therapy) {
-            respondReminders(false, null, 'Terapia non trovata per la farmacia', 400);
-        }
         try {
+            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+            if (!$therapy) {
+                respondReminders(false, null, 'Terapia non trovata per la farmacia', 400);
+            }
+
             db_query(
                 "INSERT INTO jta_therapy_reminders (therapy_id, title, message, type, scheduled_at, channel, status) VALUES (?,?,?,?,?,?,?)",
                 [
