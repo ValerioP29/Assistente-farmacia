@@ -46,19 +46,33 @@ function checkAccess($required_roles = ['admin'], $redirect = true) {
 function checkApiAccess($required_roles = ['admin']) {
     // Se non è loggato
     if (!isLoggedIn()) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         http_response_code(401);
-        echo json_encode(['success' => false, 'message' => 'Autenticazione richiesta']);
+        echo json_encode([
+            'success' => false,
+            'data' => null,
+            'error' => 'Autenticazione richiesta'
+        ]);
         exit;
     }
-    
+
     // Se è loggato ma non ha i ruoli richiesti
     $user_role = $_SESSION['user_role'] ?? 'user';
     if (!in_array($user_role, $required_roles)) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         http_response_code(403);
-        echo json_encode(['success' => false, 'message' => 'Accesso negato']);
+        echo json_encode([
+            'success' => false,
+            'data' => null,
+            'error' => 'Accesso negato'
+        ]);
         exit;
     }
-    
+
     return true;
 }
 
@@ -75,11 +89,13 @@ function get_panel_pharma_id($required = false) {
     }
 
     if ($required) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         http_response_code(400);
-        header('Content-Type: application/json');
         echo json_encode([
             'success' => false,
-            'status' => false,
+            'data' => null,
             'error' => 'Pharmacy context missing'
         ]);
         exit;
@@ -787,4 +803,3 @@ function updateUserPoints($userId, $pointsToAdd) {
         return false;
     }
 }
-?>

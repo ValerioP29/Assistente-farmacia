@@ -1,5 +1,21 @@
 <?php
 session_start();
+ob_start();
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err !== null) {
+        if (!headers_sent()) header('Content-Type: application/json');
+        http_response_code(500);
+        $buffer = ob_get_clean();
+        echo json_encode([
+            'success' => false,
+            'data' => null,
+            'error' => 'Fatal error',
+            'details' => $err,
+            'buffer' => $buffer
+        ]);
+    }
+});
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth_middleware.php';
@@ -61,6 +77,16 @@ function buildBaseQuestions($answers)
     return $questions;
 }
 
+function withFollowupStatus(array $rows)
+{
+    return array_map(function ($row) {
+        $snapshot = json_decode($row['snapshot'] ?? '', true);
+        $isCanceled = is_array($snapshot) && !empty($snapshot['canceled']);
+        $row['status'] = $isCanceled ? 'canceled' : 'scheduled';
+        return $row;
+    }, $rows);
+}
+
 switch ($method) {
     case 'GET':
         $therapy_id = $_GET['therapy_id'] ?? null;
@@ -70,7 +96,7 @@ switch ($method) {
         $sql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ? ORDER BY f.created_at DESC";
         try {
             $rows = db_fetch_all($sql, [$therapy_id, $pharmacy_id]);
-            respondFollowups(true, ['items' => $rows]);
+            respondFollowups(true, ['items' => withFollowupStatus($rows)]);
         } catch (Exception $e) {
             respondFollowups(false, null, 'Errore recupero follow-up', 500);
         }
@@ -118,6 +144,9 @@ switch ($method) {
                 );
                 $followup_id = db()->getConnection()->lastInsertId();
                 $followup = db_fetch_one("SELECT * FROM jta_therapy_followups WHERE id = ?", [$followup_id]);
+                if ($followup) {
+                    $followup['status'] = 'scheduled';
+                }
                 respondFollowups(true, ['followup' => $followup, 'snapshot' => $snapshot]);
             } catch (Exception $e) {
                 respondFollowups(false, null, 'Errore creazione follow-up', 500);
@@ -252,7 +281,7 @@ switch ($method) {
                     $updatedSnapshot = [];
                 }
                 $updatedSnapshot['canceled'] = true;
-                respondFollowups(true, ['snapshot' => $updatedSnapshot]);
+                respondFollowups(true, ['snapshot' => $updatedSnapshot, 'status' => 'canceled']);
             } catch (Exception $e) {
                 respondFollowups(false, null, 'Errore annullamento follow-up', 500);
             }
@@ -286,6 +315,9 @@ switch ($method) {
             );
             $followup_id = db()->getConnection()->lastInsertId();
             $followup = db_fetch_one("SELECT * FROM jta_therapy_followups WHERE id = ?", [$followup_id]);
+            if ($followup) {
+                $followup['status'] = 'scheduled';
+            }
             respondFollowups(true, ['followup' => $followup]);
         } catch (Exception $e) {
             respondFollowups(false, null, 'Errore creazione follow-up', 500);
@@ -295,4 +327,3 @@ switch ($method) {
     default:
         respondFollowups(false, null, 'Metodo non consentito', 405);
 }
-?>

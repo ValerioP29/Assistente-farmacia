@@ -178,7 +178,7 @@ function handleUnauthorizedAccess($resource = 'pagina', $action = 'accesso') {
  */
 function handleUnauthorizedApiAccess($resource = 'risorsa', $action = 'accedere') {
     logUnauthorizedAccess($resource, $action);
-    
+
     if (!isLoggedIn()) {
         http_response_code(401);
         echo json_encode([
@@ -194,4 +194,3 @@ function handleUnauthorizedApiAccess($resource = 'risorsa', $action = 'accedere'
     }
     exit;
 }
-?> 
