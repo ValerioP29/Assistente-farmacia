@@ -15,6 +15,17 @@ document.addEventListener('DOMContentLoaded', function() {
         closedCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', handleDayClosedChange);
         });
+
+        // Gestione modalità orario
+        const modeInputs = document.querySelectorAll('.day-mode');
+        modeInputs.forEach(input => {
+            input.addEventListener('change', handleDayModeChange);
+        });
+
+        // Inizializza stato righe
+        document.querySelectorAll('.day-row').forEach(row => {
+            initializeDayRow(row);
+        });
     }
     
     if (turnoForm) {
@@ -128,21 +139,7 @@ function handleDayClosedChange(event) {
     const row = checkbox.closest('tr');
     
     // Trova tutti gli input di tempo nella riga
-    const timeInputs = row.querySelectorAll('input[type="time"]');
-    
-    if (checkbox.checked) {
-        // Se è chiuso, disabilita tutti gli input di tempo
-        timeInputs.forEach(input => {
-            input.disabled = true;
-            input.classList.add('text-muted');
-        });
-    } else {
-        // Se è aperto, abilita tutti gli input di tempo
-        timeInputs.forEach(input => {
-            input.disabled = false;
-            input.classList.remove('text-muted');
-        });
-    }
+    toggleDayClosedState(row, checkbox.checked);
 }
 
 /**
@@ -151,34 +148,57 @@ function handleDayClosedChange(event) {
 function validateOrariForm(form) {
     const days = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
     let isValid = true;
+
+    form.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
     
     days.forEach(day => {
         const closedCheckbox = form.querySelector(`input[name="${day}_chiuso"]`);
         const isClosed = closedCheckbox && closedCheckbox.checked;
+        const modeInput = form.querySelector(`input[name="${day}_mode"]:checked`);
+        const mode = modeInput ? modeInput.value : 'split';
         
         if (!isClosed) {
-            // Verifica orari mattina
-            const morningOpen = form.querySelector(`input[name="${day}_mattina_apertura"]`);
-            const morningClose = form.querySelector(`input[name="${day}_mattina_chiusura"]`);
-            
-            if (!morningOpen.value || !morningClose.value) {
-                showFieldError(morningOpen, 'Orari mattina obbligatori');
-                isValid = false;
-            } else if (morningOpen.value >= morningClose.value) {
-                showFieldError(morningOpen, 'Apertura deve essere prima della chiusura');
-                isValid = false;
-            }
-            
-            // Verifica orari pomeriggio
-            const afternoonOpen = form.querySelector(`input[name="${day}_pomeriggio_apertura"]`);
-            const afternoonClose = form.querySelector(`input[name="${day}_pomeriggio_chiusura"]`);
-            
-            if (!afternoonOpen.value || !afternoonClose.value) {
-                showFieldError(afternoonOpen, 'Orari pomeriggio obbligatori');
-                isValid = false;
-            } else if (afternoonOpen.value >= afternoonClose.value) {
-                showFieldError(afternoonOpen, 'Apertura deve essere prima della chiusura');
-                isValid = false;
+            if (mode === 'continuous') {
+                const continuousOpen = form.querySelector(`input[name="${day}_continuato_apertura"]`);
+                const continuousClose = form.querySelector(`input[name="${day}_continuato_chiusura"]`);
+
+                if (!continuousOpen.value || !continuousClose.value) {
+                    showFieldError(continuousOpen, 'Orario continuato obbligatorio');
+                    isValid = false;
+                } else if (continuousOpen.value >= continuousClose.value) {
+                    showFieldError(continuousOpen, 'Apertura deve essere prima della chiusura');
+                    isValid = false;
+                }
+            } else {
+                // Verifica orari mattina
+                const morningOpen = form.querySelector(`input[name="${day}_mattina_apertura"]`);
+                const morningClose = form.querySelector(`input[name="${day}_mattina_chiusura"]`);
+                
+                if (!morningOpen.value || !morningClose.value) {
+                    showFieldError(morningOpen, 'Orari mattina obbligatori');
+                    isValid = false;
+                } else if (morningOpen.value >= morningClose.value) {
+                    showFieldError(morningOpen, 'Apertura deve essere prima della chiusura');
+                    isValid = false;
+                }
+                
+                // Verifica orari pomeriggio
+                const afternoonOpen = form.querySelector(`input[name="${day}_pomeriggio_apertura"]`);
+                const afternoonClose = form.querySelector(`input[name="${day}_pomeriggio_chiusura"]`);
+                
+                if (!afternoonOpen.value || !afternoonClose.value) {
+                    showFieldError(afternoonOpen, 'Orari pomeriggio obbligatori');
+                    isValid = false;
+                } else if (afternoonOpen.value >= afternoonClose.value) {
+                    showFieldError(afternoonOpen, 'Apertura deve essere prima della chiusura');
+                    isValid = false;
+                }
+
+                if (morningClose && afternoonOpen && morningClose.value && afternoonOpen.value && morningClose.value > afternoonOpen.value) {
+                    showFieldError(afternoonOpen, 'Gli orari non possono sovrapporsi');
+                    isValid = false;
+                }
             }
         }
     });
@@ -254,4 +274,96 @@ function showAlert(message, type = 'info') {
             }
         }, 5000);
     }
-} 
+}
+
+/**
+ * Gestisce il cambio di modalità oraria per una riga
+ */
+function handleDayModeChange(event) {
+    const row = event.target.closest('.day-row');
+    const mode = event.target.value;
+    applyDayMode(row, mode, { clearIncompatible: true });
+}
+
+/**
+ * Inizializza lo stato di una riga al caricamento
+ */
+function initializeDayRow(row) {
+    const selectedMode = row.querySelector('.day-mode:checked')?.value || 'split';
+    applyDayMode(row, selectedMode);
+
+    const isClosed = row.querySelector('.day-closed-checkbox')?.checked;
+    if (isClosed) {
+        toggleDayClosedState(row, true);
+    }
+}
+
+/**
+ * Applica la modalità oraria spezzato/continuato a una riga
+ */
+function applyDayMode(row, mode, options = {}) {
+    const clearIncompatible = options.clearIncompatible === true;
+    const isClosed = row.querySelector('.day-closed-checkbox')?.checked;
+    const splitContainers = row.querySelectorAll('.split-hours');
+    const continuousContainers = row.querySelectorAll('.continuous-hours');
+    const splitInputs = row.querySelectorAll('.split-input');
+    const continuousInputs = row.querySelectorAll('.continuous-input');
+
+    splitContainers.forEach(container => container.classList.toggle('d-none', mode === 'continuous'));
+    continuousContainers.forEach(container => container.classList.toggle('d-none', mode !== 'continuous'));
+
+    if (isClosed) {
+        toggleDayClosedState(row, true);
+        return;
+    }
+
+    splitInputs.forEach(input => {
+        if (clearIncompatible && mode === 'continuous') {
+            input.value = '';
+        }
+        input.disabled = mode === 'continuous';
+        if (mode === 'continuous') {
+            clearInlineError(input);
+        }
+    });
+    continuousInputs.forEach(input => {
+        if (clearIncompatible && mode !== 'continuous') {
+            input.value = '';
+        }
+        input.disabled = mode !== 'continuous';
+        if (mode !== 'continuous') {
+            clearInlineError(input);
+        }
+    });
+}
+
+/**
+ * Gestisce stato chiuso/aperto di una riga
+ */
+function toggleDayClosedState(row, isClosed) {
+    const timeInputs = row.querySelectorAll('input[type="time"]');
+
+    if (isClosed) {
+        timeInputs.forEach(input => {
+            input.disabled = true;
+            input.classList.add('text-muted');
+            clearInlineError(input);
+        });
+    } else {
+        const selectedMode = row.querySelector('.day-mode:checked')?.value || 'split';
+        timeInputs.forEach(input => input.classList.remove('text-muted'));
+        applyDayMode(row, selectedMode);
+    }
+}
+
+/**
+ * Rimuove eventuali errori mostrati su un campo
+ */
+function clearInlineError(field) {
+    if (!field) return;
+    field.classList.remove('is-invalid');
+    const errorDiv = field.parentNode?.querySelector('.invalid-feedback');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
+}

@@ -488,34 +488,30 @@ function getChartData($days = 30) {
 function isPharmacyOpen($pharmacyId = null) {
     $hours = getPharmacyHours($pharmacyId);
     if (!$hours) return false;
-    
+
     $today = date('l'); // Nome del giorno in inglese
     $currentTime = date('H:i');
-    
-    if (!isset($hours[$today])) return false;
-    
-    $dayHours = $hours[$today];
-    
-    // Controlla orari mattina
-    if (isset($dayHours['mattina'])) {
-        $morning = explode('-', $dayHours['mattina']);
-        if (count($morning) === 2) {
-            if ($currentTime >= $morning[0] && $currentTime <= $morning[1]) {
-                return true;
-            }
+    $dayMap = [
+        'Monday' => 'lun',
+        'Tuesday' => 'mar',
+        'Wednesday' => 'mer',
+        'Thursday' => 'gio',
+        'Friday' => 'ven',
+        'Saturday' => 'sab',
+        'Sunday' => 'dom'
+    ];
+
+    $dayCode = $dayMap[$today] ?? null;
+    if (!$dayCode || !isset($hours[$dayCode])) {
+        return false;
+    }
+
+    foreach (getDayIntervals($hours[$dayCode]) as $interval) {
+        if ($currentTime >= $interval['open'] && $currentTime <= $interval['close']) {
+            return true;
         }
     }
-    
-    // Controlla orari pomeriggio
-    if (isset($dayHours['pomeriggio'])) {
-        $afternoon = explode('-', $dayHours['pomeriggio']);
-        if (count($afternoon) === 2) {
-            if ($currentTime >= $afternoon[0] && $currentTime <= $afternoon[1]) {
-                return true;
-            }
-        }
-    }
-    
+
     return false;
 }
 
@@ -525,39 +521,44 @@ function isPharmacyOpen($pharmacyId = null) {
 function getNextOpeningTime($pharmacyId = null) {
     $hours = getPharmacyHours($pharmacyId);
     if (!$hours) return null;
-    
-    $today = date('l');
+
+    $dayCodes = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
+    $todayIndex = (int)date('N') - 1; // 0 = lunedì
     $currentTime = date('H:i');
-    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    // Cerca oggi
-    if (isset($hours[$today])) {
-        $dayHours = $hours[$today];
-        
-        // Controlla pomeriggio se siamo in mattina
-        if (isset($dayHours['pomeriggio'])) {
-            $afternoon = explode('-', $dayHours['pomeriggio']);
-            if (count($afternoon) === 2 && $currentTime < $afternoon[0]) {
-                return $afternoon[0];
+
+    for ($i = 0; $i < 7; $i++) {
+        $dayCode = $dayCodes[($todayIndex + $i) % 7];
+
+        if (!isset($hours[$dayCode])) {
+            continue;
+        }
+
+        $intervals = getDayIntervals($hours[$dayCode]);
+        if (empty($intervals)) {
+            continue;
+        }
+
+        foreach ($intervals as $interval) {
+            if ($i === 0 && $currentTime >= $interval['close']) {
+                // intervallo già passato oggi, passa al prossimo
+                continue;
+            }
+
+            if ($i === 0 && $currentTime >= $interval['open'] && $currentTime < $interval['close']) {
+                // siamo nell'intervallo, restituiamo l'apertura attuale
+                return $interval['open'];
+            }
+
+            if ($i === 0 && $currentTime < $interval['open']) {
+                return $interval['open'];
+            }
+
+            if ($i > 0) {
+                return $interval['open'];
             }
         }
     }
-    
-    // Cerca nei prossimi giorni
-    $currentIndex = array_search($today, $days);
-    for ($i = 1; $i <= 7; $i++) {
-        $nextDay = $days[($currentIndex + $i) % 7];
-        if (isset($hours[$nextDay])) {
-            $dayHours = $hours[$nextDay];
-            if (isset($dayHours['mattina'])) {
-                $morning = explode('-', $dayHours['mattina']);
-                if (count($morning) === 2) {
-                    return $morning[0];
-                }
-            }
-        }
-    }
-    
+
     return null;
 }
 
@@ -613,20 +614,32 @@ function formatWorkingHours($hours) {
         if (isset($times['closed']) && $times['closed']) {
             $timeStr = 'Chiuso';
         } else {
-            // Formatta orari mattina
-            if (isset($times['morning_open']) && isset($times['morning_close'])) {
-                $timeStr .= $times['morning_open'] . '-' . $times['morning_close'];
+            $mode = $times['mode'] ?? (isset($times['continuous_open']) ? 'continuous' : 'split');
+
+            if ($mode === 'continuous' || (!empty($times['continuous_open']) && !empty($times['continuous_close']))) {
+                $open = $times['continuous_open'] ?? $times['morning_open'] ?? '';
+                $close = $times['continuous_close'] ?? $times['afternoon_close'] ?? '';
+                if ($open && $close) {
+                    $timeStr = $open . '-' . $close;
+                }
             }
-            
-            // Formatta orari pomeriggio
-            if (isset($times['afternoon_open']) && isset($times['afternoon_close'])) {
-                if ($timeStr) $timeStr .= ' - ';
-                $timeStr .= $times['afternoon_open'] . '-' . $times['afternoon_close'];
-            }
-            
-            // Se non ci sono orari, è chiuso
+
             if (!$timeStr) {
-                $timeStr = 'Chiuso';
+                // Formatta orari mattina
+                if (isset($times['morning_open']) && isset($times['morning_close'])) {
+                    $timeStr .= $times['morning_open'] . '-' . $times['morning_close'];
+                }
+                
+                // Formatta orari pomeriggio
+                if (isset($times['afternoon_open']) && isset($times['afternoon_close'])) {
+                    if ($timeStr) $timeStr .= ' - ';
+                    $timeStr .= $times['afternoon_open'] . '-' . $times['afternoon_close'];
+                }
+                
+                // Se non ci sono orari, è chiuso
+                if (!$timeStr) {
+                    $timeStr = 'Chiuso';
+                }
             }
         }
         
@@ -634,6 +647,49 @@ function formatWorkingHours($hours) {
     }
     
     return $formatted;
+}
+
+/**
+ * Estrae gli intervalli orari per un giorno
+ *
+ * @param array $dayHours
+ * @return array
+ */
+function getDayIntervals(array $dayHours): array {
+    if (($dayHours['closed'] ?? false) === true) {
+        return [];
+    }
+
+    $intervals = [];
+    $mode = $dayHours['mode'] ?? (isset($dayHours['continuous_open']) ? 'continuous' : 'split');
+
+    if ($mode === 'continuous' || (!empty($dayHours['continuous_open']) && !empty($dayHours['continuous_close']))) {
+        $open = $dayHours['continuous_open'] ?? $dayHours['morning_open'] ?? null;
+        $close = $dayHours['continuous_close'] ?? $dayHours['afternoon_close'] ?? null;
+
+        if (!empty($open) && !empty($close)) {
+            $intervals[] = [
+                'open' => $open,
+                'close' => $close
+            ];
+        }
+    } else {
+        if (!empty($dayHours['morning_open']) && !empty($dayHours['morning_close'])) {
+            $intervals[] = [
+                'open' => $dayHours['morning_open'],
+                'close' => $dayHours['morning_close']
+            ];
+        }
+
+        if (!empty($dayHours['afternoon_open']) && !empty($dayHours['afternoon_close'])) {
+            $intervals[] = [
+                'open' => $dayHours['afternoon_open'],
+                'close' => $dayHours['afternoon_close']
+            ];
+        }
+    }
+
+    return $intervals;
 }
 
 /**

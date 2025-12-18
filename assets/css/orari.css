@@ -35,22 +35,27 @@
   }
 
   .table tbody tr > td:nth-child(2)::before {
-    content: "Mattina";
+    content: "Modalità";
     font-weight: 600;
     color: #495057;
   }
   .table tbody tr > td:nth-child(3)::before {
-    content: "Pomeriggio";
+    content: "Mattina / Continuato";
     font-weight: 600;
     color: #495057;
   }
   .table tbody tr > td:nth-child(4)::before {
-   /* content: "Chiuso"; */
+    content: "Pomeriggio";
+    font-weight: 600;
+    color: #495057;
+  }
+  .table tbody tr > td:nth-child(5)::before {
+    content: "Chiuso";
     font-weight: 600;
     color: #495057;
   }
 
-  .table tbody tr > td:nth-child(4) .form-check {
+  .table tbody tr > td:nth-child(5) .form-check {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -60,4 +65,3 @@
     margin-top: 0.5rem;
   }
 }
-
