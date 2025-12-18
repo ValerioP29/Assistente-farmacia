@@ -40,7 +40,7 @@ if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
 // Configurazione WhatsApp (opzionale) - solo se non già definite
 if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', '');
 if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', '');
-if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice-pharma1.jungleteam.it');
 
 // Configurazione Google Maps (opzionale) - solo se non già definite
 if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', '');
@@ -141,19 +141,6 @@ class Database {
         $sql = "DELETE FROM {$table} WHERE {$where}";
         return $this->query($sql, $params)->rowCount();
     }
-
-    public function fetchValue($sql, $params = [])
-{
-    $row = $this->fetchOne($sql, $params);
-
-    if (!$row || !is_array($row)) {
-        return null;
-    }
-
-    $values = array_values($row);
-    return $values[0] ?? null;
-}
-
 }
 
 /**

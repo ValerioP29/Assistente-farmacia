@@ -65,12 +65,17 @@ try {
     $admin_role = $_SESSION['user_role'];
     $admin_name = $_SESSION['user_name'];
 
+     $pharmacyId = $user['starred_pharma'] ?? null;
+    if (!is_numeric($pharmacyId) || (int)$pharmacyId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Farmacia associata non valida']);
+        exit;
+    }
+
     // Imposta la sessione come l'utente selezionato
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['user_role'] = $user['role'];
     $_SESSION['user_name'] = $user['slug_name'];
-    $_SESSION['pharmacy_id'] = $user['starred_pharma'] ?? 1;
-    
+    $_SESSION['pharmacy_id'] = (int)$pharmacyId;    
     // Flag per indicare che è un accesso "come"
     $_SESSION['login_as'] = true;
     $_SESSION['original_admin_id'] = $admin_id;

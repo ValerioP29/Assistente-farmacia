@@ -29,44 +29,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = db_fetch_one($sql, [$username]);
             
             if ($user && password_verify($password, $user['password'])) {
-                // Login riuscito
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['user_role'] = $user['role'] ?? 'user';
-                $_SESSION['user_name'] = $user['slug_name'];
-                $_SESSION['pharmacy_id'] = $user['starred_pharma'] ?? 1;
-                
+                             $pharmacyId = $user['starred_pharma'] ?? null;
 
-                
-                // Log attività
-                logActivity('login_success', ['user_id' => $user['id'], 'role' => $user['role']]);
-                
-                // Aggiorna ultimo accesso
-                db()->update('jta_users', 
-                    ['last_access' => date('Y-m-d H:i:s')], 
-                    'id = ?', 
-                    [$user['id']]
-                );
-                
-                // Reindirizzamento dopo login riuscito
-                $return_url = getReturnUrl();
-                
-                // Se c'è un return URL salvato, reindirizza lì
-                if ($return_url && $return_url !== '/login.php') {
-                    redirect($return_url, 'Login effettuato con successo', 'success');
+                if (!is_numeric($pharmacyId) || (int)$pharmacyId <= 0) {
+                    setAlert('Contesto farmacia non valido per questo account', 'danger');
+                    logActivity('login_failed_invalid_pharmacy', ['user_id' => $user['id'] ?? null]);
                 } else {
-                    // Reindirizzamento di default in base al ruolo
-                    $user_role = $user['role'] ?? 'user';
-                    switch ($user_role) {
-                        case 'admin':
-                            redirect('utenti.php', 'Login effettuato con successo', 'success');
-                            break;
-                        case 'pharmacist':
-                            redirect('dashboard.php', 'Login effettuato con successo', 'success');
-                            break;
-                        case 'user':
-                        default:
-                            setAlert('Accesso non autorizzato. Solo admin e farmacisti possono accedere al pannello.', 'danger');
-                            break;
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['user_role'] = $user['role'] ?? 'user';
+                    $_SESSION['user_name'] = $user['slug_name'];
+                    $_SESSION['pharmacy_id'] = (int)$pharmacyId;
+
+                    // Log attività
+                    logActivity('login_success', ['user_id' => $user['id'], 'role' => $user['role']]);
+
+                    // Aggiorna ultimo accesso
+                    db()->update('jta_users',
+                        ['last_access' => date('Y-m-d H:i:s')],
+                        'id = ?',
+                        [$user['id']]
+                    );
+
+                    $return_url = getReturnUrl();
+
+                    if ($return_url && $return_url !== '/login.php') {
+                        redirect($return_url, 'Login effettuato con successo', 'success');
+                    } else {
+                        $user_role = $user['role'] ?? 'user';
+                        switch ($user_role) {
+                            case 'admin':
+                                redirect('utenti.php', 'Login effettuato con successo', 'success');
+                                break;
+                            case 'pharmacist':
+                                redirect('dashboard.php', 'Login effettuato con successo', 'success');
+                                break;
+                            case 'user':
+                            default:
+                                setAlert('Accesso non autorizzato. Solo admin e farmacisti possono accedere al pannello.', 'danger');
+                                break;
+                        }
                     }
                 }
             } else {

@@ -11,6 +11,14 @@ require_once '../../includes/auth_middleware.php';
 // Verifica autenticazione
 requireApiAuth(['admin', 'pharmacist']);
 
+$userRole = $_SESSION['user_role'] ?? null;
+
+if ($userRole === 'pharmacist') {
+    $pharmacyId = current_pharmacy_id();
+} else {
+    $pharmacyId = null;
+}
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -31,8 +39,8 @@ try {
     
     $db = Database::getInstance();
     
-    // Verifica che la richiesta esista e non sia già eliminata
     $request = $db->fetchOne("SELECT * FROM jta_requests WHERE id = ? AND deleted_at IS NULL", [$requestId]);
+     
     if (!$request) {
         throw new Exception('Richiesta non trovata o già eliminata');
     }
@@ -42,7 +50,7 @@ try {
         'deleted_at' => date('Y-m-d H:i:s')
     ];
     
-    $db->update('jta_requests', $updateData, 'id = ?', [$requestId]);
+     $db->update('jta_requests', ['metadata' => json_encode($metadata)], 'id = ? AND pharma_id = ?', [$requestId, $pharmacyId]);
     
     // Aggiungi nota di eliminazione ai metadata
     $metadata = json_decode($request['metadata'], true) ?: [];
@@ -65,7 +73,7 @@ try {
     ]);
     
 } catch (Exception $e) {
-    http_response_code(400);
+    http_response_code($e->getCode() === 404 ? 404 : 400);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()

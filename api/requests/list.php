@@ -11,6 +11,15 @@ require_once '../../includes/auth_middleware.php';
 // Verifica autenticazione
 requireApiAuth(['admin', 'pharmacist']);
 
+$userRole = $_SESSION['user_role'] ?? null;
+
+if ($userRole === 'pharmacist') {
+    $pharmacyId = current_pharmacy_id();
+} else {
+    // admin: contesto globale
+    $pharmacyId = null;
+}
+
 header('Content-Type: application/json');
 
 try {
@@ -23,12 +32,12 @@ try {
     
     $status = isset($_GET['status']) ? $_GET['status'] : null;
     $request_type = isset($_GET['request_type']) ? $_GET['request_type'] : null;
-    $pharma_id = isset($_GET['pharma_id']) ? (int)$_GET['pharma_id'] : null;
     $search = isset($_GET['search']) ? $_GET['search'] : null;
-    
-    // Costruisci query base
-    $whereConditions = ["r.deleted_at IS NULL"];
-    $params = [];
+    $whereConditions = [
+        "r.deleted_at IS NULL",
+        "r.pharma_id = ?"
+    ];
+    $params = [$pharmacyId];
     
     if ($status !== null && $status !== '') {
         $whereConditions[] = "r.status = ?";
@@ -38,11 +47,6 @@ try {
     if ($request_type !== null && $request_type !== '') {
         $whereConditions[] = "r.request_type = ?";
         $params[] = $request_type;
-    }
-    
-    if ($pharma_id !== null) {
-        $whereConditions[] = "r.pharma_id = ?";
-        $params[] = $pharma_id;
     }
     
     if ($search !== null && $search !== '') {

@@ -276,13 +276,13 @@ Modifica i file di configurazione per impostare l'URL base del servizio WhatsApp
 **File: `config/database.php`**
 ```php
 // Configurazione WhatsApp
-if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice-pharma1.jungleteam.it');
 ```
 
 **File: `config/development.php` (per sviluppo)**
 ```php
 // Configurazione WhatsApp per sviluppo
-if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice-pharma1.jungleteam.it');
 ```
 
 #### 2. URL Configurabili

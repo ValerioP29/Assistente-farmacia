@@ -600,7 +600,7 @@ class RichiesteManager {
             const local = raw.startsWith('39') ? raw.slice(2) : raw;
             const whatsappPhone = '39' + local;
 
-            const response = await fetch('/api/whatsapp/send.php', {
+            const response = await fetch('/panel/api/whatsapp/send.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: whatsappPhone, message })

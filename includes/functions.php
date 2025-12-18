@@ -46,33 +46,19 @@ function checkAccess($required_roles = ['admin'], $redirect = true) {
 function checkApiAccess($required_roles = ['admin']) {
     // Se non è loggato
     if (!isLoggedIn()) {
-        if (!headers_sent()) {
-            header('Content-Type: application/json');
-        }
         http_response_code(401);
-        echo json_encode([
-            'success' => false,
-            'data' => null,
-            'error' => 'Autenticazione richiesta'
-        ]);
+        echo json_encode(['success' => false, 'message' => 'Autenticazione richiesta']);
         exit;
     }
-
+    
     // Se è loggato ma non ha i ruoli richiesti
     $user_role = $_SESSION['user_role'] ?? 'user';
     if (!in_array($user_role, $required_roles)) {
-        if (!headers_sent()) {
-            header('Content-Type: application/json');
-        }
         http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'data' => null,
-            'error' => 'Accesso negato'
-        ]);
+        echo json_encode(['success' => false, 'message' => 'Accesso negato']);
         exit;
     }
-
+    
     return true;
 }
 
@@ -89,19 +75,30 @@ function get_panel_pharma_id($required = false) {
     }
 
     if ($required) {
-        if (!headers_sent()) {
-            header('Content-Type: application/json');
-        }
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'data' => null,
-            'error' => 'Pharmacy context missing'
-        ]);
-        exit;
+       return current_pharmacy_id();
     }
 
     return null;
+}
+
+function current_pharmacy_id() {
+    $pharmacyId = $_SESSION['pharmacy_id'] ?? null;
+    $pharmacyId = is_numeric($pharmacyId) ? (int)$pharmacyId : null;
+
+    if ($pharmacyId > 0) {
+        return $pharmacyId;
+    }
+
+    if (!headers_sent()) {
+        header('Content-Type: application/json');
+    }
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'data' => null,
+        'error' => 'Pharmacy context missing'
+    ]);
+    exit;
 }
 
 function saveReturnUrl() {
@@ -173,11 +170,7 @@ function logActivity($action, $data = []) {
 
 // Funzioni per farmacia corrente
 function getCurrentPharmacy() {
-    $pharmacyId = get_panel_pharma_id();
-    if (!$pharmacyId) {
-        return null;
-    }
-
+    $pharmacyId = current_pharmacy_id();
     try {
         $sql = "SELECT * FROM jta_pharmas WHERE id = ? AND status = 'active'";
         return db_fetch_one($sql, [$pharmacyId]);
@@ -572,21 +565,25 @@ function getNextOpeningTime($pharmacyId = null) {
  * Ottiene orari farmacia
  */
 function getPharmacyHours($pharmacyId = null) {
-    if (!$pharmacyId) {
-        $pharmacy = getCurrentPharmacy();
-        $pharmacyId = $pharmacy['id'] ?? 1;
-    }
-    
+    $pharmacyId = $pharmacyId !== null
+        ? (int)$pharmacyId
+        : current_pharmacy_id();
+
     try {
-        $sql = "SELECT working_info FROM jta_pharmas WHERE id = ? AND status = 'active'";
+        $sql = "SELECT working_info
+                FROM jta_pharmas
+                WHERE id = ? AND status = 'active'";
+
         $result = db_fetch_one($sql, [$pharmacyId]);
-        
-        if ($result && $result['working_info']) {
-            return json_decode($result['working_info'], true);
+
+        if (!$result || empty($result['working_info'])) {
+            return null;
         }
-        
-        return null;
+
+        return json_decode($result['working_info'], true);
+
     } catch (Exception $e) {
+        error_log('Errore getPharmacyHours: ' . $e->getMessage());
         return null;
     }
 }
@@ -803,3 +800,4 @@ function updateUserPoints($userId, $pointsToAdd) {
         return false;
     }
 }
+?>

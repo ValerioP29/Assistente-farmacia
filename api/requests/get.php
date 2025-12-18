@@ -11,6 +11,14 @@ require_once '../../includes/auth_middleware.php';
 // Verifica autenticazione
 requireApiAuth(['admin', 'pharmacist']);
 
+$userRole = $_SESSION['user_role'] ?? null;
+
+if ($userRole === 'pharmacist') {
+    $pharmacyId = current_pharmacy_id();
+} else {
+    $pharmacyId = null;
+}
+
 header('Content-Type: application/json');
 
 /**
@@ -68,15 +76,15 @@ try {
                    CONCAT(u.name, ' ', u.surname) as user_username,
                    u.email as user_email,
                    u.phone_number as user_phone
-            FROM jta_requests r
-            LEFT JOIN jta_pharmas p ON r.pharma_id = p.id
-            LEFT JOIN jta_users u ON r.user_id = u.id
-            WHERE r.id = ? AND r.deleted_at IS NULL";
-    
-    $request = $db->fetchOne($sql, [$requestId]);
+   FROM jta_requests r
+           LEFT JOIN jta_pharmas p ON r.pharma_id = p.id
+           LEFT JOIN jta_users u ON r.user_id = u.id
+            WHERE r.id = ? AND r.pharma_id = ? AND r.deleted_at IS NULL";
+
+    $request = $db->fetchOne($sql, [$requestId, $pharmacyId]);
     
     if (!$request) {
-        throw new Exception('Richiesta non trovata');
+        throw new Exception('Richiesta non trovata', 404);
     }
     
     // Decodifica metadata
@@ -117,7 +125,7 @@ try {
     ]);
     
 } catch (Exception $e) {
-    http_response_code(400);
+   http_response_code($e->getCode() === 404 ? 404 : 400);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
