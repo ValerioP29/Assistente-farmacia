@@ -600,7 +600,7 @@ class RichiesteManager {
             const local = raw.startsWith('39') ? raw.slice(2) : raw;
             const whatsappPhone = '39' + local;
 
-            const response = await fetch('/panel/api/whatsapp/send.php', {
+            const response = await fetch('https://waservice.jungleteam.it/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: whatsappPhone, message })
@@ -622,7 +622,7 @@ class RichiesteManager {
                 this.updateStatistics();
             }
             } else {
-            this.showError('Errore nell\'invio: ' + (data.error || data.message || 'Errore sconosciuto'));
+            this.showError('Errore nell\'invio: ' + (data.message || 'Errore sconosciuto'));
             }
         } catch (error) {
             this.showError('Errore di connessione: ' + error.message);

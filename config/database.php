@@ -6,9 +6,9 @@
 
 // Configurazione Database (solo se non già definite)
 if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
-if (!defined('DB_NAME')) define('DB_NAME', 'jt_assistente_farmacia');
-if (!defined('DB_USER')) define('DB_USER', 'jta_master_user');
-if (!defined('DB_PASS')) define('DB_PASS', 'Z4s097sJRusj1pjDj?$xJt');
+if (!defined('DB_NAME')) define('DB_NAME', 'assistente_farmacia_set');
+if (!defined('DB_USER')) define('DB_USER', 'root');
+if (!defined('DB_PASS')) define('DB_PASS', 'fricchio29');
 if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
 
 // Configurazione Applicazione (solo se non già definite)
@@ -40,7 +40,7 @@ if (!defined('SMTP_FROM')) define('SMTP_FROM', 'noreply@assistentefarmacia.it');
 // Configurazione WhatsApp (opzionale) - solo se non già definite
 if (!defined('WHATSAPP_API_KEY')) define('WHATSAPP_API_KEY', '');
 if (!defined('WHATSAPP_PHONE_ID')) define('WHATSAPP_PHONE_ID', '');
-if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice-pharma1.jungleteam.it');
+if (!defined('WHATSAPP_BASE_URL')) define('WHATSAPP_BASE_URL', 'https://waservice.jungleteam.it');
 
 // Configurazione Google Maps (opzionale) - solo se non già definite
 if (!defined('GOOGLE_MAPS_API_KEY')) define('GOOGLE_MAPS_API_KEY', '');
@@ -125,7 +125,11 @@ class Database {
         $this->query($sql, $data);
         return $this->connection->lastInsertId();
     }
-    
+
+    public function lastInsertId() {
+        return $this->connection->lastInsertId();
+    }
+
     public function update($table, $data, $where, $whereParams = []) {
         $fields = array_keys($data);
         $set = implode(' = ?, ', $fields) . ' = ?';
@@ -141,6 +145,19 @@ class Database {
         $sql = "DELETE FROM {$table} WHERE {$where}";
         return $this->query($sql, $params)->rowCount();
     }
+
+    public function fetchValue($sql, $params = [])
+    {
+        $row = $this->fetchOne($sql, $params);
+
+        if (!$row || !is_array($row)) {
+            return null;
+        }
+
+        $values = array_values($row);
+        return $values[0] ?? null;
+    }
+
 }
 
 /**
@@ -170,3 +187,4 @@ function db_fetch_all($sql, $params = []) {
 function db_fetch_one($sql, $params = []) {
     return db()->fetchOne($sql, $params);
 }
+?> 

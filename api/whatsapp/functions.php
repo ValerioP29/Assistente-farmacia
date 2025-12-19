@@ -6,34 +6,33 @@
 
 // Carica le configurazioni
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../services/WhatsappService.php';
 
 /**
  * Ottiene l'URL base del servizio WhatsApp dalla configurazione
  */
 function whatsapp_base_url() {
-    return WhatsappService::resolveBaseUrl();
+    return defined('WHATSAPP_BASE_URL') ? WHATSAPP_BASE_URL : 'https://waservice.jungleteam.it';
 }
 
 /**
  * Ottiene l'URL del servizio WhatsApp per le operazioni principali
  */
 function whatsapp_service_url() {
-    return WhatsappService::resolveBaseUrl();
+    return whatsapp_base_url();
 }
 
 /**
  * Ottiene l'URL per il QR code dalla configurazione
  */
 function whatsapp_qr_url() {
-    return WhatsappService::service('qr');
+    return whatsapp_base_url() . '/qr';
 }
 
 /**
  * Controlla se WhatsApp è connesso
  */
 function whatsapp_is_connected() {
-    $ch = curl_init(WhatsappService::service('status'));
+    $ch = curl_init(whatsapp_service_url() . '/status');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
     curl_setopt($ch, CURLOPT_POST, FALSE);
     
@@ -84,7 +83,7 @@ function whatsapp_is_connected() {
  * Disconnette WhatsApp
  */
 function whatsapp_disconnect() {
-    $ch = curl_init(WhatsappService::service('disconnect'));
+    $ch = curl_init(whatsapp_service_url() . '/disconnect');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
     curl_setopt($ch, CURLOPT_POST, TRUE);
     

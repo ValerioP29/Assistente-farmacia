@@ -33,8 +33,8 @@ if (!verifyCSRFToken($csrf_token)) {
 }
 
 try {
-    // Deve essere in modalità "login as"
-    if (empty($_SESSION['login_as'])) {
+    // Verifica che sia un accesso "come"
+    if (!isset($_SESSION['login_as']) || !$_SESSION['login_as']) {
         echo json_encode(['success' => false, 'message' => 'Non sei in modalità accesso come utente']);
         exit;
     }
@@ -59,9 +59,8 @@ try {
     $_SESSION['user_id'] = $admin['id'];
     $_SESSION['user_role'] = $admin['role'];
     $_SESSION['user_name'] = $admin['slug_name'];
-
-    unset($_SESSION['pharmacy_id']);
-
+    $_SESSION['pharmacy_id'] = $admin['starred_pharma'] ?? 1;
+    
     // Rimuovi i flag di accesso "come"
     unset($_SESSION['login_as']);
     unset($_SESSION['original_admin_id']);
@@ -69,7 +68,8 @@ try {
 
     // Log attività
     logActivity('return_to_admin', [
-        'admin_id' => $admin_id
+        'admin_id' => $admin_id,
+        'previous_user_id' => $_SESSION['user_id'] ?? null
     ]);
 
     echo json_encode([

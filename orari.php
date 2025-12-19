@@ -66,8 +66,7 @@ include 'includes/header.php';
                                 <thead class="table-light">
                                     <tr>
                                         <th>Giorno</th>
-                                        <th>Modalità</th>
-                                        <th>Mattina / Continuato</th>
+                                        <th>Mattina</th>
                                         <th>Pomeriggio</th>
                                         <th>Chiuso</th>
                                     </tr>
@@ -87,80 +86,39 @@ include 'includes/header.php';
                                     foreach ($days as $day_code => $day_name):
                                         $day_hours = $working_hours[$day_code] ?? [];
                                         $is_closed = isset($day_hours['closed']) && $day_hours['closed'];
-                                        $day_mode = $day_hours['mode'] ?? (isset($day_hours['continuous_open']) ? 'continuous' : 'split');
                                     ?>
-                                    <tr class="day-row" data-day="<?= $day_code ?>">
+                                    <tr>
                                         <td><strong><?= $day_name ?></strong></td>
                                         <td>
-                                            <div class="btn-group" role="group" aria-label="Modalità orario <?= $day_name ?>">
-                                                <input type="radio" class="btn-check day-mode" 
-                                                       name="<?= $day_code ?>_mode" 
-                                                       id="<?= $day_code ?>_mode_split" 
-                                                       value="split" data-day="<?= $day_code ?>"
-                                                       <?= $day_mode === 'continuous' ? '' : 'checked' ?>>
-                                                <label class="btn btn-outline-primary" for="<?= $day_code ?>_mode_split">Spezzato</label>
-
-                                                <input type="radio" class="btn-check day-mode" 
-                                                       name="<?= $day_code ?>_mode" 
-                                                       id="<?= $day_code ?>_mode_continuous" 
-                                                       value="continuous" data-day="<?= $day_code ?>"
-                                                       <?= $day_mode === 'continuous' ? 'checked' : '' ?>>
-                                                <label class="btn btn-outline-primary" for="<?= $day_code ?>_mode_continuous">Continuato</label>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="split-hours <?= $day_mode === 'continuous' ? 'd-none' : '' ?>" data-day="<?= $day_code ?>">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control split-input" 
-                                                               name="<?= $day_code ?>_mattina_apertura" 
-                                                               value="<?= h($day_hours['morning_open'] ?? '08:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control split-input" 
-                                                               name="<?= $day_code ?>_mattina_chiusura" 
-                                                               value="<?= h($day_hours['morning_close'] ?? '12:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <input type="time" class="form-control" 
+                                                           name="<?= $day_code ?>_mattina_apertura" 
+                                                           value="<?= h($day_hours['morning_open'] ?? '08:00') ?>"
+                                                           <?= $is_closed ? 'disabled' : '' ?>>
                                                 </div>
-                                            </div>
-                                            <div class="continuous-hours <?= $day_mode === 'continuous' ? '' : 'd-none' ?>" data-day="<?= $day_code ?>">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control continuous-input" 
-                                                               name="<?= $day_code ?>_continuato_apertura" 
-                                                               value="<?= h($day_hours['continuous_open'] ?? $day_hours['morning_open'] ?? '09:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control continuous-input" 
-                                                               name="<?= $day_code ?>_continuato_chiusura" 
-                                                               value="<?= h($day_hours['continuous_close'] ?? $day_hours['afternoon_close'] ?? '19:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
+                                                <div class="col-6">
+                                                    <input type="time" class="form-control" 
+                                                           name="<?= $day_code ?>_mattina_chiusura" 
+                                                           value="<?= h($day_hours['morning_close'] ?? '12:00') ?>"
+                                                           <?= $is_closed ? 'disabled' : '' ?>>
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="split-hours <?= $day_mode === 'continuous' ? 'd-none' : '' ?>" data-day="<?= $day_code ?>">
-                                                <div class="row g-2">
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control split-input" 
-                                                               name="<?= $day_code ?>_pomeriggio_apertura" 
-                                                               value="<?= h($day_hours['afternoon_open'] ?? '15:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <input type="time" class="form-control split-input" 
-                                                               name="<?= $day_code ?>_pomeriggio_chiusura" 
-                                                               value="<?= h($day_hours['afternoon_close'] ?? '19:00') ?>"
-                                                               <?= $is_closed ? 'disabled' : '' ?>>
-                                                    </div>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <input type="time" class="form-control" 
+                                                           name="<?= $day_code ?>_pomeriggio_apertura" 
+                                                           value="<?= h($day_hours['afternoon_open'] ?? '15:00') ?>"
+                                                           <?= $is_closed ? 'disabled' : '' ?>>
                                                 </div>
-                                            </div>
-                                            <div class="continuous-hours <?= $day_mode === 'continuous' ? '' : 'd-none' ?>" data-day="<?= $day_code ?>">
-                                                <small class="text-muted">Non applicabile in orario continuato</small>
+                                                <div class="col-6">
+                                                    <input type="time" class="form-control" 
+                                                           name="<?= $day_code ?>_pomeriggio_chiusura" 
+                                                           value="<?= h($day_hours['afternoon_close'] ?? '19:00') ?>"
+                                                           <?= $is_closed ? 'disabled' : '' ?>>
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="text-center">

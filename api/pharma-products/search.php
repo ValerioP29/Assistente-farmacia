@@ -18,7 +18,7 @@ try {
     
     // Ottieni farmacia corrente
     $pharmacy = getCurrentPharmacy();
-    $pharma_id = $pharmacy['id'] ?? get_panel_pharma_id(true);
+    $pharma_id = $pharmacy['id'] ?? $_SESSION['pharmacy_id'] ?? null;
     
     if (!$pharma_id) {
         throw new Exception('ID farmacia non valido');

@@ -11,15 +11,6 @@ require_once '../../includes/auth_middleware.php';
 // Verifica autenticazione
 requireApiAuth(['admin', 'pharmacist']);
 
-$userRole = $_SESSION['user_role'] ?? null;
-
-if ($userRole === 'pharmacist') {
-    $pharmacyId = current_pharmacy_id();
-} else {
-    // admin: contesto globale
-    $pharmacyId = null;
-}
-
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -46,9 +37,11 @@ try {
     }
     
     $db = Database::getInstance();
-    $request = $db->fetchOne("SELECT * FROM jta_requests WHERE id = ? AND pharma_id = ? AND deleted_at IS NULL", [$requestId, $pharmacyId]);
+    
+    // Verifica che la richiesta esista
+    $request = $db->fetchOne("SELECT * FROM jta_requests WHERE id = ? AND deleted_at IS NULL", [$requestId]);
     if (!$request) {
-         throw new Exception('Richiesta non trovata', 404);
+        throw new Exception('Richiesta non trovata');
     }
     
     // Aggiorna lo stato
@@ -56,7 +49,7 @@ try {
         'status' => $status
     ];
     
-    $db->update('jta_requests', $updateData, 'id = ? AND pharma_id = ?', [$requestId, $pharmacyId]);
+    $db->update('jta_requests', $updateData, 'id = ?', [$requestId]);
     
     // Se la richiesta è stata completata (status = 2), inserisci i punti nel log
     if ($status == 2) {
@@ -88,7 +81,7 @@ try {
     ]);
     
 } catch (Exception $e) {
-    http_response_code($e->getCode() === 404 ? 404 : 400);
+    http_response_code(400);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()

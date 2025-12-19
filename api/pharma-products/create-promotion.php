@@ -23,8 +23,13 @@ try {
     $pdo = $db->getConnection();
     
     // Ottieni farmacia corrente
-    $pharma_id = get_panel_pharma_id(true);
-
+    $pharmacy = getCurrentPharmacy();
+    $pharma_id = $pharmacy['id'] ?? $_SESSION['pharmacy_id'] ?? null;
+    
+    if (!$pharma_id) {
+        throw new Exception('ID farmacia non valido');
+    }
+    
     // Leggi dati dal form
     $product_id = intval($_POST['product_id'] ?? 0);
     $sale_price = isset($_POST['sale_price']) ? floatval($_POST['sale_price']) : null;

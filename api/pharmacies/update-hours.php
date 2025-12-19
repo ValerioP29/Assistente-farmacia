@@ -54,79 +54,37 @@ try {
 
     // Processa i dati per ogni giorno
     foreach ($days as $day) {
-        $mode = sanitize($_POST[$day . '_mode'] ?? 'split');
-        if (!in_array($mode, ['split', 'continuous'], true)) {
-            $mode = 'split';
-        }
-        $isContinuous = $mode === 'continuous';
         $day_data = [
             'closed' => isset($_POST[$day . '_chiuso']),
-            'mode' => $isContinuous ? 'continuous' : 'split',
             'morning_open' => sanitize($_POST[$day . '_mattina_apertura'] ?? ''),
             'morning_close' => sanitize($_POST[$day . '_mattina_chiusura'] ?? ''),
             'afternoon_open' => sanitize($_POST[$day . '_pomeriggio_apertura'] ?? ''),
-            'afternoon_close' => sanitize($_POST[$day . '_pomeriggio_chiusura'] ?? ''),
-            'continuous_open' => sanitize($_POST[$day . '_continuato_apertura'] ?? ''),
-            'continuous_close' => sanitize($_POST[$day . '_continuato_chiusura'] ?? '')
+            'afternoon_close' => sanitize($_POST[$day . '_pomeriggio_chiusura'] ?? '')
         ];
 
         // Validazione orari
         if (!$day_data['closed']) {
-            if ($day_data['mode'] === 'continuous') {
-                if (empty($day_data['continuous_open']) || empty($day_data['continuous_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orario continuato obbligatorio per $day"]);
-                    exit;
-                }
-
-                if (strtotime($day_data['continuous_open']) >= strtotime($day_data['continuous_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orario continuato non valido per $day"]);
-                    exit;
-                }
-            } else {
-                // Se non è chiuso, verifica che gli orari siano validi
-                if (empty($day_data['morning_open']) || empty($day_data['morning_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orari mattina obbligatori per $day"]);
-                    exit;
-                }
-
-                if (empty($day_data['afternoon_open']) || empty($day_data['afternoon_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orari pomeriggio obbligatori per $day"]);
-                    exit;
-                }
-
-                // Verifica che l'apertura sia prima della chiusura
-                if (strtotime($day_data['morning_open']) >= strtotime($day_data['morning_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orari mattina non validi per $day"]);
-                    exit;
-                }
-
-                if (strtotime($day_data['afternoon_open']) >= strtotime($day_data['afternoon_close'])) {
-                    echo json_encode(['success' => false, 'message' => "Orari pomeriggio non validi per $day"]);
-                    exit;
-                }
-
-                if (strtotime($day_data['morning_close']) > strtotime($day_data['afternoon_open'])) {
-                    echo json_encode(['success' => false, 'message' => "Gli orari di $day non possono sovrapporsi"]);
-                    exit;
-                }
+            // Se non è chiuso, verifica che gli orari siano validi
+            if (empty($day_data['morning_open']) || empty($day_data['morning_close'])) {
+                echo json_encode(['success' => false, 'message' => "Orari mattina obbligatori per $day"]);
+                exit;
             }
-        }
 
-        if ($day_data['closed']) {
-            $day_data['morning_open'] = '';
-            $day_data['morning_close'] = '';
-            $day_data['afternoon_open'] = '';
-            $day_data['afternoon_close'] = '';
-            $day_data['continuous_open'] = '';
-            $day_data['continuous_close'] = '';
-        } elseif ($day_data['mode'] === 'continuous') {
-            $day_data['morning_open'] = '';
-            $day_data['morning_close'] = '';
-            $day_data['afternoon_open'] = '';
-            $day_data['afternoon_close'] = '';
-        } else {
-            $day_data['continuous_open'] = '';
-            $day_data['continuous_close'] = '';
+            if (empty($day_data['afternoon_open']) || empty($day_data['afternoon_close'])) {
+                echo json_encode(['success' => false, 'message' => "Orari pomeriggio obbligatori per $day"]);
+                exit;
+            }
+
+            // Verifica che l'apertura sia prima della chiusura
+            if (strtotime($day_data['morning_open']) >= strtotime($day_data['morning_close'])) {
+                echo json_encode(['success' => false, 'message' => "Orari mattina non validi per $day"]);
+                exit;
+            }
+
+            if (strtotime($day_data['afternoon_open']) >= strtotime($day_data['afternoon_close'])) {
+                echo json_encode(['success' => false, 'message' => "Orari pomeriggio non validi per $day"]);
+                exit;
+            }
         }
 
         $working_hours[$day] = $day_data;
