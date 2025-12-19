@@ -1171,7 +1171,7 @@ async function openReportsModal(therapyId = null) {
                                 <button type="button" class="btn btn-success d-none" id="reportGeneratePdf">Genera PDF</button>
                             </div>
                         </form>
-                        <div id="reportPreview" class="bg-light p-2 rounded border"></div>
+                        <div id="reportPreview" class="report-preview bg-light p-2 rounded border"></div>
                     </div>
                 </div>
             </div>

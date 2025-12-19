@@ -604,9 +604,39 @@ main {
     height: 40px !important;
     max-width: 100px !important;
   }
-  
+
   .sidebar-left .pharmacy-logo-placeholder {
     height: 40px !important;
     width: 100px !important;
   }
+}
+
+/* Report preview readability */
+.report-preview {
+  line-height: 1.6;
+}
+
+.report-preview .small,
+.report-preview .text-muted {
+  line-height: 1.5;
+}
+
+.report-preview .text-muted + .text-muted {
+  margin-top: 0.35rem;
+}
+
+.report-preview .text-muted {
+  display: block;
+}
+
+.report-preview .row.g-3.mb-4 {
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.report-preview .row.g-3.mb-4:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 1.25rem;
 }
