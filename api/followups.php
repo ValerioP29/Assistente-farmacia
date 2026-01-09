@@ -69,7 +69,9 @@ function buildBaseQuestions($answers)
     foreach ($answers as $key => $value) {
         $type = is_bool($value) ? 'boolean' : 'text';
         $questions[] = [
+            'key' => (string)$key,
             'text' => (string)$key,
+            'label' => (string)$key,
             'type' => $type,
             'answer' => null
         ];
@@ -90,12 +92,25 @@ function withFollowupStatus(array $rows)
 switch ($method) {
     case 'GET':
         $therapy_id = $_GET['therapy_id'] ?? null;
+        $entry_type = $_GET['entry_type'] ?? null;
         if (!$therapy_id) {
             respondFollowups(false, null, 'therapy_id richiesto', 400);
         }
-        $sql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ? ORDER BY f.created_at DESC";
+        $params = [$therapy_id, $pharmacy_id];
+        $sql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ?";
+        if ($entry_type === 'check') {
+            $sql .= " AND (f.entry_type = ? OR (f.entry_type IS NULL AND COALESCE(JSON_LENGTH(f.snapshot), 0) > 0))";
+            $params[] = 'check';
+        } elseif ($entry_type === 'followup') {
+            $sql .= " AND (f.entry_type = ? OR (f.entry_type IS NULL AND COALESCE(JSON_LENGTH(f.snapshot), 0) = 0))";
+            $params[] = 'followup';
+        } elseif ($entry_type) {
+            $sql .= " AND f.entry_type = ?";
+            $params[] = $entry_type;
+        }
+        $sql .= " ORDER BY f.created_at DESC";
         try {
-            $rows = db_fetch_all($sql, [$therapy_id, $pharmacy_id]);
+            $rows = db_fetch_all($sql, $params);
             respondFollowups(true, ['items' => withFollowupStatus($rows)]);
         } catch (Exception $e) {
             respondFollowups(false, null, 'Errore recupero follow-up', 500);
@@ -136,9 +151,10 @@ switch ($method) {
 
             try {
                 db_query(
-                    "INSERT INTO jta_therapy_followups (therapy_id, snapshot) VALUES (?, ?)",
+                    "INSERT INTO jta_therapy_followups (therapy_id, entry_type, snapshot) VALUES (?,?,?)",
                     [
                         $therapy_id,
+                        'check',
                         json_encode($snapshot)
                     ]
                 );
@@ -171,11 +187,12 @@ switch ($method) {
             }
 
             $snapshot = normalizeSnapshot(json_decode($followup['snapshot'] ?? '', true));
-            $snapshot['custom_questions'][] = [
-                'text' => $text,
-                'type' => $type,
-                'answer' => null
-            ];
+                $snapshot['custom_questions'][] = [
+                    'text' => $text,
+                    'label' => $text,
+                    'type' => $type,
+                    'answer' => null
+                ];
 
             try {
                 db_query(
@@ -239,14 +256,21 @@ switch ($method) {
             foreach ($answers as $answer) {
                 $index = $answer['index'] ?? null;
                 $value = $answer['answer'] ?? null;
+                $label = $answer['label'] ?? null;
                 $isCustom = !empty($answer['custom']);
                 if ($index === null || !is_numeric($index)) {
                     continue;
                 }
                 if ($isCustom && isset($snapshot['custom_questions'][(int)$index])) {
                     $snapshot['custom_questions'][(int)$index]['answer'] = $value;
+                    if ($label !== null) {
+                        $snapshot['custom_questions'][(int)$index]['label'] = $label;
+                    }
                 } elseif (!$isCustom && isset($snapshot['questions'][(int)$index])) {
                     $snapshot['questions'][(int)$index]['answer'] = $value;
+                    if ($label !== null) {
+                        $snapshot['questions'][(int)$index]['label'] = $label;
+                    }
                 }
             }
 
@@ -305,9 +329,10 @@ switch ($method) {
             }
 
             db_query(
-                "INSERT INTO jta_therapy_followups (therapy_id, risk_score, pharmacist_notes, follow_up_date) VALUES (?,?,?,?)",
+                "INSERT INTO jta_therapy_followups (therapy_id, entry_type, risk_score, pharmacist_notes, follow_up_date) VALUES (?,?,?,?,?)",
                 [
                     $therapy_id,
+                    'followup',
                     $risk_score,
                     $pharmacist_notes,
                     $follow_up_date

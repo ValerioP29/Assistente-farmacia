@@ -464,23 +464,46 @@ async function loadTherapyForEdit(therapyId) {
         const result = await response.json();
         if (result.success && Array.isArray(result.data?.items) && result.data.items.length) {
             const t = result.data.items[0];
+            const existingPatient = therapyWizardState.patient || {};
             therapyWizardState.patient = {
                 id: t.patient_id,
                 first_name: t.first_name,
                 last_name: t.last_name,
-                birth_date: t.birth_date || '',
+                birth_date: t.birth_date ?? existingPatient.birth_date ?? '',
                 codice_fiscale: t.codice_fiscale || '',
-                phone: t.phone || '',
-                email: t.email || '',
-                notes: t.notes || ''
+                phone: t.phone ?? existingPatient.phone ?? '',
+                email: t.email ?? existingPatient.email ?? '',
+                notes: t.notes ?? existingPatient.notes ?? ''
             };
-            therapyWizardState.primary_condition = t.primary_condition || t.therapy_title || null;
+            if (t.primary_condition) {
+                therapyWizardState.primary_condition = t.primary_condition;
+            }
             therapyWizardState.initial_notes = t.therapy_description || null;
             therapyWizardState.notes_initial = t.notes_initial || therapyWizardState.notes_initial;
             therapyWizardState.follow_up_date = t.follow_up_date || null;
+            therapyWizardState.risk_score = t.risk_score ?? therapyWizardState.risk_score;
+            if (t.flags !== null && t.flags !== undefined) {
+                therapyWizardState.flags = t.flags;
+            }
+            if (t.general_anamnesis !== null && t.general_anamnesis !== undefined) {
+                therapyWizardState.general_anamnesis = t.general_anamnesis;
+            }
+            if (t.detailed_intake !== null && t.detailed_intake !== undefined) {
+                therapyWizardState.detailed_intake = t.detailed_intake;
+            }
+            if (t.adherence_base !== null && t.adherence_base !== undefined) {
+                therapyWizardState.adherence_base = t.adherence_base;
+            }
+            if (t.consent !== null && t.consent !== undefined) {
+                therapyWizardState.consent = t.consent;
+            }
             therapyWizardState.condition_survey.condition_type = therapyWizardState.primary_condition;
-            therapyWizardState.doctor_info = t.doctor_info || {};
-            therapyWizardState.biometric_info = t.biometric_info || {};
+            if (t.doctor_info !== null && t.doctor_info !== undefined) {
+                therapyWizardState.doctor_info = t.doctor_info;
+            }
+            if (t.biometric_info !== null && t.biometric_info !== undefined) {
+                therapyWizardState.biometric_info = t.biometric_info;
+            }
         }
     } catch (error) {
         console.error('Errore caricamento terapia', error);

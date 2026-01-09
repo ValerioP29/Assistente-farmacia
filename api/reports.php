@@ -158,6 +158,7 @@ function fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id 
             'id' => $row['id'],
             'follow_up_date' => $row['follow_up_date'] ?? null,
             'risk_score' => $row['risk_score'] ?? null,
+            'entry_type' => $row['entry_type'] ?? null,
             'snapshot' => $snapshot,
             'pharmacist_notes' => $row['pharmacist_notes'] ?? null,
             'created_at' => $row['created_at'] ?? null
@@ -196,6 +197,24 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
     }
 
     $followupData = fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id);
+    $checkFollowups = array_values(array_filter($followupData, function ($row) {
+        $type = $row['entry_type'] ?? null;
+        $snapshot = $row['snapshot'] ?? null;
+        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
+        if ($type === 'check') {
+            return true;
+        }
+        return $type === null && $hasSnapshot;
+    }));
+    $manualFollowups = array_values(array_filter($followupData, function ($row) {
+        $type = $row['entry_type'] ?? null;
+        $snapshot = $row['snapshot'] ?? null;
+        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
+        if ($type === 'followup') {
+            return true;
+        }
+        return $type === null && !$hasSnapshot;
+    }));
 
     $therapy = $therapyData['therapy'];
     $reportContent = [
@@ -233,7 +252,9 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
         ],
         'chronic_care' => $therapyData['chronic_care'],
         'survey_base' => $therapyData['survey'],
-        'followups' => $followupData
+        'followups' => $followupData,
+        'check_followups' => $checkFollowups,
+        'manual_followups' => $manualFollowups
     ];
 
     return $reportContent;

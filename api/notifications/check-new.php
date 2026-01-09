@@ -66,7 +66,7 @@ try {
 
     // Recupera promemoria in scadenza per la farmacia
     $due_reminders = $db->fetchAll("
-        SELECT r.id, r.title, r.message, r.scheduled_at, r.therapy_id, t.therapy_title,
+        SELECT r.id, r.title, r.message, r.type, r.channel, r.scheduled_at, r.therapy_id, t.therapy_title,
                p.first_name, p.last_name
         FROM jta_therapy_reminders r
         JOIN jta_therapies t ON r.therapy_id = t.id
@@ -77,6 +77,7 @@ try {
     ", [$pharmacy_id]);
 
     $reminders = [];
+    $recurringTypes = ['daily', 'weekly', 'monthly'];
     if (!empty($due_reminders)) {
         foreach ($due_reminders as $reminder) {
             $patient_name = trim(($reminder['first_name'] ?? '') . ' ' . ($reminder['last_name'] ?? ''));
@@ -89,12 +90,76 @@ try {
                 'therapy_title' => $reminder['therapy_title'],
                 'patient_name' => $patient_name,
             ];
+
+            if (function_exists('logActivity')) {
+                logActivity('therapy_reminder_shown', [
+                    'reminder_id' => $reminder['id'],
+                    'therapy_id' => $reminder['therapy_id'],
+                    'scheduled_at' => $reminder['scheduled_at']
+                ]);
+            }
+
+            if (in_array($reminder['type'] ?? 'one-shot', $recurringTypes, true)) {
+                $scheduledAt = $reminder['scheduled_at'] ?? null;
+                if ($scheduledAt) {
+                    $nextScheduledAt = null;
+                    try {
+                        $dt = new DateTime($scheduledAt);
+                        switch ($reminder['type']) {
+                            case 'daily':
+                                $dt->modify('+1 day');
+                                break;
+                            case 'weekly':
+                                $dt->modify('+1 week');
+                                break;
+                            case 'monthly':
+                                $dt->modify('+1 month');
+                                break;
+                            default:
+                                break;
+                        }
+                        $nextScheduledAt = $dt->format('Y-m-d H:i:s');
+                    } catch (Exception $e) {
+                        $nextScheduledAt = null;
+                    }
+
+                    if ($nextScheduledAt) {
+                        $existingNext = $db->fetchOne(
+                            "SELECT id FROM jta_therapy_reminders WHERE therapy_id = ? AND title = ? AND type = ? AND scheduled_at = ? AND status IN ('scheduled', 'shown') LIMIT 1",
+                            [$reminder['therapy_id'], $reminder['title'], $reminder['type'], $nextScheduledAt]
+                        );
+
+                        if (!$existingNext) {
+                            db_query(
+                                "INSERT INTO jta_therapy_reminders (therapy_id, title, message, type, scheduled_at, channel, status) VALUES (?,?,?,?,?,?,?)",
+                                [
+                                    $reminder['therapy_id'],
+                                    $reminder['title'],
+                                    $reminder['message'] ?? '',
+                                    $reminder['type'],
+                                    $nextScheduledAt,
+                                    $reminder['channel'] ?? 'email',
+                                    'scheduled'
+                                ]
+                            );
+
+                            if (function_exists('logActivity')) {
+                                logActivity('therapy_reminder_recurring_created', [
+                                    'therapy_id' => $reminder['therapy_id'],
+                                    'source_reminder_id' => $reminder['id'],
+                                    'next_scheduled_at' => $nextScheduledAt
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // Marca come inviati per evitare duplicati
+        // Marca come mostrati per evitare duplicati
         $ids = array_column($due_reminders, 'id');
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        db_query("UPDATE jta_therapy_reminders SET status = 'sent' WHERE id IN ($placeholders)", $ids);
+        db_query("UPDATE jta_therapy_reminders SET status = 'shown' WHERE id IN ($placeholders)", $ids);
     }
 
     echo json_encode([

@@ -13,6 +13,28 @@ $therapy = $reportData['therapy'] ?? [];
 $chronic = $reportData['chronic_care'] ?? [];
 $survey = $reportData['survey_base']['answers'] ?? [];
 $followups = $reportData['followups'] ?? [];
+$checkFollowups = $reportData['check_followups'] ?? [];
+$manualFollowups = $reportData['manual_followups'] ?? [];
+if (!$checkFollowups && !$manualFollowups && $followups) {
+    $checkFollowups = array_values(array_filter($followups, function ($row) {
+        $type = $row['entry_type'] ?? null;
+        $snapshot = $row['snapshot'] ?? null;
+        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
+        if ($type === 'check') {
+            return true;
+        }
+        return $type === null && $hasSnapshot;
+    }));
+    $manualFollowups = array_values(array_filter($followups, function ($row) {
+        $type = $row['entry_type'] ?? null;
+        $snapshot = $row['snapshot'] ?? null;
+        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
+        if ($type === 'followup') {
+            return true;
+        }
+        return $type === null && !$hasSnapshot;
+    }));
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -94,8 +116,8 @@ $followups = $reportData['followups'] ?? [];
 
     <div class="section">
         <h2>Check periodici</h2>
-        <?php if ($followups && is_array($followups) && count($followups)): ?>
-            <?php foreach ($followups as $index => $followup):
+        <?php if ($checkFollowups && is_array($checkFollowups) && count($checkFollowups)): ?>
+            <?php foreach ($checkFollowups as $index => $followup):
                 $snapshot = $followup['snapshot'] ?? [];
                 $questions = $snapshot['questions'] ?? [];
                 $custom = $snapshot['custom_questions'] ?? [];
@@ -112,7 +134,7 @@ $followups = $reportData['followups'] ?? [];
                         <tbody>
                             <?php foreach ($questions as $q): ?>
                                 <tr>
-                                    <td><?= e($q['text'] ?? '') ?></td>
+                                    <td><?= e($q['label'] ?? $q['text'] ?? $q['key'] ?? '') ?></td>
                                     <td><?= e($q['answer'] ?? '-') ?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -129,7 +151,7 @@ $followups = $reportData['followups'] ?? [];
                         <tbody>
                             <?php foreach ($custom as $q): ?>
                                 <tr>
-                                    <td><?= e($q['text'] ?? '') ?></td>
+                                    <td><?= e($q['label'] ?? $q['text'] ?? '') ?></td>
                                     <td><?= e($q['answer'] ?? '-') ?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -141,6 +163,21 @@ $followups = $reportData['followups'] ?? [];
             <?php endforeach; ?>
         <?php else: ?>
             <p class="muted">Nessun check periodico disponibile.</p>
+        <?php endif; ?>
+    </div>
+
+    <div class="section">
+        <h2>Follow-up</h2>
+        <?php if ($manualFollowups && is_array($manualFollowups) && count($manualFollowups)): ?>
+            <?php foreach ($manualFollowups as $index => $followup): ?>
+                <h3>Follow-up #<?= e($followup['id'] ?? ($index + 1)) ?> - <?= e($followup['follow_up_date'] ?? $followup['created_at'] ?? '') ?></h3>
+                <table>
+                    <tr><th>Rischio</th><td><?= e($followup['risk_score'] ?? '-') ?></td></tr>
+                    <tr><th>Note farmacista</th><td><?= e($followup['pharmacist_notes'] ?? '-') ?></td></tr>
+                </table>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <p class="muted">Nessun follow-up disponibile.</p>
         <?php endif; ?>
     </div>
 

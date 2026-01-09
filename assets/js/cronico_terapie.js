@@ -342,6 +342,7 @@ async function cancelReminder(reminderId, therapyId = null) {
 function renderReminderStatusBadge(status) {
     const clsMap = {
         scheduled: 'bg-info text-dark',
+        shown: 'bg-success',
         sent: 'bg-success',
         canceled: 'bg-secondary',
         failed: 'bg-danger'
@@ -420,12 +421,13 @@ function attachReportForm(therapySelect) {
     const refreshFollowups = async () => {
         const therapyId = therapySelect?.value;
         if (!therapyId || !followupSelect) return;
-        followupSelect.innerHTML = '<option value="">Seleziona check</option>';
+        followupSelect.innerHTML = '<option value="">Seleziona check o follow-up</option>';
         const followups = await fetchFollowupsOptions(therapyId);
         followups.forEach((f) => {
             const opt = document.createElement('option');
             opt.value = f.id;
-            opt.textContent = `${f.follow_up_date || f.created_at || ''} - Rischio ${f.risk_score ?? '-'}`;
+            const typeLabel = f.entry_type === 'check' ? 'Check' : 'Follow-up';
+            opt.textContent = `${typeLabel} ${f.follow_up_date || f.created_at || ''} - Rischio ${f.risk_score ?? '-'}`;
             followupSelect.appendChild(opt);
         });
         handleReportPreview(therapySelect, followupSelect, previewContainer, generatePdfBtn);
@@ -539,7 +541,7 @@ async function loadFollowups(therapyId) {
     }
     list.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
     try {
-        const response = await fetch(`api/followups.php?therapy_id=${therapyId}`);
+        const response = await fetch(`api/followups.php?therapy_id=${therapyId}&entry_type=followup`);
         const result = await response.json();
         if (!result.success) {
             list.innerHTML = `<div class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</div>`;
@@ -694,7 +696,7 @@ async function loadCheckFollowups(therapyId) {
     questionList.innerHTML = '<div class="text-center text-muted">Caricamento...</div>';
 
     try {
-        const response = await fetch(`api/followups.php?therapy_id=${therapyId}`);
+        const response = await fetch(`api/followups.php?therapy_id=${therapyId}&entry_type=check`);
         const result = await response.json();
         if (!result.success) {
             historyBody.innerHTML = `<tr><td colspan="5" class="text-danger">${sanitizeHtml(result.error || 'Errore nel caricamento')}</td></tr>`;
@@ -895,6 +897,18 @@ async function saveAnswers() {
     }
     const inputs = document.querySelectorAll('.check-question-input');
     const answers = [];
+    const snapshot = activeFollowupSnapshot || {};
+    const baseQuestions = snapshot.questions || [];
+    const customQuestions = snapshot.custom_questions || [];
+    const resolveLabel = (question, fallbackKey) => {
+        const raw = question?.label;
+        const key = question?.key || question?.text || fallbackKey;
+        if (!raw || raw === key) {
+            return getConditionQuestionLabel(snapshot.condition, key);
+        }
+        return raw;
+    };
+
     inputs.forEach((input) => {
         const index = input.dataset.index;
         const section = input.dataset.section;
@@ -908,7 +922,16 @@ async function saveAnswers() {
         if (input.type === 'text' && input.value === '') {
             value = null;
         }
-        answers.push({ index: Number(index), answer: value, custom: section === 'custom' });
+        const idx = Number(index);
+        let label = null;
+        if (section === 'custom') {
+            const q = customQuestions[idx];
+            label = resolveLabel(q, q?.text);
+        } else {
+            const q = baseQuestions[idx];
+            label = resolveLabel(q, q?.key || q?.text);
+        }
+        answers.push({ index: idx, answer: value, custom: section === 'custom', label });
     });
 
     try {
@@ -1162,7 +1185,7 @@ async function openReportsModal(therapyId = null) {
                                 </div>
                             </div>
                             <div class="col-md-6 d-none" id="reportFollowupWrapper">
-                                <label class="form-label">Seleziona check</label>
+                                <label class="form-label">Seleziona check o follow-up</label>
                                 <select class="form-select" id="reportFollowupSelect"></select>
                             </div>
                             <div class="col-12 text-end">
@@ -1312,10 +1335,19 @@ function buildReportPreviewHtml(content) {
     const therapyEnd = clean(content.therapy?.end_date);
     const conditionSafe = clean(condition);
 
-    const followups = content.followups || [];
-    const followupsHtml = followups.length
-        ? followups.map((f) => buildFollowupHtml(f, condition)).join('')
+    const rawFollowups = content.followups || [];
+    const checkFollowups = content.check_followups
+        || rawFollowups.filter((f) => f.entry_type === 'check' || (!f.entry_type && f.snapshot));
+    const manualFollowups = content.manual_followups
+        || rawFollowups.filter((f) => f.entry_type === 'followup' || (!f.entry_type && !f.snapshot));
+
+    const checkHtml = checkFollowups.length
+        ? checkFollowups.map((f) => buildFollowupHtml(f, condition)).join('')
         : '<div class="text-muted small">Nessun check periodico</div>';
+
+    const followupHtml = manualFollowups.length
+        ? manualFollowups.map((f) => buildFollowupHtml(f, condition)).join('')
+        : '<div class="text-muted small">Nessun follow-up</div>';
 
     return `
         <div class="border rounded p-3">
@@ -1358,7 +1390,13 @@ function buildReportPreviewHtml(content) {
             <!-- CHECK PERIODICI -->
             <div>
                 <h6 class="mb-2">Check periodici</h6>
-                ${followupsHtml}
+                ${checkHtml}
+            </div>
+
+            <!-- FOLLOW-UP -->
+            <div class="mt-4">
+                <h6 class="mb-2">Follow-up</h6>
+                ${followupHtml}
             </div>
 
         </div>
@@ -1379,7 +1417,7 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
     const mode = document.querySelector('input[name="reportMode"]:checked')?.value || 'all';
     const followupId = followupSelect?.value;
     if (mode === 'single' && !followupId) {
-        previewContainer.innerHTML = '<div class="text-muted">Seleziona un check periodico</div>';
+        previewContainer.innerHTML = '<div class="text-muted">Seleziona check o follow-up</div>';
         lastReportPreview = null;
         lastReportPreviewParams = null;
         if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
