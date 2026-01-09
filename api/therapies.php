@@ -93,7 +93,12 @@ switch ($method) {
 
         $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
-        $sql = "SELECT t.*, p.first_name, p.last_name, p.codice_fiscale, ph.nice_name AS pharmacy_name, tcc.consent AS consent
+        $sql = "SELECT t.*, p.first_name, p.last_name, p.codice_fiscale, p.birth_date, p.phone, p.email, p.notes,
+                       ph.nice_name AS pharmacy_name,
+                       tcc.primary_condition, tcc.notes_initial, tcc.follow_up_date, tcc.risk_score,
+                       tcc.flags, tcc.general_anamnesis, tcc.detailed_intake, tcc.adherence_base,
+                       tcc.doctor_info, tcc.biometric_info, tcc.care_context,
+                       tcc.consent AS consent
                 FROM jta_therapies t
                 JOIN jta_patients p ON t.patient_id = p.id
                 JOIN jta_pharmas ph ON t.pharmacy_id = ph.id
@@ -106,6 +111,13 @@ switch ($method) {
             $rows = db_fetch_all($sql, $params);
             foreach ($rows as &$row) {
                 $row['consent'] = isset($row['consent']) ? ($row['consent'] ? json_decode($row['consent'], true) : null) : null;
+                $row['flags'] = isset($row['flags']) ? ($row['flags'] ? json_decode($row['flags'], true) : null) : null;
+                $row['general_anamnesis'] = isset($row['general_anamnesis']) ? ($row['general_anamnesis'] ? json_decode($row['general_anamnesis'], true) : null) : null;
+                $row['detailed_intake'] = isset($row['detailed_intake']) ? ($row['detailed_intake'] ? json_decode($row['detailed_intake'], true) : null) : null;
+                $row['adherence_base'] = isset($row['adherence_base']) ? ($row['adherence_base'] ? json_decode($row['adherence_base'], true) : null) : null;
+                $row['doctor_info'] = isset($row['doctor_info']) ? ($row['doctor_info'] ? json_decode($row['doctor_info'], true) : null) : null;
+                $row['biometric_info'] = isset($row['biometric_info']) ? ($row['biometric_info'] ? json_decode($row['biometric_info'], true) : null) : null;
+                $row['care_context'] = isset($row['care_context']) ? ($row['care_context'] ? json_decode($row['care_context'], true) : null) : null;
             }
             respond(true, ['items' => $rows, 'page' => $page, 'per_page' => $per_page]);
         } catch (Exception $e) {
