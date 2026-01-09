@@ -22,7 +22,7 @@ $menu_items = [
     'adesione_terapie' => [
         'icon' => 'fas fa-hand-holding-medical',
         'label' => 'Adesione Terapie',
-        'url' => 'adesione-terapie.php',
+        'url' => 'cronico_terapie.php',
         'roles' => ['pharmacist']
     ],
 ];

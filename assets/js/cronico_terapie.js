@@ -1271,10 +1271,46 @@ function buildReportPreviewHtml(content) {
         return '<div class="text-danger">Anteprima non disponibile</div>';
     }
 
+    // Normalizza testo: elimina <br>, newline, spazi doppi, trim.
+    // IMPORTANT: prima normalizzi, poi sanitizzi (così non ti porti dietro i \n).
+    const cleanRaw = (v) =>
+        String(v ?? '')
+            .replace(/<br\s*\/?>/gi, ' ')
+            .replace(/\r?\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    const clean = (v, fallback = '-') => sanitizeHtml(cleanRaw(v) || fallback);
+
     const condition =
-        content.chronic_care?.condition ||
-        content.therapy?.primary_condition ||
+        cleanRaw(content.chronic_care?.condition) ||
+        cleanRaw(content.therapy?.primary_condition) ||
         '-';
+
+    const pharmacyName = clean(content.pharmacy?.name);
+    const pharmacyAddress = [cleanRaw(content.pharmacy?.address), cleanRaw(content.pharmacy?.city)]
+        .filter(Boolean)
+        .join(', ');
+    const pharmacyEmail = clean(content.pharmacy?.email);
+    const pharmacyPhone = clean(content.pharmacy?.phone);
+
+    const pharmacistName = clean(content.pharmacist?.name);
+    const pharmacistEmail = clean(content.pharmacist?.email);
+
+    const patientFullName = clean(
+        `${cleanRaw(content.patient?.first_name)} ${cleanRaw(content.patient?.last_name)}`.trim(),
+        '-'
+    );
+    const patientCf = clean(content.patient?.codice_fiscale);
+    const patientBirth = clean(content.patient?.birth_date);
+    const patientEmail = clean(content.patient?.email);
+    const patientPhone = clean(content.patient?.phone);
+
+    const therapyTitle = clean(content.therapy?.title);
+    const therapyDesc = clean(content.therapy?.description);
+    const therapyStart = clean(content.therapy?.start_date);
+    const therapyEnd = clean(content.therapy?.end_date);
+    const conditionSafe = clean(condition);
 
     const followups = content.followups || [];
     const followupsHtml = followups.length
@@ -1285,70 +1321,40 @@ function buildReportPreviewHtml(content) {
         <div class="border rounded p-3">
 
             <!-- FARMACIA / FARMACISTA -->
-            <div class="row g-3 mb-4">
+            <div class="row g-3 report-section">
                 <div class="col-md-6">
                     <h6 class="mb-2">Farmacia</h6>
-                    <div class="fw-semibold mb-1">
-                        ${sanitizeHtml(content.pharmacy?.name || '-')}
-                    </div>
-                    <div class="small text-muted mb-1">
-                        ${sanitizeHtml(content.pharmacy?.address || '')}
-                        ${sanitizeHtml(content.pharmacy?.city || '')}
-                    </div>
-                    <div class="small text-muted">
-                        Email: ${sanitizeHtml(content.pharmacy?.email || '-')}
-                        | Tel: ${sanitizeHtml(content.pharmacy?.phone || '-')}
-                    </div>
+                    <div class="fw-semibold">${pharmacyName}</div>
+                    <div class="small text-muted">${sanitizeHtml(pharmacyAddress || '-')}</div>
+                    <div class="small text-muted mt-4">Email: ${pharmacyEmail} | Tel: ${pharmacyPhone}</div>
                 </div>
 
                 <div class="col-md-6">
                     <h6 class="mb-2">Farmacista</h6>
-                    <div class="fw-semibold mb-1">
-                        ${sanitizeHtml(content.pharmacist?.name || '-')}
-                    </div>
-                    <div class="small text-muted">
-                        ${sanitizeHtml(content.pharmacist?.email || '-')}
-                    </div>
+                    <div class="fw-semibold">${pharmacistName}</div>
+                    <div class="small text-muted">${pharmacistEmail}</div>
                 </div>
             </div>
 
             <!-- PAZIENTE / TERAPIA -->
-            <div class="row g-3 mb-4">
+            <div class="row g-3 report-section">
                 <div class="col-md-6">
                     <h6 class="mb-2">Paziente</h6>
-                    <div class="fw-semibold mb-1">
-                        ${sanitizeHtml(
-                            `${content.patient?.first_name || ''} ${content.patient?.last_name || ''}`.trim() || '-'
-                        )}
-                    </div>
-                    <div class="small text-muted d-flex flex-column gap-1">
-                        <span>CF: ${sanitizeHtml(content.patient?.codice_fiscale || '-')}</span>
-                        <span>Nascita: ${sanitizeHtml(content.patient?.birth_date || '-')}</span>
-                        <span>
-                            Contatti:
-                            ${sanitizeHtml(content.patient?.email || '-')}
-                            | ${sanitizeHtml(content.patient?.phone || '-')}
-                        </span>
-                    </div>
+                    <div class="fw-semibold">${patientFullName}</div>
+                    <div class="small text-muted">CF: ${patientCf}</div>
+                    <div class="small text-muted">Nascita: ${patientBirth}</div>
+                    <div class="small text-muted">Contatti: ${patientEmail} | ${patientPhone}</div>
                 </div>
 
                 <div class="col-md-6">
                     <h6 class="mb-2">Terapia</h6>
-                    <div class="fw-semibold mb-1">
-                        ${sanitizeHtml(content.therapy?.title || '-')}
-                    </div>
-                    <div class="small text-muted d-flex flex-column gap-1">
-                        <span>${sanitizeHtml(content.therapy?.description || '-')}</span>
-                        <span>
-                            Periodo:
-                            ${sanitizeHtml(content.therapy?.start_date || '-')}
-                            -
-                            ${sanitizeHtml(content.therapy?.end_date || '-')}
-                        </span>
-                        <span>Condizione: ${sanitizeHtml(condition)}</span>
-                    </div>
+                    <div class="fw-semibold">${therapyTitle}</div>
+                    <div class="small text-muted">${therapyDesc}</div>
+                    <div class="small text-muted">Periodo: ${therapyStart} - ${therapyEnd}</div>
+                    <div class="small text-muted">Condizione: ${conditionSafe}</div>
                 </div>
             </div>
+
             <!-- CHECK PERIODICI -->
             <div>
                 <h6 class="mb-2">Check periodici</h6>

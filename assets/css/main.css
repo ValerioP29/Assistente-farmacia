@@ -610,33 +610,66 @@ main {
     width: 100px !important;
   }
 }
-
-/* Report preview readability */
+/* Report preview: leggibilità vera */
 .report-preview {
   line-height: 1.6;
+  white-space: normal; /* evita che newline/indent diventino layout */
 }
 
-.report-preview .small,
-.report-preview .text-muted {
+/* Righe informative */
+.report-preview .small.text-muted {
+  display: block !important; /* solo sulle righe che ci interessano */
   line-height: 1.5;
+  margin: 0; /* reset */
 }
 
-.report-preview .text-muted + .text-muted {
+/* Spazio tra righe consecutive */
+.report-preview .small.text-muted + .small.text-muted {
   margin-top: 0.35rem;
 }
 
-.report-preview .text-muted {
-  display: block;
+/* Titoli e valori */
+.report-preview .fw-semibold {
+  margin-bottom: 0.25rem;
 }
 
-.report-preview .row.g-3.mb-4 {
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+/* Separazione tra sezioni (le row con classe report-section) */
+.report-preview .report-section {
+  padding-bottom: 0.9rem;
+  margin-bottom: 1rem;
   border-bottom: 1px solid var(--bs-border-color, #dee2e6);
 }
 
-.report-preview .row.g-3.mb-4:last-of-type {
+.report-preview .report-section:last-of-type {
   border-bottom: 0;
   padding-bottom: 0;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
+
+/* Evita overflow brutto per email lunghe */
+.report-preview {
+  overflow-wrap: anywhere;
+}
+
+/* === REPORT PREVIEW:=== */
+.report-preview,
+.report-preview *{
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
+/* i blocchi informativi devono usare tutta la colonna */
+.report-preview .small.text-muted{
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  line-height: 1.5;
+}
+
+/* spazio tra righe informative */
+.report-preview .small.text-muted + .small.text-muted{
+  margin-top: .35rem;
+}
+
