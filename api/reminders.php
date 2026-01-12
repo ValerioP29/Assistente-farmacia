@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('Europe/Rome');
 ob_start();
 register_shutdown_function(function () {
     $err = error_get_last();
@@ -105,25 +106,49 @@ switch ($method) {
 
                 respondReminders(true, ['item' => $updated]);
             } catch (Exception $e) {
-                respondReminders(false, null, 'Errore annullamento promemoria', 500);
+                $logTherapyId = isset($reminder['therapy_id']) ? $reminder['therapy_id'] : 'null';
+                error_log(
+                    "reminders.php ERROR pharmacy={$pharmacy_id} therapy={$logTherapyId} scheduled_raw=null: " . $e->getMessage()
+                );
+                $details = ['message' => $e->getMessage()];
+                if ($e->getCode()) {
+                    $details['code'] = $e->getCode();
+                }
+                respondReminders(false, null, 'Errore annullamento promemoria', 500, [
+                    'details' => $details
+                ]);
             }
         }
 
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $rawBody = file_get_contents('php://input');
+        $input = json_decode($rawBody, true);
+        if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
+            respondReminders(false, null, 'JSON non valido', 400);
+        }
+        if (!is_array($input)) {
+            respondReminders(false, null, 'JSON non valido', 400);
+        }
         $therapy_id = $input['therapy_id'] ?? null;
         if (!$therapy_id || empty($input['title']) || empty($input['message']) || empty($input['scheduled_at'])) {
             respondReminders(false, null, 'Campi obbligatori mancanti', 400);
         }
         $timezone = new DateTimeZone('Europe/Rome');
         $scheduledRaw = trim((string) $input['scheduled_at']);
-        $scheduledAt = DateTime::createFromFormat('Y-m-d\\TH:i', $scheduledRaw, $timezone);
-        if (!$scheduledAt) {
-            $scheduledAt = DateTime::createFromFormat('Y-m-d H:i:s', $scheduledRaw, $timezone);
+        $scheduledAt = null;
+        $parseErrors = ['warning_count' => 0, 'error_count' => 0];
+        foreach (['Y-m-d\\TH:i', 'Y-m-d H:i:s', 'Y-m-d H:i'] as $format) {
+            $candidate = DateTime::createFromFormat($format, $scheduledRaw, $timezone);
+            $errors = DateTime::getLastErrors();
+            if ($errors === false) {
+                $errors = ['warning_count' => 0, 'error_count' => 0];
+            }
+            if ($candidate && $errors['warning_count'] === 0 && $errors['error_count'] === 0) {
+                $scheduledAt = $candidate;
+                $parseErrors = $errors;
+                break;
+            }
+            $parseErrors = $errors;
         }
-        if (!$scheduledAt) {
-            $scheduledAt = DateTime::createFromFormat('Y-m-d H:i', $scheduledRaw, $timezone);
-        }
-        $parseErrors = DateTime::getLastErrors();
         if ($parseErrors === false) {
             $parseErrors = ['warning_count' => 0, 'error_count' => 0];
         }
@@ -171,7 +196,18 @@ switch ($method) {
             );
             respondReminders(true, ['item' => $reminder]);
         } catch (Exception $e) {
-            respondReminders(false, null, 'Errore creazione promemoria', 500);
+            $logTherapyId = $therapy_id ?? 'null';
+            $logScheduledRaw = $scheduledRaw ?? 'null';
+            error_log(
+                "reminders.php ERROR pharmacy={$pharmacy_id} therapy={$logTherapyId} scheduled_raw={$logScheduledRaw}: " . $e->getMessage()
+            );
+            $details = ['message' => $e->getMessage()];
+            if ($e->getCode()) {
+                $details['code'] = $e->getCode();
+            }
+            respondReminders(false, null, 'Errore creazione promemoria', 500, [
+                'details' => $details
+            ]);
         }
         break;
 
