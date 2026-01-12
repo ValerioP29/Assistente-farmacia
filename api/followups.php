@@ -340,6 +340,77 @@ switch ($method) {
             respondFollowups(true, ['answers' => $answersMap]);
         }
 
+        if ($action === 'check-meta') {
+            $followup_id = $_GET['id'] ?? null;
+            if (!$followup_id) {
+                respondFollowups(false, null, 'id follow-up richiesto', 400);
+            }
+            $followup = getFollowupById($followup_id, $pharmacy_id);
+            if (!$followup) {
+                respondFollowups(false, null, 'Follow-up non trovato', 404);
+            }
+            if (($followup['entry_type'] ?? null) !== 'check') {
+                respondFollowups(false, null, 'Tipo follow-up non valido', 422);
+            }
+            $rawBody = file_get_contents('php://input');
+            $input = json_decode($rawBody, true);
+            if ($rawBody !== '' && json_last_error() !== JSON_ERROR_NONE) {
+                respondFollowups(false, null, 'JSON non valido', 400);
+            }
+            if (!is_array($input)) {
+                $input = [];
+            }
+            $fields = [];
+            $params = [];
+
+            if (array_key_exists('risk_score', $input)) {
+                $riskScore = $input['risk_score'];
+                if ($riskScore !== null && filter_var($riskScore, FILTER_VALIDATE_INT) === false) {
+                    respondFollowups(false, null, 'risk_score non valido', 422);
+                }
+                $fields[] = 'risk_score = ?';
+                $params[] = $riskScore;
+            }
+            if (array_key_exists('follow_up_date', $input)) {
+                $followUpDate = $input['follow_up_date'];
+                if ($followUpDate !== null) {
+                    $formatOk = is_string($followUpDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $followUpDate);
+                    if (!$formatOk) {
+                        respondFollowups(false, null, 'follow_up_date non valida', 422);
+                    }
+                    $date = DateTime::createFromFormat('Y-m-d', $followUpDate);
+                    if (!$date || $date->format('Y-m-d') !== $followUpDate) {
+                        respondFollowups(false, null, 'follow_up_date non valida', 422);
+                    }
+                }
+                $fields[] = 'follow_up_date = ?';
+                $params[] = $followUpDate;
+            }
+            if (array_key_exists('pharmacist_notes', $input)) {
+                $fields[] = 'pharmacist_notes = ?';
+                $params[] = $input['pharmacist_notes'];
+            }
+
+            if (!$fields) {
+                respondFollowups(false, null, 'Nessun campo da aggiornare', 400);
+            }
+
+            try {
+                $params[] = $followup_id;
+                db_query(
+                    "UPDATE jta_therapy_followups SET " . implode(', ', $fields) . " WHERE id = ?",
+                    $params
+                );
+                $updated = getFollowupById($followup_id, $pharmacy_id);
+                if ($updated) {
+                    $updated = withFollowupStatus([$updated])[0];
+                }
+                respondFollowups(true, ['followup' => $updated]);
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore aggiornamento follow-up', 500);
+            }
+        }
+
         if ($action === 'init') {
             $input = json_decode(file_get_contents('php://input'), true) ?? [];
             $therapy_id = $input['therapy_id'] ?? null;
