@@ -26,9 +26,19 @@ requireApiAuth(['admin', 'pharmacist']);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_GET['action'] ?? null;
 
-function respondReminders($success, $data = null, $error = null, $code = 200) {
+function respondReminders($success, $data = null, $error = null, $code = 200, $meta = []) {
     http_response_code($code);
-    echo json_encode(['success' => $success, 'data' => $data, 'error' => $error]);
+    $response = ['success' => $success, 'status' => $success, 'data' => $data, 'error' => $error];
+    if (isset($meta['code'])) {
+        $response['code'] = $meta['code'];
+    }
+    if (isset($meta['message'])) {
+        $response['message'] = $meta['message'];
+    }
+    if (array_key_exists('details', $meta)) {
+        $response['details'] = $meta['details'];
+    }
+    echo json_encode($response);
     exit;
 }
 
@@ -99,6 +109,38 @@ switch ($method) {
         if (!$therapy_id || empty($input['title']) || empty($input['message']) || empty($input['scheduled_at'])) {
             respondReminders(false, null, 'Campi obbligatori mancanti', 400);
         }
+        $timezone = new DateTimeZone('Europe/Rome');
+        $scheduledRaw = trim((string) $input['scheduled_at']);
+        $scheduledAt = DateTime::createFromFormat('Y-m-d\\TH:i', $scheduledRaw, $timezone);
+        if (!$scheduledAt) {
+            $scheduledAt = DateTime::createFromFormat('Y-m-d H:i:s', $scheduledRaw, $timezone);
+        }
+        if (!$scheduledAt) {
+            $scheduledAt = DateTime::createFromFormat('Y-m-d H:i', $scheduledRaw, $timezone);
+        }
+        $parseErrors = DateTime::getLastErrors();
+        if ($parseErrors === false) {
+            $parseErrors = ['warning_count' => 0, 'error_count' => 0];
+        }
+        if (!$scheduledAt || $parseErrors['warning_count'] > 0 || $parseErrors['error_count'] > 0) {
+            respondReminders(false, null, 'Formato data/ora non valido', 422, [
+                'code' => 'REMINDER_INVALID_DATETIME',
+                'message' => 'Formato data/ora non valido.',
+                'details' => ['scheduled_at' => $scheduledRaw]
+            ]);
+        }
+        $now = new DateTime('now', $timezone);
+        if ($scheduledAt <= $now) {
+            respondReminders(false, null, 'Impossibile salvare: data/ora nel passato.', 422, [
+                'code' => 'REMINDER_PAST_DATETIME',
+                'message' => 'Impossibile salvare: data/ora nel passato.',
+                'details' => [
+                    'scheduled_at' => $scheduledAt->format('Y-m-d H:i:s'),
+                    'now' => $now->format('Y-m-d H:i:s'),
+                    'timezone' => $timezone->getName()
+                ]
+            ]);
+        }
         try {
             $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
             if (!$therapy) {
@@ -112,7 +154,7 @@ switch ($method) {
                     sanitize($input['title']),
                     sanitize($input['message']),
                     $input['type'] ?? 'one-shot',
-                    $input['scheduled_at'],
+                    $scheduledAt->format('Y-m-d H:i:s'),
                     $input['channel'] ?? 'email',
                     'scheduled'
                 ]

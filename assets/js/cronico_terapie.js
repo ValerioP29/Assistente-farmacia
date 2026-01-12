@@ -235,7 +235,7 @@ function attachReminderForm(therapySelect) {
         e.preventDefault();
         const therapyId = therapySelect?.value;
         if (!therapyId) {
-            alert('Seleziona una terapia.');
+            showReminderToast('Seleziona una terapia.', 'error');
             return;
         }
         const payload = {
@@ -253,17 +253,21 @@ function attachReminderForm(therapySelect) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const result = await response.json();
-            if (result.success) {
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                showReminderToast(result?.message || result?.error || 'Errore nel salvataggio del promemoria', 'error');
+                return;
+            }
+            if (result?.success) {
                 form.reset();
                 showReminderToast('Promemoria salvato correttamente', 'success');
                 loadReminders(therapyId);
             } else {
-                alert(result.error || 'Errore nel salvataggio del promemoria');
+                showReminderToast(result?.message || result?.error || 'Errore nel salvataggio del promemoria', 'error');
             }
         } catch (error) {
             console.error(error);
-            alert('Errore di rete nel salvataggio del promemoria');
+            showReminderToast('Errore di rete nel salvataggio del promemoria', 'error');
         }
     });
 }
@@ -326,16 +330,20 @@ async function cancelReminder(reminderId, therapyId = null) {
 
     try {
         const response = await fetch(`api/reminders.php?action=cancel&id=${reminderId}`, { method: 'POST' });
-        const result = await response.json();
-        if (result.success) {
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+            showReminderToast(result?.message || result?.error || 'Errore nella cancellazione del promemoria', 'error');
+            return;
+        }
+        if (result?.success) {
             showReminderToast('Promemoria cancellato', 'success');
             loadReminders(targetTherapyId);
         } else {
-            alert(result.error || 'Errore nella cancellazione del promemoria');
+            showReminderToast(result?.message || result?.error || 'Errore nella cancellazione del promemoria', 'error');
         }
     } catch (error) {
         console.error(error);
-        alert('Errore di rete nella cancellazione del promemoria');
+        showReminderToast('Errore di rete nella cancellazione del promemoria', 'error');
     }
 }
 
