@@ -644,6 +644,26 @@ async function openCheckPeriodicoModal(therapyId = null) {
                                 <button class="btn btn-primary" type="button" onclick="saveAnswers()">Salva risposte</button>
                             </div>
                         </div>
+                        <div class="mt-4 border rounded p-3" id="checkMetaSection">
+                            <h6>Dati check periodico</h6>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Risk score</label>
+                                    <input type="number" class="form-control" id="checkRiskScore" placeholder="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Data follow-up</label>
+                                    <input type="date" class="form-control" id="checkFollowUpDate">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Note farmacista</label>
+                                    <textarea class="form-control" id="checkPharmacistNotes" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="text-end mt-3">
+                                <button class="btn btn-primary" type="button" id="btnSaveCheckMeta">Salva dati check</button>
+                            </div>
+                        </div>
                         <div class="mt-4">
                             <h6>Storico check periodici</h6>
                             <div class="table-responsive">
@@ -677,6 +697,10 @@ async function openCheckPeriodicoModal(therapyId = null) {
     if (btnNewCheck) {
         btnNewCheck.addEventListener('click', () => createCheckPeriodico());
     }
+    const btnSaveCheckMeta = document.getElementById('btnSaveCheckMeta');
+    if (btnSaveCheckMeta) {
+        btnSaveCheckMeta.addEventListener('click', () => saveCheckMeta());
+    }
 
     const modal = new bootstrap.Modal(document.getElementById('checkPeriodicoModalDialog'));
     loadCheckFollowups(therapySelect?.value);
@@ -692,6 +716,7 @@ async function loadCheckFollowups(therapyId) {
     activeFollowups = [];
     activeChecklistQuestions = [];
     activeChecklistAnswers = {};
+    renderCheckMetaForm(null);
 
     if (!therapyId) {
         historyBody.innerHTML = '<tr><td colspan="5" class="text-muted">Seleziona una terapia per proseguire</td></tr>';
@@ -767,6 +792,7 @@ async function setActiveFollowup(followup) {
     activeFollowupData = followup || null;
     await loadChecklistAnswers(activeFollowupId);
     renderCheckQuestions();
+    renderCheckMetaForm(activeFollowupData);
 }
 
 function renderQuestionInput(question, answerValue, disabled = false) {
@@ -838,6 +864,20 @@ function renderCheckQuestions() {
     });
 
     questionList.innerHTML = hint + (rows.join('') || '<div class="text-muted">Nessuna domanda presente</div>');
+}
+
+function renderCheckMetaForm(followup) {
+    const riskInput = document.getElementById('checkRiskScore');
+    const dateInput = document.getElementById('checkFollowUpDate');
+    const notesInput = document.getElementById('checkPharmacistNotes');
+    if (!riskInput || !dateInput || !notesInput) return;
+    const disabled = !followup?.id;
+    riskInput.disabled = disabled;
+    dateInput.disabled = disabled;
+    notesInput.disabled = disabled;
+    riskInput.value = followup?.risk_score ?? '';
+    dateInput.value = followup?.follow_up_date ?? '';
+    notesInput.value = followup?.pharmacist_notes ?? '';
 }
 
 function renderCheckHistory(items) {
@@ -1032,6 +1072,53 @@ async function saveAnswers() {
     } catch (error) {
         console.error(error);
         alert('Errore di rete nel salvataggio delle risposte');
+    }
+}
+
+async function saveCheckMeta() {
+    if (!activeFollowupId) {
+        alert('Nessun check selezionato.');
+        return;
+    }
+    const riskInput = document.getElementById('checkRiskScore');
+    const dateInput = document.getElementById('checkFollowUpDate');
+    const notesInput = document.getElementById('checkPharmacistNotes');
+    if (!riskInput || !dateInput || !notesInput) return;
+
+    const payload = {};
+    if (riskInput.value !== '') {
+        payload.risk_score = Number(riskInput.value);
+    }
+    if (dateInput.value) {
+        payload.follow_up_date = dateInput.value;
+    }
+    if (notesInput.value) {
+        payload.pharmacist_notes = notesInput.value;
+    }
+    if (!Object.keys(payload).length) {
+        alert('Inserisci almeno un dato da aggiornare.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`api/followups.php?action=check-meta&id=${activeFollowupId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeFollowupData = result.data?.followup || activeFollowupData;
+            renderCheckMetaForm(activeFollowupData);
+            const therapyId = document.getElementById('checkTherapySelect')?.value;
+            loadCheckFollowups(therapyId);
+            showFollowupToast('Dati check aggiornati', 'success');
+        } else {
+            alert(result.error || 'Errore nel salvataggio dati check');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nel salvataggio dati check');
     }
 }
 
