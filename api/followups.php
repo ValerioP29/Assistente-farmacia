@@ -23,6 +23,7 @@ register_shutdown_function(function () {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth_middleware.php';
+require_once __DIR__ . '/../includes/therapy_checklist.php';
 
 header('Content-Type: application/json');
 requireApiAuth(['admin', 'pharmacist']);
@@ -63,6 +64,48 @@ function normalizeSnapshot($snapshot)
     return $snapshot;
 }
 
+function fetchChecklistQuestions($therapy_id, $pharmacy_id, $includeInactive = false)
+{
+    $params = [$therapy_id, $pharmacy_id];
+    $sql = "SELECT id, question_key, question_text, input_type, options_json, sort_order, is_active
+            FROM jta_therapy_checklist_questions
+            WHERE therapy_id = ? AND pharmacy_id = ?";
+    if (!$includeInactive) {
+        $sql .= " AND is_active = 1";
+    }
+    $sql .= " ORDER BY sort_order ASC, id ASC";
+
+    try {
+        $rows = db_fetch_all($sql, $params);
+    } catch (Exception $e) {
+        respondFollowups(false, null, 'Errore recupero checklist', 500);
+    }
+
+    foreach ($rows as &$row) {
+        $row['options'] = $row['options_json'] ? json_decode($row['options_json'], true) : null;
+        unset($row['options_json']);
+    }
+    return $rows;
+}
+
+function fetchChecklistAnswers($followup_id)
+{
+    try {
+        $rows = db_fetch_all(
+            "SELECT question_id, answer_value FROM jta_therapy_checklist_answers WHERE followup_id = ?",
+            [$followup_id]
+        );
+    } catch (Exception $e) {
+        respondFollowups(false, null, 'Errore recupero risposte', 500);
+    }
+
+    $answers = [];
+    foreach ($rows as $row) {
+        $answers[$row['question_id']] = $row['answer_value'];
+    }
+    return $answers;
+}
+
 function buildBaseQuestions($answers)
 {
     if (!is_array($answers)) {
@@ -95,13 +138,41 @@ function withFollowupStatus(array $rows)
 
 switch ($method) {
     case 'GET':
+        if ($action === 'checklist') {
+            $therapy_id = $_GET['therapy_id'] ?? null;
+            if (!$therapy_id) {
+                respondFollowups(false, null, 'therapy_id richiesto', 400);
+            }
+            $questions = fetchChecklistQuestions($therapy_id, $pharmacy_id);
+            respondFollowups(true, ['questions' => $questions]);
+        }
+
+        if ($action === 'check-answers') {
+            $followup_id = $_GET['id'] ?? null;
+            if (!$followup_id) {
+                respondFollowups(false, null, 'id follow-up richiesto', 400);
+            }
+            $followup = getFollowupById($followup_id, $pharmacy_id);
+            if (!$followup) {
+                respondFollowups(false, null, 'Follow-up non trovato', 404);
+            }
+            $answers = fetchChecklistAnswers($followup_id);
+            respondFollowups(true, ['answers' => $answers]);
+        }
+
         $therapy_id = $_GET['therapy_id'] ?? null;
         $entry_type = $_GET['entry_type'] ?? null;
         if (!$therapy_id) {
             respondFollowups(false, null, 'therapy_id richiesto', 400);
         }
         $params = [$therapy_id, $pharmacy_id];
-        $sql = "SELECT f.* FROM jta_therapy_followups f JOIN jta_therapies t ON f.therapy_id = t.id WHERE f.therapy_id = ? AND t.pharmacy_id = ?";
+        $sql = "SELECT f.*,
+                    (SELECT COUNT(*)
+                     FROM jta_therapy_checklist_answers a
+                     WHERE a.followup_id = f.id AND a.answer_value IS NOT NULL AND a.answer_value <> '') AS answer_count
+                FROM jta_therapy_followups f
+                JOIN jta_therapies t ON f.therapy_id = t.id
+                WHERE f.therapy_id = ? AND t.pharmacy_id = ?";
         if ($entry_type === 'check') {
             $sql .= " AND (f.entry_type = ? OR (f.entry_type IS NULL AND COALESCE(JSON_LENGTH(f.snapshot), 0) > 0))";
             $params[] = 'check';
@@ -122,6 +193,153 @@ switch ($method) {
         break;
 
     case 'POST':
+        if ($action === 'checklist-add') {
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+            $therapy_id = $input['therapy_id'] ?? null;
+            $text = trim($input['text'] ?? '');
+            $type = $input['type'] ?? 'text';
+            $options = $input['options'] ?? null;
+            if (!$therapy_id || !$text || !in_array($type, ['text', 'boolean', 'select'], true)) {
+                respondFollowups(false, null, 'Dati domanda non validi', 400);
+            }
+            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+            if (!$therapy) {
+                respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
+            }
+            $conditionRow = db_fetch_one(
+                "SELECT primary_condition FROM jta_therapy_chronic_care WHERE therapy_id = ?",
+                [$therapy_id]
+            );
+            $maxRow = db_fetch_one(
+                "SELECT MAX(sort_order) AS max_sort FROM jta_therapy_checklist_questions WHERE therapy_id = ?",
+                [$therapy_id]
+            );
+            $nextSort = (int)($maxRow['max_sort'] ?? 0) + 1;
+            try {
+                db_query(
+                    "INSERT INTO jta_therapy_checklist_questions (therapy_id, pharmacy_id, condition_key, question_key, question_text, input_type, options_json, sort_order, is_active)
+                     VALUES (?,?,?,?,?,?,?,?,1)",
+                    [
+                        $therapy_id,
+                        $pharmacy_id,
+                        $conditionRow['primary_condition'] ?? null,
+                        null,
+                        $text,
+                        $type,
+                        is_array($options) ? json_encode($options) : null,
+                        $nextSort
+                    ]
+                );
+                $question_id = db()->getConnection()->lastInsertId();
+                respondFollowups(true, ['question_id' => $question_id]);
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore aggiunta domanda', 500);
+            }
+        }
+
+        if ($action === 'checklist-remove') {
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+            $question_id = $input['question_id'] ?? null;
+            $therapy_id = $input['therapy_id'] ?? null;
+            if (!$question_id || !$therapy_id) {
+                respondFollowups(false, null, 'question_id o therapy_id richiesti', 400);
+            }
+            try {
+                db_query(
+                    "UPDATE jta_therapy_checklist_questions q
+                     JOIN jta_therapies t ON q.therapy_id = t.id
+                     SET q.is_active = 0
+                     WHERE q.id = ? AND q.therapy_id = ? AND t.pharmacy_id = ?",
+                    [$question_id, $therapy_id, $pharmacy_id]
+                );
+                respondFollowups(true, ['question_id' => $question_id]);
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore rimozione domanda', 500);
+            }
+        }
+
+        if ($action === 'checklist-reorder') {
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+            $order = $input['order'] ?? [];
+            $therapy_id = $input['therapy_id'] ?? null;
+            if (!is_array($order) || empty($order) || !$therapy_id) {
+                respondFollowups(false, null, 'Ordine o therapy_id non validi', 400);
+            }
+            try {
+                $sort = 1;
+                foreach ($order as $question_id) {
+                    db_query(
+                        "UPDATE jta_therapy_checklist_questions q
+                         JOIN jta_therapies t ON q.therapy_id = t.id
+                         SET q.sort_order = ?
+                         WHERE q.id = ? AND q.therapy_id = ? AND t.pharmacy_id = ?",
+                        [$sort, $question_id, $therapy_id, $pharmacy_id]
+                    );
+                    $sort++;
+                }
+                respondFollowups(true, ['order' => $order]);
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore riordino domande', 500);
+            }
+        }
+
+        if ($action === 'check-answers') {
+            $followup_id = $_GET['id'] ?? null;
+            if (!$followup_id) {
+                respondFollowups(false, null, 'id follow-up richiesto', 400);
+            }
+            $followup = getFollowupById($followup_id, $pharmacy_id);
+            if (!$followup) {
+                respondFollowups(false, null, 'Follow-up non trovato', 404);
+            }
+            $therapyId = $followup['therapy_id'] ?? null;
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+            $answers = $input['answers'] ?? [];
+            if (!is_array($answers)) {
+                respondFollowups(false, null, 'Formato risposte non valido', 400);
+            }
+
+            try {
+                $validRows = db_fetch_all(
+                    "SELECT id FROM jta_therapy_checklist_questions WHERE therapy_id = ? AND pharmacy_id = ?",
+                    [$therapyId, $pharmacy_id]
+                );
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore recupero domande checklist', 500);
+            }
+            $validIds = array_map(function ($row) {
+                return (int)$row['id'];
+            }, $validRows);
+            $validIdSet = array_flip($validIds);
+
+            try {
+                foreach ($answers as $answer) {
+                    $question_id = $answer['question_id'] ?? null;
+                    if (!$question_id) {
+                        continue;
+                    }
+                    $question_id = (int)$question_id;
+                    if (!isset($validIdSet[$question_id])) {
+                        respondFollowups(false, null, 'Domanda non valida per la terapia', 422);
+                    }
+                    $value = $answer['answer'] ?? null;
+                    if (is_bool($value)) {
+                        $value = $value ? 'true' : 'false';
+                    }
+                    db_query(
+                        "INSERT INTO jta_therapy_checklist_answers (followup_id, question_id, answer_value)
+                         VALUES (?,?,?)
+                         ON DUPLICATE KEY UPDATE answer_value = VALUES(answer_value), updated_at = NOW()",
+                        [$followup_id, $question_id, $value]
+                    );
+                }
+            } catch (Exception $e) {
+                respondFollowups(false, null, 'Errore salvataggio risposte', 500);
+            }
+            $answersMap = fetchChecklistAnswers($followup_id);
+            respondFollowups(true, ['answers' => $answersMap]);
+        }
+
         if ($action === 'init') {
             $input = json_decode(file_get_contents('php://input'), true) ?? [];
             $therapy_id = $input['therapy_id'] ?? null;
@@ -146,31 +364,44 @@ switch ($method) {
                 respondFollowups(false, null, 'Errore recupero dati terapia', 500);
             }
 
-            $answers = $baseSurvey ? json_decode($baseSurvey['answers'], true) : [];
-            $snapshot = [
-                'condition' => $conditionRow['primary_condition'] ?? null,
-                'questions' => buildBaseQuestions($answers),
-                'custom_questions' => []
-            ];
-
             try {
+                $pdo = db()->getConnection();
+                $pdo->beginTransaction();
+
+                ensureTherapyChecklist($pdo, $therapy_id, $pharmacy_id, $conditionRow['primary_condition'] ?? null);
+                $userId = $_SESSION['user_id'] ?? null;
                 db_query(
-                    "INSERT INTO jta_therapy_followups (therapy_id, entry_type, snapshot) VALUES (?,?,?)",
+                    "INSERT INTO jta_therapy_followups (therapy_id, pharmacy_id, created_by, entry_type, check_type) VALUES (?,?,?,?,?)",
                     [
                         $therapy_id,
+                        $pharmacy_id,
+                        $userId,
                         'check',
-                        json_encode($snapshot)
+                        'periodic'
                     ]
                 );
                 $followup_id = db()->getConnection()->lastInsertId();
+                $questions = fetchChecklistQuestions($therapy_id, $pharmacy_id);
+                foreach ($questions as $question) {
+                    db_query(
+                        "INSERT INTO jta_therapy_checklist_answers (followup_id, question_id, answer_value) VALUES (?,?,?)",
+                        [$followup_id, $question['id'], null]
+                    );
+                }
+
+                $pdo->commit();
                 $followup = db_fetch_one("SELECT * FROM jta_therapy_followups WHERE id = ?", [$followup_id]);
                 if ($followup) {
                     $followup['status'] = 'scheduled';
                 }
-                respondFollowups(true, ['followup' => $followup, 'snapshot' => $snapshot]);
             } catch (Exception $e) {
+                if (isset($pdo) && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 respondFollowups(false, null, 'Errore creazione follow-up', 500);
             }
+            $answersMap = fetchChecklistAnswers($followup_id);
+            respondFollowups(true, ['followup' => $followup, 'questions' => $questions, 'answers' => $answersMap]);
             break;
         }
 
@@ -332,10 +563,13 @@ switch ($method) {
                 respondFollowups(false, null, 'Terapia non trovata per la farmacia', 400);
             }
 
+            $userId = $_SESSION['user_id'] ?? null;
             db_query(
-                "INSERT INTO jta_therapy_followups (therapy_id, entry_type, risk_score, pharmacist_notes, follow_up_date) VALUES (?,?,?,?,?)",
+                "INSERT INTO jta_therapy_followups (therapy_id, pharmacy_id, created_by, entry_type, risk_score, pharmacist_notes, follow_up_date) VALUES (?,?,?,?,?,?,?)",
                 [
                     $therapy_id,
+                    $pharmacy_id,
+                    $userId,
                     'followup',
                     $risk_score,
                     $pharmacist_notes,

@@ -10,8 +10,10 @@ const reminderModalContainer = document.getElementById('reminderModal');
 const reportModalContainer = document.getElementById('reportModal');
 const followupModalContainer = document.getElementById('followupModal');
 let activeFollowupId = null;
-let activeFollowupSnapshot = null;
+let activeFollowupData = null;
 let activeFollowups = [];
+let activeChecklistQuestions = [];
+let activeChecklistAnswers = {};
 let lastReportPreview = null;
 let lastReportPreviewParams = null;
 let surveyTemplatesPromise = null;
@@ -64,6 +66,8 @@ function getConditionQuestionLabel(condition, key) {
 function formatAnswerValue(value) {
     if (value === null || value === undefined || value === '') return '-';
     if (typeof value === 'boolean') return value ? 'Sì' : 'No';
+    if (value === 'true' || value === '1' || value === 1) return 'Sì';
+    if (value === 'false' || value === '0' || value === 0) return 'No';
     return value;
 }
 
@@ -691,8 +695,10 @@ async function loadCheckFollowups(therapyId) {
     const questionList = document.getElementById('checkQuestionList');
     if (!historyBody || !questionList) return;
     activeFollowupId = null;
-    activeFollowupSnapshot = null;
+    activeFollowupData = null;
     activeFollowups = [];
+    activeChecklistQuestions = [];
+    activeChecklistAnswers = {};
 
     if (!therapyId) {
         historyBody.innerHTML = '<tr><td colspan="5" class="text-muted">Seleziona una terapia per proseguire</td></tr>';
@@ -715,9 +721,10 @@ async function loadCheckFollowups(therapyId) {
         const items = result.data?.items || [];
         activeFollowups = items;
         renderCheckHistory(items);
+        await loadChecklistQuestions(therapyId);
         const active = items.find((f) => f.status !== 'canceled') || items[0];
         if (active) {
-            setActiveFollowup(active);
+            await setActiveFollowup(active);
         } else {
             questionList.innerHTML = '<div class="text-muted">Nessun check periodico. Creane uno nuovo.</div>';
         }
@@ -728,19 +735,56 @@ async function loadCheckFollowups(therapyId) {
     }
 }
 
-function setActiveFollowup(followup) {
+async function loadChecklistQuestions(therapyId) {
+    try {
+        const response = await fetch(`api/followups.php?action=checklist&therapy_id=${therapyId}`);
+        const result = await response.json();
+        if (!result.success) {
+            activeChecklistQuestions = [];
+            return;
+        }
+        activeChecklistQuestions = result.data?.questions || [];
+    } catch (error) {
+        console.error(error);
+        activeChecklistQuestions = [];
+    }
+}
+
+async function loadChecklistAnswers(followupId) {
+    if (!followupId) {
+        activeChecklistAnswers = {};
+        return;
+    }
+    try {
+        const response = await fetch(`api/followups.php?action=check-answers&id=${followupId}`);
+        const result = await response.json();
+        if (!result.success) {
+            activeChecklistAnswers = {};
+            return;
+        }
+        activeChecklistAnswers = result.data?.answers || {};
+    } catch (error) {
+        console.error(error);
+        activeChecklistAnswers = {};
+    }
+}
+
+async function setActiveFollowup(followup) {
     activeFollowupId = followup?.id || null;
-    activeFollowupSnapshot = parseFollowupSnapshot(followup?.snapshot);
+    activeFollowupData = followup || null;
+    await loadChecklistAnswers(activeFollowupId);
     renderCheckQuestions();
 }
 
-function renderQuestionInput(question, index, isCustom = false) {
-    const currentValue = question?.answer;
-    const inputName = isCustom ? `custom-${index}` : `base-${index}`;
-    if (question.type === 'boolean') {
+function renderQuestionInput(question, answerValue, disabled = false) {
+    const currentValue = answerValue;
+    const inputName = `question-${question.id}`;
+    const type = question.input_type || 'text';
+    const disabledAttr = disabled ? 'disabled' : '';
+    if (type === 'boolean') {
         const value = currentValue === true || currentValue === 'true' ? 'true' : currentValue === false || currentValue === 'false' ? 'false' : '';
         return `
-            <select class="form-select form-select-sm check-question-input" data-section="${isCustom ? 'custom' : 'base'}" data-index="${index}" name="${inputName}">
+            <select class="form-select form-select-sm check-question-input" data-question-id="${question.id}" name="${inputName}" ${disabledAttr}>
                 <option value="">Seleziona...</option>
                 <option value="true" ${value === 'true' ? 'selected' : ''}>Sì</option>
                 <option value="false" ${value === 'false' ? 'selected' : ''}>No</option>
@@ -748,43 +792,59 @@ function renderQuestionInput(question, index, isCustom = false) {
         `;
     }
 
-    return `<input type="text" class="form-control form-control-sm check-question-input" data-section="${isCustom ? 'custom' : 'base'}" data-index="${index}" name="${inputName}" value="${currentValue !== null && currentValue !== undefined ? sanitizeHtml(String(currentValue)) : ''}">`;
+    if (type === 'select') {
+        const options = Array.isArray(question.options) ? question.options : [];
+        const optionRows = options.map((opt) => {
+            const selected = String(currentValue) === String(opt) ? 'selected' : '';
+            return `<option value="${sanitizeHtml(opt)}" ${selected}>${sanitizeHtml(opt)}</option>`;
+        });
+        return `
+            <select class="form-select form-select-sm check-question-input" data-question-id="${question.id}" name="${inputName}" ${disabledAttr}>
+                <option value="">Seleziona...</option>
+                ${optionRows.join('')}
+            </select>
+        `;
+    }
+
+    return `<input type="text" class="form-control form-control-sm check-question-input" data-question-id="${question.id}" name="${inputName}" value="${currentValue !== null && currentValue !== undefined ? sanitizeHtml(String(currentValue)) : ''}" ${disabledAttr}>`;
 }
 
 function renderCheckQuestions() {
     const questionList = document.getElementById('checkQuestionList');
     if (!questionList) return;
-    if (!activeFollowupId || !activeFollowupSnapshot) {
-        questionList.innerHTML = '<div class="text-muted">Nessun check attivo. Creane uno nuovo.</div>';
+    if (!activeChecklistQuestions.length) {
+        questionList.innerHTML = '<div class="text-muted">Nessuna domanda in checklist. Aggiungine una.</div>';
         return;
     }
 
-    const snapshot = activeFollowupSnapshot;
-    const baseQuestions = snapshot.questions || [];
-    const customQuestions = snapshot.custom_questions || [];
-
-    const baseRows = baseQuestions.map((q, idx) => {
-        const label = getConditionQuestionLabel(snapshot.condition, q.key || q.text || `Domanda ${idx + 1}`);
+    const inputsDisabled = !activeFollowupId;
+    const hint = inputsDisabled
+        ? '<div class="text-muted small mb-2">Crea o seleziona un check per inserire le risposte.</div>'
+        : '';
+    const rows = activeChecklistQuestions.map((q, idx) => {
+        const label = q.question_text || q.question_key || `Domanda ${idx + 1}`;
+        const answerValue = activeChecklistAnswers[q.id] ?? null;
+        const upDisabled = idx === 0 ? 'disabled' : '';
+        const downDisabled = idx === activeChecklistQuestions.length - 1 ? 'disabled' : '';
         return `
         <div class="border rounded p-2 mb-2">
             <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="fw-semibold">${sanitizeHtml(label)}</div>
-                <button class="btn btn-sm btn-outline-danger" type="button" onclick="removeQuestion(${idx})">Rimuovi</button>
+                <div>
+                    <div class="fw-semibold">${sanitizeHtml(label)}</div>
+                    <div class="small text-muted">${sanitizeHtml(q.input_type || 'text')}</div>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-secondary" type="button" onclick="moveChecklistQuestion(${idx}, -1)" ${upDisabled}>Su</button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="moveChecklistQuestion(${idx}, 1)" ${downDisabled}>Giù</button>
+                    <button class="btn btn-outline-danger" type="button" onclick="removeChecklistQuestion(${q.id})">Rimuovi</button>
+                </div>
             </div>
-            <div class="mt-2">${renderQuestionInput(q, idx, false)}</div>
+            <div class="mt-2">${renderQuestionInput(q, answerValue, inputsDisabled)}</div>
         </div>
     `;
     });
 
-    const customRows = customQuestions.map((q, idx) => `
-        <div class="border rounded p-2 mb-2">
-            <div class="fw-semibold">${sanitizeHtml(q.text || `Domanda custom ${idx + 1}`)}</div>
-            <div class="small text-muted">${sanitizeHtml(q.type || '')}</div>
-            <div class="mt-2">${renderQuestionInput(q, idx, true)}</div>
-        </div>
-    `);
-
-    questionList.innerHTML = baseRows.concat(customRows).join('') || '<div class="text-muted">Nessuna domanda presente</div>';
+    questionList.innerHTML = hint + (rows.join('') || '<div class="text-muted">Nessuna domanda presente</div>');
 }
 
 function renderCheckHistory(items) {
@@ -796,8 +856,8 @@ function renderCheckHistory(items) {
     }
 
     historyBody.innerHTML = items.map((item) => {
-        const snapshot = parseFollowupSnapshot(item.snapshot);
-        const answersCount = countAnswered(snapshot);
+        const answersCount = item.answer_count ?? 0;
+        const checkTypeLabel = item.check_type === 'initial' ? 'Iniziale' : 'Periodico';
         const statusBadge = item.status === 'canceled'
             ? '<span class="badge bg-secondary">Annullato</span>'
             : '<span class="badge bg-success">Attivo</span>';
@@ -807,7 +867,7 @@ function renderCheckHistory(items) {
                 <td>${sanitizeHtml(item.follow_up_date || '-')}</td>
                 <td>${sanitizeHtml(item.risk_score ?? '-')}</td>
                 <td>${statusBadge}</td>
-                <td>${answersCount}</td>
+                <td>${sanitizeHtml(checkTypeLabel)} · ${answersCount}</td>
             </tr>
         `;
     }).join('');
@@ -829,7 +889,9 @@ async function createCheckPeriodico() {
         const result = await response.json();
         if (result.success) {
             activeFollowupId = result.data?.followup?.id || null;
-            activeFollowupSnapshot = result.data?.snapshot || (result.data?.followup?.snapshot ? JSON.parse(result.data.followup.snapshot) : null);
+            activeFollowupData = result.data?.followup || null;
+            activeChecklistQuestions = result.data?.questions || activeChecklistQuestions;
+            activeChecklistAnswers = result.data?.answers || {};
             showFollowupToast('Check periodico creato', 'success');
             loadCheckFollowups(therapyId);
         } else {
@@ -842,8 +904,9 @@ async function createCheckPeriodico() {
 }
 
 async function addCustomQuestion() {
-    if (!activeFollowupId) {
-        alert('Crea prima un check periodico.');
+    const therapyId = document.getElementById('checkTherapySelect')?.value;
+    if (!therapyId) {
+        alert('Seleziona una terapia.');
         return;
     }
     const textInput = document.getElementById('customQuestionText');
@@ -856,14 +919,14 @@ async function addCustomQuestion() {
     }
 
     try {
-        const response = await fetch(`api/followups.php?action=add-question&id=${activeFollowupId}`, {
+        const response = await fetch('api/followups.php?action=checklist-add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, type })
+            body: JSON.stringify({ therapy_id: therapyId, text, type })
         });
         const result = await response.json();
         if (result.success) {
-            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            await loadChecklistQuestions(therapyId);
             renderCheckQuestions();
             if (textInput) textInput.value = '';
             showFollowupToast('Domanda aggiunta', 'success');
@@ -876,17 +939,22 @@ async function addCustomQuestion() {
     }
 }
 
-async function removeQuestion(index) {
-    if (!activeFollowupId) return;
+async function removeChecklistQuestion(questionId) {
+    if (!questionId) return;
     try {
-        const response = await fetch(`api/followups.php?action=remove-question&id=${activeFollowupId}`, {
+        const therapyId = document.getElementById('checkTherapySelect')?.value;
+        if (!therapyId) {
+            alert('Seleziona una terapia.');
+            return;
+        }
+        const response = await fetch('api/followups.php?action=checklist-remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ index })
+            body: JSON.stringify({ question_id: questionId, therapy_id: therapyId })
         });
         const result = await response.json();
         if (result.success) {
-            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            await loadChecklistQuestions(therapyId);
             renderCheckQuestions();
             showFollowupToast('Domanda rimossa', 'success');
         } else {
@@ -898,6 +966,37 @@ async function removeQuestion(index) {
     }
 }
 
+async function moveChecklistQuestion(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= activeChecklistQuestions.length) return;
+    const therapyId = document.getElementById('checkTherapySelect')?.value;
+    if (!therapyId) {
+        alert('Seleziona una terapia.');
+        return;
+    }
+    const reordered = [...activeChecklistQuestions];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(newIndex, 0, moved);
+    const orderIds = reordered.map((q) => q.id);
+    try {
+        const response = await fetch('api/followups.php?action=checklist-reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: orderIds, therapy_id: therapyId })
+        });
+        const result = await response.json();
+        if (result.success) {
+            activeChecklistQuestions = reordered;
+            renderCheckQuestions();
+        } else {
+            alert(result.error || 'Errore nel riordino');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Errore di rete nel riordino');
+    }
+}
+
 async function saveAnswers() {
     if (!activeFollowupId) {
         alert('Nessun check selezionato.');
@@ -905,21 +1004,9 @@ async function saveAnswers() {
     }
     const inputs = document.querySelectorAll('.check-question-input');
     const answers = [];
-    const snapshot = activeFollowupSnapshot || {};
-    const baseQuestions = snapshot.questions || [];
-    const customQuestions = snapshot.custom_questions || [];
-    const resolveLabel = (question, fallbackKey) => {
-        const raw = question?.label;
-        const key = question?.key || question?.text || fallbackKey;
-        if (!raw || raw === key) {
-            return getConditionQuestionLabel(snapshot.condition, key);
-        }
-        return raw;
-    };
 
     inputs.forEach((input) => {
-        const index = input.dataset.index;
-        const section = input.dataset.section;
+        const questionId = input.dataset.questionId;
         let value = input.value;
         if (input.type === 'select-one' && input.value === '') {
             value = null;
@@ -930,27 +1017,18 @@ async function saveAnswers() {
         if (input.type === 'text' && input.value === '') {
             value = null;
         }
-        const idx = Number(index);
-        let label = null;
-        if (section === 'custom') {
-            const q = customQuestions[idx];
-            label = resolveLabel(q, q?.text);
-        } else {
-            const q = baseQuestions[idx];
-            label = resolveLabel(q, q?.key || q?.text);
-        }
-        answers.push({ index: idx, answer: value, custom: section === 'custom', label });
+        answers.push({ question_id: Number(questionId), answer: value });
     });
 
     try {
-        const response = await fetch(`api/followups.php?action=answer&id=${activeFollowupId}`, {
+        const response = await fetch(`api/followups.php?action=check-answers&id=${activeFollowupId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ answers })
         });
         const result = await response.json();
         if (result.success) {
-            activeFollowupSnapshot = result.data?.snapshot || activeFollowupSnapshot;
+            activeChecklistAnswers = result.data?.answers || activeChecklistAnswers;
             renderCheckQuestions();
             const therapyId = document.getElementById('checkTherapySelect')?.value;
             loadCheckFollowups(therapyId);
@@ -961,29 +1039,6 @@ async function saveAnswers() {
     } catch (error) {
         console.error(error);
         alert('Errore di rete nel salvataggio delle risposte');
-    }
-}
-
-function countAnswered(snapshot) {
-    if (!snapshot) return 0;
-    const base = snapshot.questions || [];
-    const custom = snapshot.custom_questions || [];
-    const isAnswered = (ans) => ans !== null && ans !== undefined && ans !== '';
-    const baseCount = base.filter((q) => isAnswered(q.answer)).length;
-    const customCount = custom.filter((q) => isAnswered(q.answer)).length;
-    return baseCount + customCount;
-}
-
-function parseFollowupSnapshot(snapshot) {
-    if (!snapshot) return null;
-    try {
-        if (typeof snapshot === 'string') {
-            return JSON.parse(snapshot);
-        }
-        return snapshot;
-    } catch (error) {
-        console.error('Errore parsing snapshot', error);
-        return null;
     }
 }
 
@@ -1245,8 +1300,12 @@ function buildQuestionListHtml(questions = [], condition = null) {
         return '<div class="text-muted">Nessuna domanda disponibile</div>';
     }
     const rows = questions.map((q) => {
-        const baseLabel = q.label || q.text || q.key || 'Domanda';
-        const label = q.custom ? baseLabel : getConditionQuestionLabel(condition, q.key || baseLabel);
+        const baseLabel = q.text || q.question_text || q.label || '';
+        const label = baseLabel
+            ? baseLabel
+            : q.custom || !q.key
+                ? q.key || 'Domanda'
+                : getConditionQuestionLabel(condition, q.key);
         return `<li class="list-group-item d-flex justify-content-between align-items-start">
             <div class="me-3">${sanitizeHtml(label || '')}</div>
             <span class="fw-semibold">${sanitizeHtml(formatAnswerValue(q.answer))}</span>
@@ -1273,18 +1332,18 @@ function buildSurveyHtml(survey = {}, condition = null) {
 
 function buildFollowupHtml(followup, condition = null) {
     const snapshot = followup.snapshot || {};
+    const checklistQuestions = (followup.questions || []).map((q) => ({
+        ...q,
+        question_text: q.text || q.question_text,
+        custom: false
+    }));
     const questions = (snapshot.questions || []).map((q) => ({ ...q, custom: false }));
     const custom = (snapshot.custom_questions || []).map((q) => ({ ...q, custom: true }));
-    return `
-        <div class="mb-3 border rounded p-2">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <div class="fw-semibold">Check del ${sanitizeHtml(followup.follow_up_date || followup.created_at || '-')}</div>
-                    <div class="small text-muted">Rischio: ${sanitizeHtml(followup.risk_score ?? '-')}</div>
-                </div>
-                <div class="small text-muted">ID #${sanitizeHtml(followup.id)}</div>
-            </div>
-            <div class="mt-2"><strong>Note farmacista:</strong> ${sanitizeHtml(followup.pharmacist_notes || '-')}</div>
+    const checkTypeLabel = followup.check_type === 'initial' ? 'Iniziale' : 'Periodico';
+    const headingLabel = followup.entry_type === 'check' ? `Check ${checkTypeLabel}` : 'Follow-up';
+    const listHtml = checklistQuestions.length
+        ? `<h6>Domande checklist</h6>${buildQuestionListHtml(checklistQuestions, condition)}`
+        : `
             <div class="mt-3">
                 <h6>Domande base</h6>
                 ${buildQuestionListHtml(questions, condition)}
@@ -1293,6 +1352,18 @@ function buildFollowupHtml(followup, condition = null) {
                 <h6>Domande personalizzate</h6>
                 ${buildQuestionListHtml(custom, condition)}
             </div>
+        `;
+    return `
+        <div class="mb-3 border rounded p-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-semibold">${headingLabel} del ${sanitizeHtml(followup.follow_up_date || followup.created_at || '-')}</div>
+                    <div class="small text-muted">Rischio: ${sanitizeHtml(followup.risk_score ?? '-')}</div>
+                </div>
+                <div class="small text-muted">ID #${sanitizeHtml(followup.id)}</div>
+            </div>
+            <div class="mt-2"><strong>Note farmacista:</strong> ${sanitizeHtml(followup.pharmacist_notes || '-')}</div>
+            <div class="mt-3">${listHtml}</div>
         </div>
     `;
 }
@@ -1336,6 +1407,7 @@ function buildReportPreviewHtml(content) {
     const patientBirth = clean(content.patient?.birth_date);
     const patientEmail = clean(content.patient?.email);
     const patientPhone = clean(content.patient?.phone);
+    const caregivers = Array.isArray(content.caregivers) ? content.caregivers : [];
 
     const therapyTitle = clean(content.therapy?.title);
     const therapyDesc = clean(content.therapy?.description);
@@ -1353,6 +1425,23 @@ function buildReportPreviewHtml(content) {
     const followupHtml = manualFollowups.length
         ? manualFollowups.map((f) => buildFollowupHtml(f, condition)).join('')
         : '<div class="text-muted small">Nessun follow-up</div>';
+
+    const caregiverHtml = caregivers.length
+        ? caregivers
+              .map((c) => {
+                  const name = clean(`${cleanRaw(c.first_name)} ${cleanRaw(c.last_name)}`.trim(), '-');
+                  const relation = clean(c.relation_to_patient || c.type || '-');
+                  const contact = clean(`${cleanRaw(c.email || '-')}`) + ' | ' + clean(`${cleanRaw(c.phone || '-')}`);
+                  return `<li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="me-3">
+                            <div class="fw-semibold">${name}</div>
+                            <div class="small text-muted">${relation}</div>
+                        </div>
+                        <div class="small">${contact}</div>
+                    </li>`;
+              })
+              .join('')
+        : '<div class="text-muted small">Nessun caregiver registrato</div>';
 
     return `
         <div class="border rounded p-3">
@@ -1390,6 +1479,12 @@ function buildReportPreviewHtml(content) {
                     <div class="small text-muted">Periodo: ${therapyStart} - ${therapyEnd}</div>
                     <div class="small text-muted">Condizione: ${conditionSafe}</div>
                 </div>
+            </div>
+
+            <!-- CAREGIVER -->
+            <div class="report-section">
+                <h6 class="mb-2">Caregiver</h6>
+                ${caregivers.length ? `<ul class="list-group list-group-flush">${caregiverHtml}</ul>` : caregiverHtml}
             </div>
 
             <!-- CHECK PERIODICI -->

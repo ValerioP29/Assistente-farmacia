@@ -163,11 +163,63 @@ function fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id 
             'follow_up_date' => $row['follow_up_date'] ?? null,
             'risk_score' => $row['risk_score'] ?? null,
             'entry_type' => $row['entry_type'] ?? null,
+            'check_type' => $row['check_type'] ?? null,
             'snapshot' => $snapshot,
             'pharmacist_notes' => $row['pharmacist_notes'] ?? null,
             'created_at' => $row['created_at'] ?? null
         ];
     }, $followups);
+}
+
+function fetchChecklistAnswersForFollowups(array $followupIds)
+{
+    if (!$followupIds) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($followupIds), '?'));
+    try {
+        $rows = db_fetch_all(
+            "SELECT a.followup_id, q.id AS question_id, q.question_text, q.question_key, q.input_type, q.options_json, q.is_active, a.answer_value
+             FROM jta_therapy_checklist_answers a
+             JOIN jta_therapy_checklist_questions q ON a.question_id = q.id
+             WHERE a.followup_id IN ($placeholders)
+             ORDER BY q.sort_order ASC, q.id ASC",
+            $followupIds
+        );
+    } catch (Exception $e) {
+        respondReports(false, null, 'Errore recupero risposte checklist', 500);
+    }
+
+    $grouped = [];
+    foreach ($rows as $row) {
+        $answer = $row['answer_value'];
+        $grouped[$row['followup_id']][] = [
+            'id' => $row['question_id'],
+            'key' => $row['question_key'],
+            'text' => $row['question_text'],
+            'input_type' => $row['input_type'],
+            'options' => $row['options_json'] ? json_decode($row['options_json'], true) : null,
+            'answer' => $answer
+        ];
+    }
+    return $grouped;
+}
+
+function fetchCaregiversForReport($therapy_id)
+{
+    try {
+        return db_fetch_all(
+            "SELECT a.id, a.first_name, a.last_name, a.phone, a.email, a.type, a.relation_to_patient, ta.role, ta.contact_channel
+             FROM jta_therapy_assistant ta
+             JOIN jta_assistants a ON ta.assistant_id = a.id
+             WHERE ta.therapy_id = ?
+             ORDER BY a.last_name ASC, a.first_name ASC",
+            [$therapy_id]
+        );
+    } catch (Exception $e) {
+        respondReports(false, null, 'Errore recupero caregiver', 500);
+    }
 }
 
 function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = null)
@@ -201,6 +253,10 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
     }
 
     $followupData = fetchFollowupsForReport($therapy_id, $pharmacy_id, $mode, $followup_id);
+    $followupIds = array_map(function ($row) {
+        return $row['id'];
+    }, $followupData);
+    $checklistAnswers = fetchChecklistAnswersForFollowups($followupIds);
     $checkFollowups = array_values(array_filter($followupData, function ($row) {
         $type = $row['entry_type'] ?? null;
         $snapshot = $row['snapshot'] ?? null;
@@ -221,6 +277,15 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
     }));
 
     $therapy = $therapyData['therapy'];
+    $checkFollowups = array_map(function ($row) use ($checklistAnswers) {
+        if (isset($checklistAnswers[$row['id']])) {
+            $row['questions'] = $checklistAnswers[$row['id']];
+        }
+        return $row;
+    }, $checkFollowups);
+
+    $caregivers = fetchCaregiversForReport($therapy_id);
+
     $reportContent = [
         'generated_at' => date('Y-m-d H:i'),
         'mode' => $mode,
@@ -246,6 +311,7 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
             'phone' => $therapy['phone'] ?? null,
             'email' => $therapy['email'] ?? null
         ],
+        'caregivers' => $caregivers,
         'therapy' => [
             'id' => $therapy['id'],
             'title' => $therapy['therapy_title'] ?? null,
