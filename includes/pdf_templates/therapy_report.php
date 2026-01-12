@@ -45,8 +45,8 @@ $manualFollowups = $reportData['manual_followups'] ?? [];
         h1, h2, h3 { margin: 0 0 8px; }
         .section { margin-bottom: 18px; }
         .section h2 { font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        table th, table td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
+        table th, table td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
         .muted { color: #777; }
     </style>
 </head>

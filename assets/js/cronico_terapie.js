@@ -1433,11 +1433,13 @@ function buildReportPreviewHtml(content) {
                   const relation = clean(c.relation_to_patient || c.type || '-');
                   const contact = clean(`${cleanRaw(c.email || '-')}`) + ' | ' + clean(`${cleanRaw(c.phone || '-')}`);
                   return `<li class="list-group-item d-flex justify-content-between align-items-start">
-                        <div class="me-3">
+                        <div class="me-3" style="min-width:0;">
                             <div class="fw-semibold">${name}</div>
                             <div class="small text-muted">${relation}</div>
                         </div>
-                        <div class="small">${contact}</div>
+                        <div class="small text-end" style="max-width:45%; min-width:0; overflow-wrap:anywhere; word-break:break-word; white-space:normal;">
+                            ${contact}
+                        </div>
                     </li>`;
               })
               .join('')
