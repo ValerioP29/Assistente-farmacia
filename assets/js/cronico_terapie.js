@@ -14,8 +14,6 @@ let activeFollowupData = null;
 let activeFollowups = [];
 let activeChecklistQuestions = [];
 let activeChecklistAnswers = {};
-let lastReportPreview = null;
-let lastReportPreviewParams = null;
 let surveyTemplatesPromise = null;
 
 function ensureSurveyTemplatesLoaded() {
@@ -419,14 +417,9 @@ function attachReportForm(therapySelect) {
     modeInputs?.forEach((input) => input.addEventListener('change', toggleFollowupField));
 
     toggleFollowupField();
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await handleReportPreview(therapySelect, followupSelect, previewContainer, generatePdfBtn);
-    });
-
     if (generatePdfBtn) {
-        generatePdfBtn.addEventListener('click', async () => {
-            await handleReportGenerate();
+        generatePdfBtn.addEventListener('click', () => {
+            handleReportDownload(therapySelect, followupSelect);
         });
     }
 
@@ -1253,8 +1246,7 @@ async function openReportsModal(therapyId = null) {
                             </div>
                             <div class="col-12 text-end">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                                <button type="submit" class="btn btn-primary">Mostra anteprima</button>
-                                <button type="button" class="btn btn-success d-none" id="reportGeneratePdf">Genera PDF</button>
+                                <button type="button" class="btn btn-success d-none" id="reportGeneratePdf">Scarica report</button>
                             </div>
                         </form>
                         <div id="reportPreview" class="report-preview bg-light p-2 rounded border"></div>
@@ -1511,8 +1503,6 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
     const therapyId = therapySelect.value;
     if (!therapyId) {
         previewContainer.innerHTML = '<div class="text-muted">Seleziona una terapia per generare il report</div>';
-        lastReportPreview = null;
-        lastReportPreviewParams = null;
         if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
         return;
     }
@@ -1520,8 +1510,6 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
     const followupId = followupSelect?.value;
     if (mode === 'single' && !followupId) {
         previewContainer.innerHTML = '<div class="text-muted">Seleziona check o follow-up</div>';
-        lastReportPreview = null;
-        lastReportPreviewParams = null;
         if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
         return;
     }
@@ -1541,8 +1529,6 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
             if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
             return;
         }
-        lastReportPreview = result.data;
-        lastReportPreviewParams = { therapy_id: therapyId, mode, followup_id: followupId || '' };
         previewContainer.innerHTML = buildReportPreviewHtml(result.data?.content);
         if (generatePdfBtn) {
             if (result.data?.pdf_available) {
@@ -1558,93 +1544,25 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
     }
 }
 
-async function handleReportGenerate() {
-    if (!lastReportPreviewParams) {
-        alert('Genera prima una anteprima.');
+function handleReportDownload(therapySelect, followupSelect) {
+    const therapyId = therapySelect?.value;
+    if (!therapyId) {
+        alert('Seleziona una terapia.');
+        return;
+    }
+    const mode = document.querySelector('input[name="reportMode"]:checked')?.value || 'all';
+    const followupId = followupSelect?.value;
+    if (mode === 'single' && !followupId) {
+        alert('Seleziona check o follow-up.');
         return;
     }
     const query = new URLSearchParams({
-        action: 'generate',
-        ...lastReportPreviewParams
+        action: 'pdf',
+        therapy_id: therapyId,
+        mode,
+        followup_id: followupId || ''
     });
-    try {
-        const response = await fetch(`api/reports.php?${query.toString()}`);
-        const result = await response.json();
-        if (!result.success) {
-            alert(result.error || 'Errore generazione report');
-            return;
-        }
-
-        lastReportPreview = result.data;
-
-        if (result.data?.pdf_available) {
-            showReportToast(result.data?.pdf_url);
-            const therapySelect = document.getElementById('reportTherapySelect');
-            loadReports(therapySelect?.value);
-            return;
-        }
-
-        const previewContainer = document.getElementById('reportPreview');
-        if (previewContainer && result.data?.content) {
-            previewContainer.innerHTML = buildReportPreviewHtml(result.data.content);
-        }
-        alert(result.error || 'PDF non disponibile. Usa l\'anteprima HTML.');
-    } catch (error) {
-        console.error(error);
-        alert('Errore di rete nella generazione del PDF');
-    }
-}
-
-function showReportToast(pdfUrl) {
-    const containerId = 'reportToastContainer';
-    let container = document.getElementById(containerId);
-    if (!container) {
-        container = document.createElement('div');
-        container.id = containerId;
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        document.body.appendChild(container);
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast align-items-center text-white bg-success border-0';
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'd-flex';
-
-    const body = document.createElement('div');
-    body.className = 'toast-body';
-    body.textContent = 'Report generato. ';
-
-    if (pdfUrl) {
-        const link = document.createElement('a');
-        link.href = pdfUrl;
-        link.target = '_blank';
-        link.className = 'text-white text-decoration-underline';
-        link.textContent = 'Apri PDF';
-        body.appendChild(link);
-    }
-
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn-close btn-close-white me-2 m-auto';
-    closeBtn.setAttribute('data-bs-dismiss', 'toast');
-
-    wrapper.appendChild(body);
-    wrapper.appendChild(closeBtn);
-    toast.appendChild(wrapper);
-
-    container.appendChild(toast);
-    const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-        if (!container.children.length) {
-            container.remove();
-        }
-    });
-    bsToast.show();
+    window.open(`api/reports.php?${query.toString()}`, '_blank');
 }
 
 async function openFollowupModal(therapyId = null) {
