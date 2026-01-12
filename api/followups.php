@@ -4,6 +4,10 @@ ob_start();
 register_shutdown_function(function () {
     $err = error_get_last();
     if ($err !== null) {
+       $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+       if (!in_array($err['type'] ?? null, $fatalTypes, true)) {
+           return;
+       }
         if (!headers_sent()) header('Content-Type: application/json');
         http_response_code(500);
         $buffer = ob_get_clean();
