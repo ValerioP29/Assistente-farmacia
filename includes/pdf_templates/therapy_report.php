@@ -7,8 +7,29 @@ function e($value) {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
+function formatAnswer($value) {
+    if ($value === null || $value === '') {
+        return '-';
+    }
+    if (is_array($value) || is_object($value)) {
+        return json_encode($value, JSON_UNESCAPED_UNICODE);
+    }
+    if (is_bool($value)) {
+        return $value ? 'Sì' : 'No';
+    }
+    if ($value === 'true' || $value === '1' || $value === 1) {
+        return 'Sì';
+    }
+    if ($value === 'false' || $value === '0' || $value === 0) {
+        return 'No';
+    }
+    return $value;
+}
+
 $pharmacy = $reportData['pharmacy'] ?? [];
+$pharmacist = $reportData['pharmacist'] ?? [];
 $patient = $reportData['patient'] ?? [];
+$caregivers = $reportData['caregivers'] ?? [];
 $therapy = $reportData['therapy'] ?? [];
 $chronic = $reportData['chronic_care'] ?? [];
 $survey = $reportData['survey_base']['answers'] ?? [];
@@ -41,6 +62,12 @@ $manualFollowups = $reportData['manual_followups'] ?? [];
     </div>
 
     <div class="section">
+        <h2>Farmacista</h2>
+        <div><strong><?= e($pharmacist['name'] ?? '-') ?></strong></div>
+        <div>Email: <?= e($pharmacist['email'] ?? '-') ?></div>
+    </div>
+
+    <div class="section">
         <h2>Paziente</h2>
         <table>
             <tr><th>Nome</th><td><?= e(trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''))) ?></td></tr>
@@ -48,6 +75,28 @@ $manualFollowups = $reportData['manual_followups'] ?? [];
             <tr><th>Data di nascita</th><td><?= e($patient['birth_date'] ?? '-') ?></td></tr>
             <tr><th>Contatti</th><td>Email: <?= e($patient['email'] ?? '-') ?> | Telefono: <?= e($patient['phone'] ?? '-') ?></td></tr>
         </table>
+    </div>
+
+    <div class="section">
+        <h2>Caregiver</h2>
+        <?php if ($caregivers && is_array($caregivers) && count($caregivers)): ?>
+            <table>
+                <thead>
+                    <tr><th>Nome</th><th>Relazione</th><th>Contatti</th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($caregivers as $caregiver): ?>
+                        <tr>
+                            <td><?= e(trim(($caregiver['first_name'] ?? '') . ' ' . ($caregiver['last_name'] ?? ''))) ?></td>
+                            <td><?= e($caregiver['relation_to_patient'] ?? $caregiver['type'] ?? '-') ?></td>
+                            <td><?= e(($caregiver['email'] ?? '-') . ' | ' . ($caregiver['phone'] ?? '-')) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p class="muted">Nessun caregiver registrato.</p>
+        <?php endif; ?>
     </div>
 
     <div class="section">
@@ -83,7 +132,7 @@ $manualFollowups = $reportData['manual_followups'] ?? [];
                 <?php foreach ($survey as $question => $answer): ?>
                     <tr>
                         <td><?= e($question) ?></td>
-                        <td><?= e(is_bool($answer) ? ($answer ? 'Sì' : 'No') : $answer) ?></td>
+                        <td><?= e(formatAnswer($answer)) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -98,46 +147,64 @@ $manualFollowups = $reportData['manual_followups'] ?? [];
         <?php if ($checkFollowups && is_array($checkFollowups) && count($checkFollowups)): ?>
             <?php foreach ($checkFollowups as $index => $followup):
                 $snapshot = $followup['snapshot'] ?? [];
-                $questions = $snapshot['questions'] ?? [];
+                $questions = $followup['questions'] ?? null;
+                $legacyQuestions = $snapshot['questions'] ?? [];
                 $custom = $snapshot['custom_questions'] ?? [];
+                $checkType = $followup['check_type'] ?? null;
+                $checkLabel = $checkType === 'initial' ? 'Iniziale' : 'Periodico';
             ?>
-                <h3>Check #<?= e($followup['id'] ?? ($index + 1)) ?> - <?= e($followup['follow_up_date'] ?? $followup['created_at'] ?? '') ?></h3>
+                <h3>Check <?= e($checkLabel) ?> #<?= e($followup['id'] ?? ($index + 1)) ?> - <?= e($followup['follow_up_date'] ?? $followup['created_at'] ?? '') ?></h3>
                 <table>
                     <tr><th>Rischio</th><td><?= e($followup['risk_score'] ?? '-') ?></td></tr>
                     <tr><th>Note farmacista</th><td><?= e($followup['pharmacist_notes'] ?? '-') ?></td></tr>
                 </table>
-                <h4>Domande base</h4>
-                <?php if ($questions): ?>
+                <h4>Domande</h4>
+                <?php if ($questions && is_array($questions) && count($questions)): ?>
                     <table>
                         <thead><tr><th>Domanda</th><th>Risposta</th></tr></thead>
                         <tbody>
                             <?php foreach ($questions as $q): ?>
                                 <tr>
-                                    <td><?= e($q['label'] ?? $q['text'] ?? $q['key'] ?? '') ?></td>
-                                    <td><?= e($q['answer'] ?? '-') ?></td>
+                                    <td><?= e($q['text'] ?? $q['label'] ?? $q['key'] ?? '') ?></td>
+                                    <td><?= e(formatAnswer($q['answer'] ?? null)) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 <?php else: ?>
-                    <p class="muted">Nessuna domanda base.</p>
-                <?php endif; ?>
+                    <h4>Domande base</h4>
+                    <?php if ($legacyQuestions): ?>
+                        <table>
+                            <thead><tr><th>Domanda</th><th>Risposta</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($legacyQuestions as $q): ?>
+                                    <tr>
+                                        <td><?= e($q['label'] ?? $q['text'] ?? $q['key'] ?? '') ?></td>
+                                        <td><?= e(formatAnswer($q['answer'] ?? null)) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p class="muted">Nessuna domanda base.</p>
+                    <?php endif; ?>
 
-                <h4>Domande personalizzate</h4>
-                <?php if ($custom): ?>
-                    <table>
-                        <thead><tr><th>Domanda</th><th>Risposta</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($custom as $q): ?>
-                                <tr>
-                                    <td><?= e($q['label'] ?? $q['text'] ?? '') ?></td>
-                                    <td><?= e($q['answer'] ?? '-') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php else: ?>
-                    <p class="muted">Nessuna domanda personalizzata.</p>
+                    <h4>Domande personalizzate</h4>
+                    <?php if ($custom): ?>
+                        <table>
+                            <thead><tr><th>Domanda</th><th>Risposta</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($custom as $q): ?>
+                                    <tr>
+                                        <td><?= e($q['label'] ?? $q['text'] ?? '') ?></td>
+                                        <td><?= e(formatAnswer($q['answer'] ?? null)) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p class="muted">Nessuna domanda personalizzata.</p>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php endforeach; ?>
         <?php else: ?>

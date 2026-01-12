@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth_middleware.php';
+require_once __DIR__ . '/../includes/therapy_checklist.php';
 
 header('Content-Type: application/json');
 requireApiAuth(['admin', 'pharmacist']);
@@ -327,6 +328,50 @@ switch ($method) {
                         $condition_survey['level'] ?? 'base',
                         isset($condition_survey['answers']) ? json_encode($condition_survey['answers']) : null,
                         $condition_survey['compiled_at'] ?? date('Y-m-d H:i:s')
+                    ]
+                );
+            }
+
+            ensureTherapyChecklist($pdo, $therapy_id, $pharmacy_id, $primary_condition);
+
+            $userId = $_SESSION['user_id'] ?? null;
+            executeQueryWithTypes(
+                $pdo,
+                "INSERT INTO jta_therapy_followups (therapy_id, pharmacy_id, created_by, entry_type, check_type, follow_up_date) VALUES (?,?,?,?,?,?)",
+                [
+                    $therapy_id,
+                    $pharmacy_id,
+                    $userId,
+                    'check',
+                    'initial',
+                    null
+                ]
+            );
+            $initialCheckId = $pdo->lastInsertId();
+
+            $answersMap = $condition_survey && isset($condition_survey['answers']) && is_array($condition_survey['answers'])
+                ? $condition_survey['answers']
+                : [];
+            $questionRows = db_fetch_all(
+                "SELECT id, question_key FROM jta_therapy_checklist_questions WHERE therapy_id = ? ORDER BY sort_order ASC, id ASC",
+                [$therapy_id]
+            );
+            foreach ($questionRows as $row) {
+                $answerValue = null;
+                $key = $row['question_key'] ?? null;
+                if ($key && array_key_exists($key, $answersMap)) {
+                    $answerValue = $answersMap[$key];
+                    if (is_bool($answerValue)) {
+                        $answerValue = $answerValue ? 'true' : 'false';
+                    }
+                }
+                executeQueryWithTypes(
+                    $pdo,
+                    "INSERT INTO jta_therapy_checklist_answers (followup_id, question_id, answer_value) VALUES (?,?,?)",
+                    [
+                        $initialCheckId,
+                        $row['id'],
+                        $answerValue
                     ]
                 );
             }
