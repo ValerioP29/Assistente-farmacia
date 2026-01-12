@@ -332,6 +332,51 @@ function buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id = nul
 
 switch ($method) {
     case 'GET':
+        if ($action === 'pdf') {
+            $pharmacy_id = get_panel_pharma_id(true);
+            $therapy_id = $_GET['therapy_id'] ?? null;
+            $mode = $_GET['mode'] ?? 'all';
+            $followup_id = $_GET['followup_id'] ?? null;
+
+            if (!$therapy_id) {
+                respondReports(false, null, 'therapy_id mancante', 400);
+            }
+            if (!in_array($mode, ['all', 'single'], true)) {
+                respondReports(false, null, 'modalità non valida', 400);
+            }
+            if ($mode === 'single' && !$followup_id) {
+                respondReports(false, null, 'followup_id richiesto per la modalità singola', 400);
+            }
+
+            $reportContent = buildReportContent($therapy_id, $pharmacy_id, $mode, $followup_id);
+            $templatePath = __DIR__ . '/../includes/pdf_templates/therapy_report.php';
+            if (!file_exists($templatePath)) {
+                respondReports(false, null, 'Template PDF mancante', 500);
+            }
+
+            ob_start();
+            $reportData = $reportContent;
+            include $templatePath;
+            $html = ob_get_clean();
+
+            if (!isDompdfAvailable()) {
+                respondReports(false, null, 'Libreria DomPDF non disponibile', 500);
+            }
+
+            $dompdf = new Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $pdfOutput = $dompdf->output();
+
+            $date = date('Ymd');
+            $filename = "report_therapy_{$therapy_id}_{$date}.pdf";
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $pdfOutput;
+            exit;
+        }
+
         if ($action === 'preview') {
             $pharmacy_id = get_panel_pharma_id(true);
             $therapy_id = $_GET['therapy_id'] ?? null;
