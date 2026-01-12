@@ -114,12 +114,15 @@ CREATE TABLE IF NOT EXISTS `jta_therapy_condition_surveys` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------
--- jta_therapy_followups (DB reale + PATCH: entry_type)
+-- jta_therapy_followups (DB reale + PATCH: entry_type + checklist)
 -- ----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `jta_therapy_followups` (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `therapy_id` int UNSIGNED NOT NULL,
+  `pharmacy_id` int UNSIGNED DEFAULT NULL,
+  `created_by` int UNSIGNED DEFAULT NULL,
   `entry_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'followup',
+  `check_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `risk_score` int DEFAULT NULL,
   `pharmacist_notes` text COLLATE utf8mb4_unicode_ci,
   `education_notes` text COLLATE utf8mb4_unicode_ci,
@@ -130,9 +133,13 @@ CREATE TABLE IF NOT EXISTS `jta_therapy_followups` (
   KEY `idx_tf_therapy` (`therapy_id`),
   KEY `idx_tf_followup` (`follow_up_date`),
   KEY `idx_tf_entry_type` (`entry_type`),
+  KEY `idx_tf_therapy_pharmacy` (`therapy_id`,`pharmacy_id`),
   CONSTRAINT `fk_tf_therapy`
-    FOREIGN KEY (`therapy_id`) REFERENCES `jta_therapies` (`id`) ON DELETE CASCADE
+    FOREIGN KEY (`therapy_id`) REFERENCES `jta_therapies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_tf_pharmacy`
+    FOREIGN KEY (`pharmacy_id`) REFERENCES `jta_pharmas` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ----------------------------------------------------------
 -- jta_therapy_reminders (DB reale + PATCH: status include shown)
@@ -203,23 +210,44 @@ CREATE TABLE IF NOT EXISTS `jta_therapy_consents` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- ==========================================================
--- MIGRAZIONI DA APPLICARE SU DB ESISTENTE (se già creato)
--- (Esegui SOLO se il tuo DB live è ancora “senza patch”)
--- ==========================================================
+-- ----------------------------------------------------------
+-- jta_therapy_checklist_questions
+-- ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `jta_therapy_checklist_questions` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `therapy_id` INT UNSIGNED NOT NULL,
+  `pharmacy_id` INT UNSIGNED NOT NULL,
+  `condition_key` VARCHAR(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `question_key` VARCHAR(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `question_text` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+  `input_type` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'text',
+  `options_json` JSON DEFAULT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_tcq_therapy_key` (`therapy_id`, `question_key`),
+  KEY `idx_tcq_therapy` (`therapy_id`),
+  KEY `idx_tcq_pharmacy` (`pharmacy_id`),
+  CONSTRAINT `fk_tcq_therapy` FOREIGN KEY (`therapy_id`) REFERENCES `jta_therapies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_tcq_pharmacy` FOREIGN KEY (`pharmacy_id`) REFERENCES `jta_pharmas` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 1) jta_therapy_reminders: aggiunge 'shown' allo status (DB live dump aveva solo scheduled/sent/canceled)
--- ALTER TABLE `jta_therapy_reminders`
---   MODIFY `status` enum('scheduled','shown','sent','canceled') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'scheduled';
-
--- 2) jta_therapy_followups: aggiunge entry_type e backfill
--- ALTER TABLE `jta_therapy_followups`
---   ADD COLUMN `entry_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'followup' AFTER `therapy_id`,
---   ADD KEY `idx_tf_entry_type` (`entry_type`);
---
--- UPDATE `jta_therapy_followups`
--- SET entry_type = CASE
---   WHEN snapshot IS NOT NULL AND JSON_LENGTH(snapshot) IS NOT NULL THEN 'check'
---   ELSE 'followup'
--- END
--- WHERE entry_type IS NULL OR entry_type = '' OR entry_type = 'followup';
+-- ----------------------------------------------------------
+-- jta_therapy_checklist_answers
+-- ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `jta_therapy_checklist_answers` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `followup_id` INT UNSIGNED NOT NULL,
+  `question_id` INT UNSIGNED NOT NULL,
+  `answer_value` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_check_answer` (`followup_id`, `question_id`),
+  KEY `idx_tca_followup` (`followup_id`),
+  KEY `idx_tca_question` (`question_id`),
+  CONSTRAINT `fk_tca_followup` FOREIGN KEY (`followup_id`) REFERENCES `jta_therapy_followups` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_tca_question` FOREIGN KEY (`question_id`) REFERENCES `jta_therapy_checklist_questions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
