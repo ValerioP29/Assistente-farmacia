@@ -42,9 +42,14 @@ switch ($method) {
         }
 
         $includeCanceled = isset($_GET['include_canceled']) && $_GET['include_canceled'] === '1';
+        $includeHistory = isset($_GET['include_history']) && $_GET['include_history'] === '1';
         $sql = "SELECT r.* FROM jta_therapy_reminders r JOIN jta_therapies t ON r.therapy_id = t.id WHERE r.therapy_id = ? AND t.pharmacy_id = ?";
-        if (!$includeCanceled) {
-            $sql .= " AND r.status <> 'canceled'";
+        if (!$includeHistory) {
+            if ($includeCanceled) {
+                $sql .= " AND r.status IN ('scheduled', 'canceled')";
+            } else {
+                $sql .= " AND r.status = 'scheduled'";
+            }
         }
         $sql .= " ORDER BY r.scheduled_at ASC";
 

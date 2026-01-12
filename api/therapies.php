@@ -53,6 +53,36 @@ function executeQueryWithTypes(PDO $pdo, string $sql, array $params = []) {
     return $stmt;
 }
 
+function fetchPatientForPharmacy($patient_id, $pharmacy_id) {
+    if (!$patient_id || !$pharmacy_id) {
+        return null;
+    }
+
+    try {
+        return db_fetch_one(
+            "SELECT p.id FROM jta_patients p JOIN jta_pharma_patient pp ON p.id = pp.patient_id WHERE p.id = ? AND pp.pharma_id = ? AND pp.deleted_at IS NULL",
+            [$patient_id, $pharmacy_id]
+        );
+    } catch (Exception $e) {
+        respond(false, null, 'Errore verifica paziente', 500);
+    }
+}
+
+function fetchAssistantForPharmacy($assistant_id, $pharmacy_id) {
+    if (!$assistant_id || !$pharmacy_id) {
+        return null;
+    }
+
+    try {
+        return db_fetch_one(
+            "SELECT id FROM jta_assistants WHERE id = ? AND pharma_id = ?",
+            [$assistant_id, $pharmacy_id]
+        );
+    } catch (Exception $e) {
+        respond(false, null, 'Errore verifica assistente', 500);
+    }
+}
+
 $pdo = db()->getConnection();
 
 switch ($method) {
@@ -167,6 +197,9 @@ switch ($method) {
         $notes_initial = $input['notes_initial'] ?? null;
         $follow_up_date = $input['follow_up_date'] ?? null;
         $consent = $input['consent'] ?? null;
+        $doctor_info = $input['doctor_info'] ?? null;
+        $biometric_info = $input['biometric_info'] ?? null;
+        $care_context = $input['care_context'] ?? null;
 
         if (!$patient || empty($patient['first_name']) || empty($patient['last_name']) || !$primary_condition) {
             respond(false, null, 'Dati paziente o patologia mancanti', 400);
@@ -193,8 +226,13 @@ switch ($method) {
                 $patient_id = $pdo->lastInsertId();
                 executeQueryWithTypes($pdo, "INSERT INTO jta_pharma_patient (pharma_id, patient_id) VALUES (?, ?)", [$pharmacy_id, $patient_id]);
             } else {
+                $patientCheck = fetchPatientForPharmacy($patient_id, $pharmacy_id);
+                if (!$patientCheck) {
+                    $pdo->rollBack();
+                    respond(false, null, 'Paziente non trovato per la farmacia', 404);
+                }
                 executeQueryWithTypes($pdo, 
-                    "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ?",
+                    "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ? AND (pharmacy_id = ? OR pharmacy_id IS NULL)",
                     [
                         $patient['first_name'],
                         $patient['last_name'],
@@ -203,7 +241,8 @@ switch ($method) {
                         $patient['phone'] ?? null,
                         $patient['email'] ?? null,
                         $patient['notes'] ?? null,
-                        $patient_id
+                        $patient_id,
+                        $pharmacy_id
                     ]
                 );
             }
@@ -221,7 +260,7 @@ switch ($method) {
             $therapy_id = $pdo->lastInsertId();
 
             executeQueryWithTypes($pdo, 
-                "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent, doctor_info, biometric_info, care_context) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     $therapy_id,
                     $primary_condition,
@@ -232,7 +271,10 @@ switch ($method) {
                     $flags ? json_encode($flags) : null,
                     $notes_initial ?? $initial_notes,
                     $follow_up_date,
-                    $consent ? json_encode($consent) : null
+                    $consent ? json_encode($consent) : null,
+                    $doctor_info ? json_encode($doctor_info) : null,
+                    $biometric_info ? json_encode($biometric_info) : null,
+                    $care_context ? json_encode($care_context) : null
                 ]
             );
 
@@ -255,6 +297,12 @@ switch ($method) {
                         ]
                     );
                     $assistant_id = $pdo->lastInsertId();
+                } else {
+                    $assistantCheck = fetchAssistantForPharmacy($assistant_id, $pharmacy_id);
+                    if (!$assistantCheck) {
+                        $pdo->rollBack();
+                        respond(false, null, 'Assistente non trovato per la farmacia', 404);
+                    }
                 }
 
                 executeQueryWithTypes($pdo, 
@@ -339,14 +387,28 @@ switch ($method) {
         $notes_initial = $input['notes_initial'] ?? null;
         $follow_up_date = $input['follow_up_date'] ?? null;
         $consent = $input['consent'] ?? null;
+        $doctor_info = $input['doctor_info'] ?? null;
+        $biometric_info = $input['biometric_info'] ?? null;
+        $care_context = $input['care_context'] ?? null;
 
         try {
             $pdo->beginTransaction();
 
+            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+            if (!$therapy) {
+                $pdo->rollBack();
+                respond(false, null, 'Terapia non trovata per la farmacia', 404);
+            }
+
             $patient_id = $patient['id'] ?? null;
             if ($patient_id) {
+                $patientCheck = fetchPatientForPharmacy($patient_id, $pharmacy_id);
+                if (!$patientCheck) {
+                    $pdo->rollBack();
+                    respond(false, null, 'Paziente non trovato per la farmacia', 404);
+                }
                 executeQueryWithTypes($pdo, 
-                    "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ?",
+                    "UPDATE jta_patients SET first_name = ?, last_name = ?, birth_date = ?, codice_fiscale = ?, phone = ?, email = ?, notes = ? WHERE id = ? AND (pharmacy_id = ? OR pharmacy_id IS NULL)",
                     [
                         $patient['first_name'] ?? '',
                         $patient['last_name'] ?? '',
@@ -355,7 +417,8 @@ switch ($method) {
                         $patient['phone'] ?? null,
                         $patient['email'] ?? null,
                         $patient['notes'] ?? null,
-                        $patient_id
+                        $patient_id,
+                        $pharmacy_id
                     ]
                 );
             }
@@ -374,9 +437,19 @@ switch ($method) {
             );
 
             $existing = db_fetch_one("SELECT id FROM jta_therapy_chronic_care WHERE therapy_id = ?", [$therapy_id]);
+            $existingDetails = db_fetch_one("SELECT doctor_info, biometric_info, care_context FROM jta_therapy_chronic_care WHERE therapy_id = ?", [$therapy_id]);
+            $doctorInfoPayload = array_key_exists('doctor_info', $input)
+                ? ($doctor_info ? json_encode($doctor_info) : null)
+                : ($existingDetails['doctor_info'] ?? null);
+            $biometricInfoPayload = array_key_exists('biometric_info', $input)
+                ? ($biometric_info ? json_encode($biometric_info) : null)
+                : ($existingDetails['biometric_info'] ?? null);
+            $careContextPayload = array_key_exists('care_context', $input)
+                ? ($care_context ? json_encode($care_context) : null)
+                : ($existingDetails['care_context'] ?? null);
             if ($existing) {
                 executeQueryWithTypes($pdo,
-                    "UPDATE jta_therapy_chronic_care SET primary_condition = ?, general_anamnesis = ?, detailed_intake = ?, adherence_base = ?, risk_score = ?, flags = ?, notes_initial = ?, follow_up_date = ?, consent = ?, updated_at = NOW() WHERE therapy_id = ?",
+                    "UPDATE jta_therapy_chronic_care SET primary_condition = ?, general_anamnesis = ?, detailed_intake = ?, adherence_base = ?, risk_score = ?, flags = ?, notes_initial = ?, follow_up_date = ?, consent = ?, doctor_info = ?, biometric_info = ?, care_context = ?, updated_at = NOW() WHERE therapy_id = ?",
                     [
                         $primary_condition,
                         $general_anamnesis ? json_encode($general_anamnesis) : null,
@@ -387,12 +460,15 @@ switch ($method) {
                         $notes_initial ?? $initial_notes,
                         $follow_up_date,
                         $consent ? json_encode($consent) : null,
+                        $doctorInfoPayload,
+                        $biometricInfoPayload,
+                        $careContextPayload,
                         $therapy_id
                     ]
                 );
             } else {
                 executeQueryWithTypes($pdo,
-                    "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO jta_therapy_chronic_care (therapy_id, primary_condition, general_anamnesis, detailed_intake, adherence_base, risk_score, flags, notes_initial, follow_up_date, consent, doctor_info, biometric_info, care_context) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     [
                         $therapy_id,
                         $primary_condition,
@@ -403,7 +479,10 @@ switch ($method) {
                         $flags ? json_encode($flags) : null,
                         $notes_initial ?? $initial_notes,
                         $follow_up_date,
-                        $consent ? json_encode($consent) : null
+                        $consent ? json_encode($consent) : null,
+                        $doctorInfoPayload,
+                        $biometricInfoPayload,
+                        $careContextPayload
                     ]
                 );
             }
@@ -428,6 +507,12 @@ switch ($method) {
                         ]
                     );
                     $assistant_id = $pdo->lastInsertId();
+                } else {
+                    $assistantCheck = fetchAssistantForPharmacy($assistant_id, $pharmacy_id);
+                    if (!$assistantCheck) {
+                        $pdo->rollBack();
+                        respond(false, null, 'Assistente non trovato per la farmacia', 404);
+                    }
                 }
                 executeQueryWithTypes($pdo, 
                     "INSERT INTO jta_therapy_assistant (therapy_id, assistant_id, role, contact_channel, preferences_json, consents_json) VALUES (?,?,?,?,?,?)",

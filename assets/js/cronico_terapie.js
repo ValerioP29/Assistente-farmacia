@@ -285,7 +285,7 @@ async function loadReminders(therapyId) {
         }
         const items = result.data?.items || result.data || [];
         if (!items.length) {
-            list.innerHTML = '<div class="text-muted">Nessun promemoria</div>';
+            list.innerHTML = '<div class="text-muted">Nessun promemoria programmato</div>';
             return;
         }
         const rows = items.map((r) => {
@@ -1335,11 +1335,8 @@ function buildReportPreviewHtml(content) {
     const therapyEnd = clean(content.therapy?.end_date);
     const conditionSafe = clean(condition);
 
-    const rawFollowups = content.followups || [];
-    const checkFollowups = content.check_followups
-        || rawFollowups.filter((f) => f.entry_type === 'check' || (!f.entry_type && f.snapshot));
-    const manualFollowups = content.manual_followups
-        || rawFollowups.filter((f) => f.entry_type === 'followup' || (!f.entry_type && !f.snapshot));
+    const checkFollowups = Array.isArray(content.check_followups) ? content.check_followups : [];
+    const manualFollowups = Array.isArray(content.manual_followups) ? content.manual_followups : [];
 
     const checkHtml = checkFollowups.length
         ? checkFollowups.map((f) => buildFollowupHtml(f, condition)).join('')

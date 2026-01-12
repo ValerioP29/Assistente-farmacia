@@ -381,6 +381,14 @@ switch ($method) {
         if (!$therapy_id) {
             respondReports(false, null, 'therapy_id o farmacia mancanti', 400);
         }
+        try {
+            $therapy = db_fetch_one("SELECT id FROM jta_therapies WHERE id = ? AND pharmacy_id = ?", [$therapy_id, $pharmacy_id]);
+        } catch (Exception $e) {
+            respondReports(false, null, 'Errore verifica terapia', 500);
+        }
+        if (!$therapy) {
+            respondReports(false, null, 'Terapia non trovata per la farmacia', 404);
+        }
         $content = $input['content'] ?? [];
         try {
             db_query(
