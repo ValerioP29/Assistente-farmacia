@@ -12,29 +12,8 @@ $patient = $reportData['patient'] ?? [];
 $therapy = $reportData['therapy'] ?? [];
 $chronic = $reportData['chronic_care'] ?? [];
 $survey = $reportData['survey_base']['answers'] ?? [];
-$followups = $reportData['followups'] ?? [];
 $checkFollowups = $reportData['check_followups'] ?? [];
 $manualFollowups = $reportData['manual_followups'] ?? [];
-if (!$checkFollowups && !$manualFollowups && $followups) {
-    $checkFollowups = array_values(array_filter($followups, function ($row) {
-        $type = $row['entry_type'] ?? null;
-        $snapshot = $row['snapshot'] ?? null;
-        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
-        if ($type === 'check') {
-            return true;
-        }
-        return $type === null && $hasSnapshot;
-    }));
-    $manualFollowups = array_values(array_filter($followups, function ($row) {
-        $type = $row['entry_type'] ?? null;
-        $snapshot = $row['snapshot'] ?? null;
-        $hasSnapshot = is_array($snapshot) && !empty($snapshot);
-        if ($type === 'followup') {
-            return true;
-        }
-        return $type === null && !$hasSnapshot;
-    }));
-}
 ?>
 <!DOCTYPE html>
 <html lang="it">

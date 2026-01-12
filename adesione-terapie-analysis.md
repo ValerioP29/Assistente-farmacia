@@ -190,7 +190,7 @@
 ### `api/reminders.php`
 - **Ruolo:** API promemoria terapie.
 - **Responsabilità principali:**
-  - GET elenco promemoria per terapia (esclude cancellati di default).
+  - GET elenco promemoria per terapia (default solo `scheduled`, usa `include_history=1` per includere `shown`/`canceled`).
   - POST crea promemoria.
   - POST `action=cancel` annulla promemoria.
 - **Input / Output:**
