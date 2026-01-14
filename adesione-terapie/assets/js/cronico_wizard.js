@@ -661,6 +661,7 @@ function renderStep1() {
     const primary_condition = therapyWizardState.primary_condition || '';
 
     const age = patient.birth_date ? calculateAgeFromBirthDate(patient.birth_date) : '';
+    const ageLabel = age === '' ? '-' : age;
 
     content.innerHTML = `
         <div class="mb-4">
@@ -705,10 +706,6 @@ function renderStep1() {
                 <div class="col-md-4">
                     <label class="form-label">Email</label>
                     <input type="email" class="form-control" id="patientEmail" value="${escapeHtml(patient.email || '')}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Caregiver (facoltativo)</label>
-                    <input type="text" class="form-control" id="patientCaregiverNote" placeholder="es. figlia Lucia" value="${escapeHtml(patient.caregiver_note || '')}">
                 </div>
                 <div class="col-12">
                     <label class="form-label">Note iniziali</label>
@@ -772,7 +769,7 @@ function renderStep1() {
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Età</label>
-                    <input type="number" class="form-control" id="patientAge" value="${escapeHtml(age)}" readonly>
+                    <div class="form-control-plaintext" id="patientAgeValue">${escapeHtml(ageLabel)}</div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Stato ormonale donna</label>
@@ -1044,6 +1041,18 @@ function bindStep1Events() {
     const heightInput = document.getElementById('bioHeight');
     if (weightInput) weightInput.addEventListener('input', updateBmiFromInputs);
     if (heightInput) heightInput.addEventListener('input', updateBmiFromInputs);
+
+    const birthDateInput = document.getElementById('patientBirthDate');
+    const ageValue = document.getElementById('patientAgeValue');
+    if (birthDateInput && ageValue) {
+        const updateAgeLabel = () => {
+            const birthDate = birthDateInput.value || '';
+            const calculated = birthDate ? calculateAgeFromBirthDate(birthDate) : '';
+            ageValue.textContent = calculated === '' ? '-' : calculated;
+        };
+        birthDateInput.addEventListener('input', updateAgeLabel);
+        birthDateInput.addEventListener('change', updateAgeLabel);
+    }
 }
 
 async function searchPatients() {
@@ -1092,7 +1101,6 @@ function collectStep1Data() {
     patient.email = document.getElementById('patientEmail')?.value?.trim() || '';
     patient.notes = document.getElementById('patientNotes')?.value || '';
     patient.gender = document.getElementById('patientGender')?.value || '';
-    patient.caregiver_note = document.getElementById('patientCaregiverNote')?.value || '';
     therapyWizardState.patient = patient;
 
     therapyWizardState.initial_notes = document.getElementById('patientNotes')?.value || '';
@@ -1287,46 +1295,6 @@ function renderAssistantForms(list) {
                             <option value="whatsapp" ${a.contact_channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Report mensile</label>
-                        <select class="form-select" data-assistant-index="${idx}" data-field="wants_monthly_report">
-                            <option value="">Seleziona</option>
-                            <option value="true" ${a.preferences_json?.wants_monthly_report ? 'selected' : ''}>Sì</option>
-                            <option value="false" ${a.preferences_json && a.preferences_json.wants_monthly_report === false ? 'selected' : ''}>No</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Canale report</label>
-                        <select class="form-select" data-assistant-index="${idx}" data-field="report_channel">
-                            <option value="">Seleziona</option>
-                            <option value="email" ${a.preferences_json?.report_channel === 'email' ? 'selected' : ''}>Email</option>
-                            <option value="whatsapp" ${a.preferences_json?.report_channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Soddisfazione questionario</label>
-                        <input type="text" class="form-control" data-assistant-index="${idx}" data-field="questionnaire_satisfaction" value="${escapeHtml(a.consents_json?.questionnaire_satisfaction || '')}">
-                    </div>
-                    <div class="col-md-8">
-                        <label class="form-label">Info utili al farmacista</label>
-                        <input type="text" class="form-control" data-assistant-index="${idx}" data-field="extra_info_for_pharmacist" value="${escapeHtml(a.consents_json?.extra_info_for_pharmacist || '')}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Autorizza contatto medico</label>
-                        <select class="form-select" data-assistant-index="${idx}" data-field="can_contact_doctor">
-                            <option value="">Seleziona</option>
-                            <option value="true" ${a.consents_json?.can_contact_doctor ? 'selected' : ''}>Sì</option>
-                            <option value="false" ${a.consents_json && a.consents_json.can_contact_doctor === false ? 'selected' : ''}>No</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Autorizza ritiro documenti</label>
-                        <select class="form-select" data-assistant-index="${idx}" data-field="can_collect_documents">
-                            <option value="">Seleziona</option>
-                            <option value="true" ${a.consents_json?.can_collect_documents ? 'selected' : ''}>Sì</option>
-                            <option value="false" ${a.consents_json && a.consents_json.can_collect_documents === false ? 'selected' : ''}>No</option>
-                        </select>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1341,16 +1309,9 @@ function renderAssistantForms(list) {
             const assistant = therapyWizardState.therapy_assistants[idx] || {};
             if (['role', 'contact_channel'].includes(field)) {
                 assistant[field] = val || null;
-            } else if (['wants_monthly_report', 'report_channel'].includes(field)) {
-                assistant.preferences_json = assistant.preferences_json || {};
-                assistant.preferences_json[field] = field === 'wants_monthly_report' ? toBool(val) : (val || null);
             } else {
                 assistant.consents_json = assistant.consents_json || {};
-                if (['can_contact_doctor', 'can_collect_documents'].includes(field)) {
-                    assistant.consents_json[field] = toBool(val);
-                } else {
-                    assistant.consents_json[field] = val || '';
-                }
+                assistant.consents_json[field] = val || '';
             }
             therapyWizardState.therapy_assistants[idx] = assistant;
         });
@@ -1661,16 +1622,19 @@ function renderStep5() {
     if (!content) return;
     const flags = therapyWizardState.flags || {};
     const feedback = flags.caregiver_feedback || {};
+    const wantsReport = feedback.wants_monthly_report === true
+        || feedback.wants_monthly_report === 'true'
+        || feedback.wants_monthly_report === 'email'
+        || feedback.wants_monthly_report === 'whatsapp';
+    const reportChannel = feedback.wants_monthly_report === 'email' || feedback.wants_monthly_report === 'whatsapp'
+        ? feedback.wants_monthly_report
+        : (wantsReport ? 'email' : '');
     content.innerHTML = `
         <h5 class="mb-3">Sezione 5 – Note farmacista e follow-up</h5>
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">Punteggio di rischio / aderenza</label>
                 <input type="number" class="form-control" id="riskScore" value="${escapeHtml(therapyWizardState.risk_score || '')}">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Follow-up programmato</label>
-                <input type="date" class="form-control" id="followUpDate" value="${escapeHtml(therapyWizardState.follow_up_date || '')}">
             </div>
             <div class="col-12">
                 <label class="form-label">Criticità rilevate</label>
@@ -1689,20 +1653,19 @@ function renderStep5() {
             <h6 class="mb-2">Per il Caregiver</h6>
             <div class="row g-3 mt-2">
                 <div class="col-md-6">
-                    <label class="form-label">È soddisfatto del questionario che le è stato sottoposto?</label>
-                    <select class="form-select" id="caregiverSatisfied">
-                        <option value="" ${feedback.satisfied_questionnaire === null || feedback.satisfied_questionnaire === undefined ? 'selected' : ''}>Seleziona</option>
-                        <option value="true" ${feedback.satisfied_questionnaire === true ? 'selected' : ''}>Sì</option>
-                        <option value="false" ${feedback.satisfied_questionnaire === false ? 'selected' : ''}>No</option>
+                    <label class="form-label">È interessato a ricevere un REPORT mensile sullo stato di salute del suo familiare?</label>
+                    <select class="form-select" id="caregiverWantsReport">
+                        <option value="" ${feedback.wants_monthly_report === null || feedback.wants_monthly_report === undefined || feedback.wants_monthly_report === '' ? 'selected' : ''}>Non specificato</option>
+                        <option value="true" ${wantsReport ? 'selected' : ''}>Sì</option>
+                        <option value="false" ${feedback.wants_monthly_report === 'none' || feedback.wants_monthly_report === false || feedback.wants_monthly_report === 'false' ? 'selected' : ''}>No</option>
                     </select>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">È interessato a ricevere un REPORT mensile sullo stato di salute del suo familiare?</label>
+                <div class="col-md-6 ${wantsReport ? '' : 'd-none'}" id="caregiverReportChannelWrap">
+                    <label class="form-label">Canale report</label>
                     <select class="form-select" id="caregiverReportChannel">
-                        <option value="" ${!feedback.wants_monthly_report ? 'selected' : ''}>Non specificato</option>
-                        <option value="none" ${feedback.wants_monthly_report === 'none' ? 'selected' : ''}>No</option>
-                        <option value="email" ${feedback.wants_monthly_report === 'email' ? 'selected' : ''}>Via email</option>
-                        <option value="whatsapp" ${feedback.wants_monthly_report === 'whatsapp' ? 'selected' : ''}>Via WhatsApp</option>
+                        <option value="" ${!reportChannel ? 'selected' : ''}>Seleziona</option>
+                        <option value="email" ${reportChannel === 'email' ? 'selected' : ''}>Email</option>
+                        <option value="whatsapp" ${reportChannel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option>
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -1724,25 +1687,43 @@ function renderStep5() {
             </div>
             <div class="mt-3">
                 <label class="form-label">Note dal caregiver / informazioni aggiuntive</label>
-                <textarea class="form-control" id="caregiverNotes" rows="3">${escapeHtml(therapyWizardState.flags?.caregiver_extra_notes || '')}</textarea>
+                <textarea class="form-control" id="caregiverNotes" rows="3">${escapeHtml(flags.caregiver_extra_notes || '')}</textarea>
             </div>
         </div>
     `;
+
+    const wantsReportSelect = document.getElementById('caregiverWantsReport');
+    const reportChannelWrap = document.getElementById('caregiverReportChannelWrap');
+    if (wantsReportSelect && reportChannelWrap) {
+        wantsReportSelect.addEventListener('change', () => {
+            reportChannelWrap.classList.toggle('d-none', wantsReportSelect.value !== 'true');
+        });
+    }
 }
 
 function collectStep5Data() {
     therapyWizardState.risk_score = toNumberOrNull(document.getElementById('riskScore')?.value);
-    therapyWizardState.follow_up_date = document.getElementById('followUpDate')?.value || null;
     therapyWizardState.notes_initial = document.getElementById('notesInitial')?.value || '';
     const existingFlags = therapyWizardState.flags || {};
+    const existingFeedback = existingFlags.caregiver_feedback || {};
+    const wantsReportValue = document.getElementById('caregiverWantsReport')?.value || '';
+    const reportChannelValue = document.getElementById('caregiverReportChannel')?.value || '';
+    const wantsReport = wantsReportValue === 'true';
+    let wantsMonthlyReport = existingFeedback.wants_monthly_report || '';
+    if (wantsReportValue === 'false') {
+        wantsMonthlyReport = 'none';
+    } else if (wantsReport) {
+        wantsMonthlyReport = reportChannelValue || wantsMonthlyReport || 'email';
+    }
+    const caregiverNotesValue = document.getElementById('caregiverNotes')?.value;
     therapyWizardState.flags = {
         ...existingFlags,
         critical_issues: document.getElementById('criticalIssues')?.value || '',
         education_notes: document.getElementById('educationNotes')?.value || '',
-        caregiver_extra_notes: document.getElementById('caregiverNotes')?.value || '',
+        caregiver_extra_notes: caregiverNotesValue ?? existingFlags.caregiver_extra_notes ?? '',
         caregiver_feedback: {
-            satisfied_questionnaire: toBool(document.getElementById('caregiverSatisfied')?.value),
-            wants_monthly_report: document.getElementById('caregiverReportChannel')?.value || '',
+            ...existingFeedback,
+            wants_monthly_report: wantsMonthlyReport,
             allow_doctor_interaction: toBool(document.getElementById('caregiverAllowDoctor')?.value),
             allow_prescription_pickup: toBool(document.getElementById('caregiverAllowPickup')?.value)
         }
