@@ -8,15 +8,16 @@ register_shutdown_function(function () {
        if (!in_array($err['type'] ?? null, $fatalTypes, true)) {
            return;
        }
-        if (!headers_sent()) header('Content-Type: application/json');
+        error_log('followups.php fatal error: ' . json_encode($err));
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         http_response_code(500);
-        $buffer = ob_get_clean();
+        ob_get_clean();
         echo json_encode([
             'success' => false,
             'data' => null,
-            'error' => 'Fatal error',
-            'details' => $err,
-            'buffer' => $buffer
+            'error' => 'Fatal error'
         ]);
     }
 });
@@ -626,6 +627,17 @@ switch ($method) {
 
         if (!$therapy_id || $risk_score === null || !$follow_up_date) {
             respondFollowups(false, null, 'Campi obbligatori mancanti', 400);
+        }
+        if (filter_var($risk_score, FILTER_VALIDATE_INT) === false) {
+            respondFollowups(false, null, 'risk_score non valido', 422);
+        }
+        $formatOk = is_string($follow_up_date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $follow_up_date);
+        if (!$formatOk) {
+            respondFollowups(false, null, 'follow_up_date non valida', 422);
+        }
+        $date = DateTime::createFromFormat('Y-m-d', $follow_up_date);
+        if (!$date || $date->format('Y-m-d') !== $follow_up_date) {
+            respondFollowups(false, null, 'follow_up_date non valida', 422);
         }
 
         try {

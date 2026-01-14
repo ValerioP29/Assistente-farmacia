@@ -8,15 +8,16 @@ register_shutdown_function(function () {
         if (!in_array($err['type'] ?? null, $fatalTypes, true)) {
             return;
         }
-        if (!headers_sent()) header('Content-Type: application/json');
+        error_log('reports.php fatal error: ' . json_encode($err));
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
         http_response_code(500);
-        $buffer = ob_get_clean();
+        ob_get_clean();
         echo json_encode([
             'success' => false,
             'data' => null,
-            'error' => 'Fatal error',
-            'details' => $err,
-            'buffer' => $buffer
+            'error' => 'Fatal error'
         ]);
     }
 });

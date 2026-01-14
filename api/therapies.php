@@ -18,7 +18,7 @@ function respond($success, $data = null, $error = null, $code = 200) {
 }
 
 function getPharmacyId() {
-    return $_SESSION['pharmacy_id'] ?? null;
+    return get_panel_pharma_id(true);
 }
 
 function normalizeDateFields($data) {
@@ -405,9 +405,10 @@ switch ($method) {
             $pdo->commit();
             respond(true, ['therapy_id' => $therapy_id]);
        } catch (Throwable $e) {
-    $pdo->rollBack();
-    respond(false, null, $e->getMessage() . " | line: " . $e->getLine(), 500);
-}
+            $pdo->rollBack();
+            error_log('therapies.php create error: ' . $e->getMessage());
+            respond(false, null, 'Errore salvataggio terapia', 500);
+        }
 
         break;
 
