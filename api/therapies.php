@@ -149,6 +149,33 @@ switch ($method) {
                 $row['doctor_info'] = isset($row['doctor_info']) ? ($row['doctor_info'] ? json_decode($row['doctor_info'], true) : null) : null;
                 $row['biometric_info'] = isset($row['biometric_info']) ? ($row['biometric_info'] ? json_decode($row['biometric_info'], true) : null) : null;
                 $row['care_context'] = isset($row['care_context']) ? ($row['care_context'] ? json_decode($row['care_context'], true) : null) : null;
+
+                if ($therapy_id) {
+                    $survey = db_fetch_one(
+                        "SELECT condition_type, level, answers, compiled_at FROM jta_therapy_condition_surveys WHERE therapy_id = ? ORDER BY compiled_at DESC, id DESC LIMIT 1",
+                        [$row['id']]
+                    );
+                    if ($survey) {
+                        $survey['answers'] = isset($survey['answers']) ? ($survey['answers'] ? json_decode($survey['answers'], true) : null) : null;
+                    }
+                    $row['condition_survey'] = $survey ?: null;
+
+                    $assistants = db_fetch_all(
+                        "SELECT ta.assistant_id, ta.role, ta.contact_channel, ta.preferences_json, ta.consents_json,
+                                a.first_name, a.last_name, a.phone, a.email, a.type, a.relation_to_patient, a.preferred_contact, a.notes
+                         FROM jta_therapy_assistant ta
+                         JOIN jta_assistants a ON ta.assistant_id = a.id
+                         WHERE ta.therapy_id = ?
+                         ORDER BY ta.id ASC",
+                        [$row['id']]
+                    );
+                    foreach ($assistants as &$assistant) {
+                        $assistant['preferences_json'] = isset($assistant['preferences_json']) ? ($assistant['preferences_json'] ? json_decode($assistant['preferences_json'], true) : null) : null;
+                        $assistant['consents_json'] = isset($assistant['consents_json']) ? ($assistant['consents_json'] ? json_decode($assistant['consents_json'], true) : null) : null;
+                    }
+                    unset($assistant);
+                    $row['therapy_assistants'] = $assistants;
+                }
             }
             respond(true, ['items' => $rows, 'page' => $page, 'per_page' => $per_page]);
         } catch (Exception $e) {

@@ -616,6 +616,8 @@ async function loadTherapyForEdit(therapyId) {
         const result = await response.json();
         if (result.success && Array.isArray(result.data?.items) && result.data.items.length) {
             const t = result.data.items[0];
+            const defaultConsent = getDefaultWizardState().consent || {};
+            const defaultSurvey = getDefaultWizardState().condition_survey || {};
             const existingPatient = therapyWizardState.patient || {};
             therapyWizardState.patient = {
                 id: t.patient_id,
@@ -647,15 +649,42 @@ async function loadTherapyForEdit(therapyId) {
                 therapyWizardState.adherence_base = t.adherence_base;
             }
             if (t.consent !== null && t.consent !== undefined) {
-                therapyWizardState.consent = t.consent;
+                therapyWizardState.consent = {
+                    ...defaultConsent,
+                    ...t.consent,
+                    scopes: {
+                        ...(defaultConsent.scopes || {}),
+                        ...(t.consent?.scopes || {})
+                    },
+                    signatures: {
+                        ...(defaultConsent.signatures || {}),
+                        ...(t.consent?.signatures || {})
+                    }
+                };
             }
-            therapyWizardState.condition_survey.condition_type = therapyWizardState.primary_condition;
+            if (t.condition_survey) {
+                therapyWizardState.condition_survey = {
+                    ...defaultSurvey,
+                    ...t.condition_survey,
+                    answers: {
+                        ...(defaultSurvey.answers || {}),
+                        ...(t.condition_survey.answers || {})
+                    }
+                };
+            }
+            if (!therapyWizardState.condition_survey?.condition_type && therapyWizardState.primary_condition) {
+                therapyWizardState.condition_survey.condition_type = therapyWizardState.primary_condition;
+            }
             if (t.doctor_info !== null && t.doctor_info !== undefined) {
                 therapyWizardState.doctor_info = t.doctor_info;
             }
             if (t.biometric_info !== null && t.biometric_info !== undefined) {
                 therapyWizardState.biometric_info = t.biometric_info;
             }
+            if (Array.isArray(t.therapy_assistants)) {
+                therapyWizardState.therapy_assistants = t.therapy_assistants;
+            }
+            persistWizardDraft({ immediate: true, collectCurrent: false });
         }
     } catch (error) {
         console.error('Errore caricamento terapia', error);
