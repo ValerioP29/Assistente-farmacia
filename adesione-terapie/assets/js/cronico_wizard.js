@@ -21,6 +21,120 @@ let currentWizardStep = 1;
 const totalWizardSteps = 6;
 let currentTherapyId = null;
 let wizardModalInstance = null;
+const wizardDraftStoragePrefix = 'therapyWizardDraft';
+const wizardDraftDebounceMs = 350;
+const wizardDraftTtlMs = 7 * 24 * 60 * 60 * 1000;
+let wizardDraftTimeout = null;
+let skipDraftOnHide = false;
+
+function getWizardDraftStorageKey(therapyId = currentTherapyId) {
+    return `${wizardDraftStoragePrefix}:${therapyId || 'new'}`;
+}
+
+function normalizeWizardStep(step) {
+    const parsed = Number(step);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(Math.max(parsed, 1), totalWizardSteps);
+}
+
+function mergeWizardState(defaultState, draftState = {}) {
+    return {
+        ...defaultState,
+        ...draftState,
+        patient: { ...defaultState.patient, ...draftState.patient },
+        general_anamnesis: { ...defaultState.general_anamnesis, ...draftState.general_anamnesis },
+        detailed_intake: { ...defaultState.detailed_intake, ...draftState.detailed_intake },
+        doctor_info: { ...defaultState.doctor_info, ...draftState.doctor_info },
+        biometric_info: { ...defaultState.biometric_info, ...draftState.biometric_info },
+        adherence_base: { ...defaultState.adherence_base, ...draftState.adherence_base },
+        condition_survey: { ...defaultState.condition_survey, ...draftState.condition_survey },
+        flags: { ...defaultState.flags, ...draftState.flags },
+        consent: {
+            ...defaultState.consent,
+            ...draftState.consent,
+            scopes: { ...(defaultState.consent?.scopes || {}), ...(draftState.consent?.scopes || {}) },
+            signatures: { ...(defaultState.consent?.signatures || {}), ...(draftState.consent?.signatures || {}) }
+        }
+    };
+}
+
+function loadWizardDraft(therapyId = currentTherapyId) {
+    try {
+        const raw = localStorage.getItem(getWizardDraftStorageKey(therapyId));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const updatedAt = parsed?.updated_at ? Date.parse(parsed.updated_at) : null;
+        if (updatedAt && Date.now() - updatedAt > wizardDraftTtlMs) {
+            clearWizardDraft(therapyId);
+            return null;
+        }
+        return parsed;
+    } catch (error) {
+        console.warn('Impossibile leggere la bozza wizard', error);
+        return null;
+    }
+}
+
+function saveWizardDraftNow() {
+    try {
+        const payload = {
+            state: therapyWizardState,
+            step: currentWizardStep,
+            updated_at: new Date().toISOString()
+        };
+        localStorage.setItem(getWizardDraftStorageKey(), JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Impossibile salvare la bozza wizard', error);
+    }
+}
+
+function scheduleWizardDraftSave() {
+    window.clearTimeout(wizardDraftTimeout);
+    wizardDraftTimeout = window.setTimeout(saveWizardDraftNow, wizardDraftDebounceMs);
+}
+
+function clearWizardDraft(therapyId = currentTherapyId) {
+    window.clearTimeout(wizardDraftTimeout);
+    wizardDraftTimeout = null;
+    try {
+        localStorage.removeItem(getWizardDraftStorageKey(therapyId));
+    } catch (error) {
+        console.warn('Impossibile cancellare la bozza wizard', error);
+    }
+}
+
+function collectCurrentStepData() {
+    switch (currentWizardStep) {
+        case 1:
+            collectStep1Data();
+            break;
+        case 3:
+            collectStep3Data();
+            break;
+        case 4:
+            collectStep4Data();
+            break;
+        case 5:
+            collectStep5Data();
+            break;
+        case 6:
+            collectStep6Data();
+            break;
+        default:
+            break;
+    }
+}
+
+function persistWizardDraft({ immediate = false, collectCurrent = true } = {}) {
+    if (collectCurrent) {
+        collectCurrentStepData();
+    }
+    if (immediate) {
+        saveWizardDraftNow();
+    } else {
+        scheduleWizardDraftSave();
+    }
+}
 
 window.SURVEY_TEMPLATES = {
    Diabete: [
@@ -393,13 +507,20 @@ function openTherapyWizard(therapyId = null) {
 
 async function initWizard(therapyId = null) {
     currentTherapyId = therapyId;
-    therapyWizardState = getDefaultWizardState();
-    currentWizardStep = 1;
+    const defaultState = getDefaultWizardState();
+    const draft = loadWizardDraft(therapyId);
+    if (draft?.state) {
+        therapyWizardState = mergeWizardState(defaultState, draft.state);
+        currentWizardStep = normalizeWizardStep(draft.step);
+    } else {
+        therapyWizardState = defaultState;
+        currentWizardStep = 1;
+    }
 
     buildWizardModalShell();
     showWizardModal();
 
-    if (therapyId) {
+    if (therapyId && !draft?.state) {
         await loadTherapyForEdit(therapyId);
     }
 
@@ -428,6 +549,7 @@ function buildWizardModalShell() {
                 <div class="modal-footer d-flex justify-content-between">
                     <div>
                         <button type="button" class="btn btn-outline-secondary" id="wizardPrevBtn"><i class="fas fa-arrow-left me-2"></i>Indietro</button>
+                        <button type="button" class="btn btn-outline-danger ms-2" id="wizardResetBtn">Reset/Azzera tutto</button>
                     </div>
                     <div>
                         <button type="button" class="btn btn-outline-primary" id="wizardNextBtn">Avanti<i class="fas fa-arrow-right ms-2"></i></button>
@@ -438,17 +560,47 @@ function buildWizardModalShell() {
         </div>
     `;
 
-    container.addEventListener('hidden.bs.modal', () => {
-        container.innerHTML = '';
-    });
+    if (!container.dataset.draftListeners) {
+        container.addEventListener('hide.bs.modal', () => {
+            if (skipDraftOnHide) {
+                skipDraftOnHide = false;
+                return;
+            }
+            persistWizardDraft({ immediate: true });
+        });
+
+        container.addEventListener('hidden.bs.modal', () => {
+            container.innerHTML = '';
+        });
+
+        container.addEventListener('input', handleWizardFieldChange);
+        container.addEventListener('change', handleWizardFieldChange);
+        container.dataset.draftListeners = 'true';
+    }
 
     const prevBtn = container.querySelector('#wizardPrevBtn');
     const nextBtn = container.querySelector('#wizardNextBtn');
     const submitBtn = container.querySelector('#wizardSubmitBtn');
+    const resetBtn = container.querySelector('#wizardResetBtn');
 
     if (prevBtn) prevBtn.addEventListener('click', prevStep);
     if (nextBtn) nextBtn.addEventListener('click', nextStep);
     if (submitBtn) submitBtn.addEventListener('click', submitTherapy);
+    if (resetBtn) resetBtn.addEventListener('click', resetWizardDraft);
+}
+
+function handleWizardFieldChange(event) {
+    if (!event.target.closest('#wizardContent')) return;
+    persistWizardDraft();
+}
+
+function resetWizardDraft() {
+    const confirmed = confirm('Vuoi azzerare tutti i dati del wizard?');
+    if (!confirmed) return;
+    clearWizardDraft();
+    therapyWizardState = getDefaultWizardState();
+    currentWizardStep = 1;
+    renderCurrentStep();
 }
 
 function showWizardModal() {
@@ -581,6 +733,7 @@ function nextStep() {
         currentWizardStep += 1;
         renderCurrentStep();
     }
+    persistWizardDraft({ immediate: true, collectCurrent: false });
 }
 
 function prevStep() {
@@ -606,6 +759,7 @@ function prevStep() {
         currentWizardStep -= 1;
         renderCurrentStep();
     }
+    persistWizardDraft({ immediate: true, collectCurrent: false });
 }
 
 function validateStep(step) {
@@ -1084,6 +1238,7 @@ async function searchPatients() {
                 therapyWizardState.patient = payload;
                 therapyWizardState.primary_condition = therapyWizardState.primary_condition || null;
                 renderStep1();
+                persistWizardDraft({ immediate: true, collectCurrent: false });
             });
         });
     } catch (err) {
@@ -1314,6 +1469,7 @@ function renderAssistantForms(list) {
                 assistant.consents_json[field] = val || '';
             }
             therapyWizardState.therapy_assistants[idx] = assistant;
+            persistWizardDraft();
         });
     });
 }
@@ -1367,6 +1523,7 @@ async function fetchAssistants() {
                     therapyWizardState.therapy_assistants = therapyWizardState.therapy_assistants.filter((x) => x.assistant_id !== id);
                 }
                 renderAssistantForms(therapyWizardState.therapy_assistants);
+                persistWizardDraft({ immediate: true, collectCurrent: false });
             });
         });
     } catch (err) {
@@ -1900,6 +2057,8 @@ async function submitTherapy() {
         const data = await resp.json();
         if (data.success) {
             alert('Terapia salvata con successo');
+            clearWizardDraft();
+            skipDraftOnHide = true;
             wizardModalInstance?.hide();
             if (typeof loadTherapies === 'function') {
                 loadTherapies();
