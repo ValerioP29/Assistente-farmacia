@@ -177,6 +177,7 @@ switch ($method) {
                 respondReminders(false, null, 'Terapia non trovata per la farmacia', 400);
             }
 
+            $channel = 'push';
             db_query(
                 "INSERT INTO jta_therapy_reminders (therapy_id, title, message, type, scheduled_at, channel, status) VALUES (?,?,?,?,?,?,?)",
                 [
@@ -185,7 +186,7 @@ switch ($method) {
                     sanitize($input['message']),
                     $input['type'] ?? 'one-shot',
                     $scheduledAt->format('Y-m-d H:i:s'),
-                    $input['channel'] ?? 'email',
+                    $channel,
                     'scheduled'
                 ]
             );

@@ -15,6 +15,7 @@ let activeFollowups = [];
 let activeChecklistQuestions = [];
 let activeChecklistAnswers = {};
 let surveyTemplatesPromise = null;
+let reportPdfAvailable = null;
 
 function ensureSurveyTemplatesLoaded() {
     if (typeof window !== 'undefined' && window.SURVEY_TEMPLATES) {
@@ -418,9 +419,7 @@ function attachReportForm(therapySelect) {
 
     toggleFollowupField();
     if (generatePdfBtn) {
-        generatePdfBtn.addEventListener('click', () => {
-            handleReportDownload(therapySelect, followupSelect);
-        });
+        generatePdfBtn.onclick = () => handleReportDownload(therapySelect, followupSelect);
     }
 
     const refreshFollowups = async () => {
@@ -1155,6 +1154,40 @@ function showFollowupToast(message, type = 'success') {
     bsToast.show();
 }
 
+function showReportToast(message, type = 'success') {
+    const containerId = 'reportToastContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${sanitizeHtml(message)}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+        if (!container.children.length) {
+            container.remove();
+        }
+    });
+    bsToast.show();
+}
+
 function safeJsonString(value) {
     try {
         return JSON.stringify(JSON.parse(value));
@@ -1253,9 +1286,7 @@ async function openRemindersModal(therapyId = null) {
                             <div class="col-md-6">
                                 <label class="form-label">Canale</label>
                                 <select class="form-select" name="channel" required>
-                                    <option value="email">Email</option>
-                                    <option value="sms">SMS</option>
-                                    <option value="whatsapp">Whatsapp</option>
+                                    <option value="push">Pannello (toast)</option>
                                 </select>
                             </div>
                             <div class="col-12">
@@ -1333,7 +1364,7 @@ async function openReportsModal(therapyId = null) {
                             </div>
                             <div class="col-12 text-end">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                                <button type="button" class="btn btn-success d-none" id="reportGeneratePdf">Scarica report</button>
+                                <button type="button" class="btn btn-success" id="reportGeneratePdf">Scarica report</button>
                             </div>
                         </form>
                         <div id="reportPreview" class="report-preview bg-light p-2 rounded border"></div>
@@ -1348,6 +1379,9 @@ async function openReportsModal(therapyId = null) {
     therapySelect?.addEventListener('change', () => {
         loadReports(therapySelect.value);
     });
+    reportPdfAvailable = null;
+    const generatePdfBtn = document.getElementById('reportGeneratePdf');
+    if (generatePdfBtn) generatePdfBtn.disabled = true;
 
     const modal = new bootstrap.Modal(document.getElementById('reportModalDialog'));
     attachReportForm(therapySelect);
@@ -1356,7 +1390,7 @@ async function openReportsModal(therapyId = null) {
         therapySelect,
         document.getElementById('reportFollowupSelect'),
         document.getElementById('reportPreview'),
-        document.getElementById('reportGeneratePdf')
+        generatePdfBtn
     );
     modal.show();
 }
@@ -1590,14 +1624,16 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
     const therapyId = therapySelect.value;
     if (!therapyId) {
         previewContainer.innerHTML = '<div class="text-muted">Seleziona una terapia per generare il report</div>';
-        if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
+        reportPdfAvailable = null;
+        if (generatePdfBtn) generatePdfBtn.disabled = true;
         return;
     }
     const mode = document.querySelector('input[name="reportMode"]:checked')?.value || 'all';
     const followupId = followupSelect?.value;
     if (mode === 'single' && !followupId) {
         previewContainer.innerHTML = '<div class="text-muted">Seleziona check o follow-up</div>';
-        if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
+        reportPdfAvailable = null;
+        if (generatePdfBtn) generatePdfBtn.disabled = true;
         return;
     }
 
@@ -1613,21 +1649,18 @@ async function handleReportPreview(therapySelect, followupSelect, previewContain
         const result = await response.json();
         if (!result.success) {
             previewContainer.innerHTML = `<div class="text-danger">${sanitizeHtml(result.error || 'Errore anteprima')}</div>`;
-            if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
+            reportPdfAvailable = null;
+            if (generatePdfBtn) generatePdfBtn.disabled = true;
             return;
         }
         previewContainer.innerHTML = buildReportPreviewHtml(result.data?.content);
-        if (generatePdfBtn) {
-            if (result.data?.pdf_available) {
-                generatePdfBtn.classList.remove('d-none');
-            } else {
-                generatePdfBtn.classList.add('d-none');
-            }
-        }
+        reportPdfAvailable = !!result.data?.pdf_available;
+        if (generatePdfBtn) generatePdfBtn.disabled = reportPdfAvailable !== true;
     } catch (error) {
         console.error(error);
         previewContainer.innerHTML = '<div class="text-danger">Errore di rete nella creazione anteprima</div>';
-        if (generatePdfBtn) generatePdfBtn.classList.add('d-none');
+        reportPdfAvailable = null;
+        if (generatePdfBtn) generatePdfBtn.disabled = true;
     }
 }
 
@@ -1641,6 +1674,10 @@ function handleReportDownload(therapySelect, followupSelect) {
     const followupId = followupSelect?.value;
     if (mode === 'single' && !followupId) {
         alert('Seleziona check o follow-up.');
+        return;
+    }
+    if (reportPdfAvailable !== true) {
+        showReportToast('PDF non pronto: genera anteprima.', 'error');
         return;
     }
     const query = new URLSearchParams({
