@@ -26,9 +26,43 @@ const wizardDraftDebounceMs = 350;
 const wizardDraftTtlMs = 7 * 24 * 60 * 60 * 1000;
 let wizardDraftTimeout = null;
 let skipDraftOnHide = false;
+let wizardDraftTempId = null;
+let isWizardSubmitting = false;
 
-function getWizardDraftStorageKey(therapyId = currentTherapyId) {
-    return `${wizardDraftStoragePrefix}:${therapyId || 'new'}`;
+function getWizardUserKey() {
+    return window.APP_CONFIG?.userId || 'user';
+}
+
+function getWizardDraftTempId() {
+    if (wizardDraftTempId) {
+        return wizardDraftTempId;
+    }
+    const userKey = getWizardUserKey();
+    const storageKey = `${wizardDraftStoragePrefix}:temp:${userKey}`;
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+        wizardDraftTempId = stored;
+        return wizardDraftTempId;
+    }
+    const generated = (crypto?.randomUUID && crypto.randomUUID()) || `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    wizardDraftTempId = generated;
+    localStorage.setItem(storageKey, generated);
+    return wizardDraftTempId;
+}
+
+function getWizardDraftContextId() {
+    const patientId = therapyWizardState?.patient?.id;
+    if (patientId) {
+        return `patient:${patientId}`;
+    }
+    if (currentTherapyId) {
+        return `therapy:${currentTherapyId}`;
+    }
+    return `temp:${getWizardDraftTempId()}`;
+}
+
+function getWizardDraftStorageKey() {
+    return `${wizardDraftStoragePrefix}:${getWizardUserKey()}:${getWizardDraftContextId()}`;
 }
 
 function normalizeWizardStep(step) {
@@ -58,14 +92,14 @@ function mergeWizardState(defaultState, draftState = {}) {
     };
 }
 
-function loadWizardDraft(therapyId = currentTherapyId) {
+function loadWizardDraft() {
     try {
-        const raw = localStorage.getItem(getWizardDraftStorageKey(therapyId));
+        const raw = localStorage.getItem(getWizardDraftStorageKey());
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         const updatedAt = parsed?.updated_at ? Date.parse(parsed.updated_at) : null;
         if (updatedAt && Date.now() - updatedAt > wizardDraftTtlMs) {
-            clearWizardDraft(therapyId);
+            clearWizardDraft();
             return null;
         }
         return parsed;
@@ -93,11 +127,11 @@ function scheduleWizardDraftSave() {
     wizardDraftTimeout = window.setTimeout(saveWizardDraftNow, wizardDraftDebounceMs);
 }
 
-function clearWizardDraft(therapyId = currentTherapyId) {
+function clearWizardDraft() {
     window.clearTimeout(wizardDraftTimeout);
     wizardDraftTimeout = null;
     try {
-        localStorage.removeItem(getWizardDraftStorageKey(therapyId));
+        localStorage.removeItem(getWizardDraftStorageKey());
     } catch (error) {
         console.warn('Impossibile cancellare la bozza wizard', error);
     }
@@ -508,7 +542,7 @@ function openTherapyWizard(therapyId = null) {
 async function initWizard(therapyId = null) {
     currentTherapyId = therapyId;
     const defaultState = getDefaultWizardState();
-    const draft = loadWizardDraft(therapyId);
+    const draft = loadWizardDraft();
     if (draft?.state) {
         therapyWizardState = mergeWizardState(defaultState, draft.state);
         currentWizardStep = normalizeWizardStep(draft.step);
@@ -594,13 +628,94 @@ function handleWizardFieldChange(event) {
     persistWizardDraft();
 }
 
+function showWizardToast(message, type = 'error') {
+    const escape =
+        typeof escapeHtml === 'function'
+            ? escapeHtml
+            : (value) => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+    if (!window.bootstrap || !bootstrap.Toast) {
+        alert(String(message));
+        return;
+    }
+
+    const containerId = 'wizardToastContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${escape(message)}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+        if (!container.children.length) {
+            container.remove();
+        }
+    });
+    bsToast.show();
+}
+
 function resetWizardDraft() {
-    const confirmed = confirm('Vuoi azzerare tutti i dati del wizard?');
+    const confirmed = confirm('Vuoi azzerare i dati dello step corrente?');
     if (!confirmed) return;
-    clearWizardDraft();
-    therapyWizardState = getDefaultWizardState();
-    currentWizardStep = 1;
+    resetCurrentStepData();
     renderCurrentStep();
+    persistWizardDraft({ immediate: true, collectCurrent: false });
+}
+
+function resetCurrentStepData() {
+    const defaults = getDefaultWizardState();
+    switch (currentWizardStep) {
+        case 1:
+            therapyWizardState.patient = defaults.patient;
+            therapyWizardState.primary_condition = defaults.primary_condition;
+            therapyWizardState.initial_notes = defaults.initial_notes;
+            therapyWizardState.general_anamnesis = defaults.general_anamnesis;
+            therapyWizardState.detailed_intake = defaults.detailed_intake;
+            therapyWizardState.doctor_info = defaults.doctor_info;
+            therapyWizardState.biometric_info = defaults.biometric_info;
+            break;
+        case 2:
+            therapyWizardState.therapy_assistants = defaults.therapy_assistants;
+            break;
+        case 3:
+            therapyWizardState.adherence_base = defaults.adherence_base;
+            break;
+        case 4:
+            therapyWizardState.condition_survey = defaults.condition_survey;
+            break;
+        case 5:
+            therapyWizardState.risk_score = defaults.risk_score;
+            therapyWizardState.flags = defaults.flags;
+            therapyWizardState.notes_initial = defaults.notes_initial;
+            break;
+        case 6:
+            therapyWizardState.consent = defaults.consent;
+            break;
+        default:
+            break;
+    }
 }
 
 function showWizardModal() {
@@ -1266,6 +1381,11 @@ async function searchPatients() {
                 const payload = JSON.parse(e.target.getAttribute('data-patient'));
                 therapyWizardState.patient = payload;
                 therapyWizardState.primary_condition = therapyWizardState.primary_condition || null;
+                const draft = loadWizardDraft();
+                if (draft?.state) {
+                    therapyWizardState = mergeWizardState(getDefaultWizardState(), draft.state);
+                    currentWizardStep = normalizeWizardStep(draft.step);
+                }
                 renderStep1();
                 persistWizardDraft({ immediate: true, collectCurrent: false });
             });
@@ -2073,10 +2193,17 @@ function updateBmiFromInputs() {
 
 async function submitTherapy() {
     if (!validateStep(6)) return;
+    if (isWizardSubmitting) return;
+    isWizardSubmitting = true;
     const payload = assemblePayload();
     const isEdit = !!currentTherapyId;
     const url = isEdit ? `api/therapies.php?id=${currentTherapyId}` : 'api/therapies.php';
     const method = isEdit ? 'PUT' : 'POST';
+    const submitBtn = document.getElementById('wizardSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('disabled');
+    }
     try {
         const resp = await fetch(url, {
             method,
@@ -2093,10 +2220,16 @@ async function submitTherapy() {
                 loadTherapies();
             }
         } else {
-            alert(data.error || 'Errore salvataggio terapia');
+            showWizardToast(data.error || 'Errore salvataggio terapia', 'error');
         }
     } catch (err) {
-        alert('Errore di rete');
+        showWizardToast('Errore di rete nel salvataggio', 'error');
+    } finally {
+        isWizardSubmitting = false;
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('disabled');
+        }
     }
 }
 
